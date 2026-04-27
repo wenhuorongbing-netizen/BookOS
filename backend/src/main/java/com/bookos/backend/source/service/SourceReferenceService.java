@@ -36,9 +36,30 @@ public class SourceReferenceService {
     }
 
     @Transactional
+    public SourceReference createForRawCapture(User user, Book book, Long rawCaptureId, ParsedNoteResponse parsed) {
+        SourceReference sourceReference = new SourceReference();
+        sourceReference.setUser(user);
+        sourceReference.setBook(book);
+        sourceReference.setRawCaptureId(rawCaptureId);
+        sourceReference.setSourceType("RAW_CAPTURE");
+        sourceReference.setPageStart(parsed.pageStart());
+        sourceReference.setPageEnd(parsed.pageEnd());
+        sourceReference.setLocationLabel(buildLocationLabel(parsed, "Raw capture"));
+        sourceReference.setSourceText(parsed.rawText());
+        sourceReference.setSourceConfidence(parsed.pageStart() == null ? SourceConfidence.LOW : SourceConfidence.HIGH);
+        return sourceReferenceRepository.save(sourceReference);
+    }
+
+    @Transactional
     public void replaceForNoteBlock(User user, Book book, BookNote note, NoteBlock block, ParsedNoteResponse parsed) {
         sourceReferenceRepository.deleteByNoteBlockId(block.getId());
         createForNoteBlock(user, book, note, block, parsed);
+    }
+
+    @Transactional
+    public SourceReference replaceForRawCapture(User user, Book book, Long rawCaptureId, ParsedNoteResponse parsed) {
+        sourceReferenceRepository.deleteByRawCaptureId(rawCaptureId);
+        return createForRawCapture(user, book, rawCaptureId, parsed);
     }
 
     public SourceReferenceResponse toResponse(SourceReference sourceReference) {
@@ -57,8 +78,12 @@ public class SourceReferenceService {
     }
 
     private String buildLocationLabel(ParsedNoteResponse parsed) {
+        return buildLocationLabel(parsed, "Note block");
+    }
+
+    private String buildLocationLabel(ParsedNoteResponse parsed, String fallback) {
         if (parsed.pageStart() == null) {
-            return "Note block";
+            return fallback;
         }
         if (parsed.pageEnd() != null) {
             return "p." + parsed.pageStart() + "-" + parsed.pageEnd();

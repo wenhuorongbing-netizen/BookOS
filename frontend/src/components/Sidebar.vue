@@ -85,10 +85,21 @@ const routeItems = [
     short: 'LI',
     activePaths: ['/my-library', '/books', '/currently-reading', '/five-star', '/anti-library'],
   },
+  {
+    label: 'Notes',
+    to: '/notes',
+    short: 'NO',
+    activePaths: ['/notes'],
+  },
+  {
+    label: 'Captures',
+    to: '/captures/inbox',
+    short: 'CA',
+    activePaths: ['/captures'],
+  },
 ]
 
 const plannedItems = [
-  { label: 'Notes', short: 'NO' },
   { label: 'Quotes', short: 'QU' },
   { label: 'Lenses', short: 'LE' },
   { label: 'Diagnostics', short: 'DI' },

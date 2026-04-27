@@ -30,7 +30,7 @@ public class UserLibraryService {
     @Transactional
     public UserBookResponse addToLibrary(String email, Long bookId, AddToLibraryRequest request) {
         User user = userService.getByEmailRequired(email);
-        Book book = bookService.getBookEntity(bookId);
+        Book book = bookService.getAccessibleBookEntity(email, bookId);
         UserBook existing = userBookRepository.findByUserIdAndBookId(user.getId(), bookId).orElse(null);
         if (existing != null) {
             return toUserBookResponse(existing);

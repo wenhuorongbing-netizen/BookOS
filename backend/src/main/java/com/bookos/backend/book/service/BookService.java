@@ -17,14 +17,17 @@ import com.bookos.backend.common.enums.Visibility;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,7 +48,7 @@ public class BookService {
         List<Book> books = bookRepository.findAllByOrderByTitleAsc();
         Map<Long, UserBook> userBooksByBookId = mapUserBooks(user.getId());
 
-        Stream<Book> stream = books.stream();
+        Stream<Book> stream = books.stream().filter(book -> canView(user, book));
         if (StringUtils.hasText(query)) {
             String q = query.trim().toLowerCase(Locale.ROOT);
             stream = stream.filter(book -> matchesQuery(book, q));
@@ -69,14 +72,16 @@ public class BookService {
     public BookResponse getBook(String email, Long id) {
         User user = userService.getByEmailRequired(email);
         Book book = getBookEntity(id);
+        assertCanView(user, book);
         UserBook userBook = userBookRepository.findByUserIdAndBookId(user.getId(), id).orElse(null);
         return toBookResponse(book, userBook);
     }
 
     @Transactional
     public BookResponse createBook(String email, BookRequest request) {
-        userService.getByEmailRequired(email);
+        User user = userService.getByEmailRequired(email);
         Book book = new Book();
+        book.setOwner(user);
         applyRequest(book, request);
         Book saved = bookRepository.save(book);
         return toBookResponse(saved, null);
@@ -84,8 +89,9 @@ public class BookService {
 
     @Transactional
     public BookResponse updateBook(String email, Long id, BookRequest request) {
-        userService.getByEmailRequired(email);
+        User user = userService.getByEmailRequired(email);
         Book book = getBookEntity(id);
+        assertCanManage(user, book);
         applyRequest(book, request);
         Book saved = bookRepository.save(book);
         return toBookResponse(saved, null);
@@ -93,10 +99,12 @@ public class BookService {
 
     @Transactional
     public void deleteBook(String email, Long id) {
-        userService.getByEmailRequired(email);
+        User user = userService.getByEmailRequired(email);
         if (!bookRepository.existsById(id)) {
             throw new NoSuchElementException("Book not found.");
         }
+        Book book = getBookEntity(id);
+        assertCanManage(user, book);
         userBookRepository.deleteAllByBookId(id);
         bookRepository.deleteById(id);
     }
@@ -105,6 +113,14 @@ public class BookService {
     public Book getBookEntity(Long id) {
         return bookRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Book not found."));
+    }
+
+    @Transactional(readOnly = true)
+    public Book getAccessibleBookEntity(String email, Long id) {
+        User user = userService.getByEmailRequired(email);
+        Book book = getBookEntity(id);
+        assertCanView(user, book);
+        return book;
     }
 
     public BookResponse toBookResponse(Book book, UserBook userBook) {
@@ -151,6 +167,33 @@ public class BookService {
                         .anyMatch(name -> name.contains(query));
     }
 
+    private void assertCanView(User user, Book book) {
+        if (!canView(user, book)) {
+            throw new AccessDeniedException("You are not allowed to access this book.");
+        }
+    }
+
+    private boolean canView(User user, Book book) {
+        return isAdmin(user)
+                || isOwner(user, book)
+                || book.getVisibility() == Visibility.PUBLIC
+                || book.getVisibility() == Visibility.SHARED;
+    }
+
+    private void assertCanManage(User user, Book book) {
+        if (!isAdmin(user) && !isOwner(user, book)) {
+            throw new AccessDeniedException("You are not allowed to modify this book.");
+        }
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRole() != null && user.getRole().getName() == com.bookos.backend.common.enums.RoleName.ADMIN;
+    }
+
+    private boolean isOwner(User user, Book book) {
+        return book.getOwner() != null && Objects.equals(book.getOwner().getId(), user.getId());
+    }
+
     private void applyRequest(Book book, BookRequest request) {
         book.setTitle(request.title().trim());
         book.setSubtitle(trimToNull(request.subtitle()));
@@ -167,8 +210,8 @@ public class BookService {
     }
 
     private void replaceAuthors(Book book, List<String> authorNames) {
-        book.getBookAuthors().clear();
         List<String> cleaned = dedupe(authorNames);
+        List<BookAuthor> desiredLinks = new ArrayList<>();
         for (int i = 0; i < cleaned.size(); i++) {
             String name = cleaned.get(i);
             Author author = authorRepository.findByNameIgnoreCase(name).orElseGet(() -> {
@@ -178,16 +221,21 @@ public class BookService {
                 return authorRepository.save(created);
             });
 
-            BookAuthor link = new BookAuthor();
+            BookAuthor link = book.getBookAuthors().stream()
+                    .filter(existing -> existing.getAuthor().getId().equals(author.getId()))
+                    .findFirst()
+                    .orElseGet(BookAuthor::new);
             link.setBook(book);
             link.setAuthor(author);
             link.setDisplayOrder(i);
-            book.getBookAuthors().add(link);
+            desiredLinks.add(link);
         }
+        book.getBookAuthors().clear();
+        book.getBookAuthors().addAll(desiredLinks);
     }
 
     private void replaceTags(Book book, List<String> tagNames) {
-        book.getBookTags().clear();
+        Set<BookTag> desiredLinks = new LinkedHashSet<>();
         for (String name : dedupe(tagNames)) {
             String slug = SlugUtils.slugify(name);
             Tag tag = tagRepository.findBySlugIgnoreCase(slug).orElseGet(() -> {
@@ -197,11 +245,16 @@ public class BookService {
                 return tagRepository.save(created);
             });
 
-            BookTag link = new BookTag();
+            BookTag link = book.getBookTags().stream()
+                    .filter(existing -> existing.getTag().getId().equals(tag.getId()))
+                    .findFirst()
+                    .orElseGet(BookTag::new);
             link.setBook(book);
             link.setTag(tag);
-            book.getBookTags().add(link);
+            desiredLinks.add(link);
         }
+        book.getBookTags().clear();
+        book.getBookTags().addAll(desiredLinks);
     }
 
     private List<String> dedupe(List<String> input) {

@@ -1,77 +1,170 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { BookRecord } from '../types'
+import { archiveCapture, convertCapture, createCapture, getCaptureInbox } from '../api/captures'
+import type { BookRecord, NoteBlockType, RawCaptureRecord } from '../types'
 
 export type CaptureMarker = 'text' | 'quote' | 'link' | 'emoji' | 'inspiration' | 'favorite' | 'important' | 'question' | 'idea'
 
 export interface RecentNoteBlock {
   id: string
+  captureId: number
   bookId: number
   bookTitle: string
   type: CaptureMarker
+  parsedType: NoteBlockType
   title: string
   content: string
   tags: string[]
+  concepts: string[]
   page: string | null
   createdAt: string
   bookmarked: boolean
+  status: RawCaptureRecord['status']
 }
 
 export const useCaptureStore = defineStore('capture', () => {
-  const recentBlocks = ref<RecentNoteBlock[]>([])
+  const captures = ref<RawCaptureRecord[]>([])
+  const loading = ref(false)
+  const bookmarkVersion = ref(0)
 
-  const latestBlocks = computed(() =>
-    [...recentBlocks.value].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-  )
+  const latestBlocks = computed(() => {
+    bookmarkVersion.value
+    return captures.value.map(toRecentBlock)
+  })
 
-  function addCapture(book: BookRecord, content: string, marker: CaptureMarker) {
-    const parsed = parseCapture(content)
-    const block: RecentNoteBlock = {
-      id: `${book.id}-${Date.now()}`,
-      bookId: book.id,
-      bookTitle: book.title,
-      type: marker,
-      title: parsed.title,
-      content: parsed.content,
-      tags: parsed.tags,
-      page: parsed.page,
-      createdAt: new Date().toISOString(),
-      bookmarked: false,
+  async function loadInbox(bookId?: number | string) {
+    loading.value = true
+    try {
+      captures.value = await getCaptureInbox(bookId ? { bookId } : undefined)
+    } finally {
+      loading.value = false
     }
+  }
 
-    recentBlocks.value.unshift(block)
-    return block
+  async function loadBookCaptures(bookId: number | string) {
+    await loadInbox(bookId)
+  }
+
+  async function addCapture(book: BookRecord, content: string, marker: CaptureMarker) {
+    const rawText = applyMarker(content, marker)
+    const capture = await createCapture({ bookId: book.id, rawText })
+    upsertCapture(capture)
+    return toRecentBlock(capture)
+  }
+
+  async function convertToNote(captureId: number, title?: string) {
+    const conversion = await convertCapture(captureId, { targetType: 'NOTE', title })
+    removeCapture(captureId)
+    return conversion
+  }
+
+  async function archive(captureId: number) {
+    await archiveCapture(captureId)
+    removeCapture(captureId)
   }
 
   function toggleBookmark(id: string) {
-    const block = recentBlocks.value.find((item) => item.id === id)
-    if (block) block.bookmarked = !block.bookmarked
+    const captureId = Number(id)
+    const capture = captures.value.find((item) => item.id === captureId)
+    if (!capture) return
+    window.localStorage.setItem(bookmarkKey(captureId), isBookmarked(captureId) ? 'false' : 'true')
+    bookmarkVersion.value += 1
   }
 
   function forBook(bookId: number) {
     return latestBlocks.value.filter((block) => block.bookId === bookId)
   }
 
+  function upsertCapture(capture: RawCaptureRecord) {
+    captures.value = [capture, ...captures.value.filter((item) => item.id !== capture.id)]
+  }
+
+  function removeCapture(captureId: number) {
+    captures.value = captures.value.filter((item) => item.id !== captureId)
+  }
+
   return {
-    recentBlocks,
+    captures,
+    loading,
     latestBlocks,
+    loadInbox,
+    loadBookCaptures,
     addCapture,
+    convertToNote,
+    archive,
     toggleBookmark,
     forBook,
   }
 })
 
-function parseCapture(raw: string) {
-  const content = raw.trim()
-  const firstLine = content.split(/\r?\n/).find(Boolean) ?? 'Untitled capture'
-  const pageMatch = content.match(/\b(?:p\.?|page|pp\.?)\s*(\d+(?:\s*[-\u2013]\s*\d+)?)\b/i)
-  const hashTags = [...content.matchAll(/#([\p{L}\p{N}_-]+)/gu)].map((match) => match[1])
-  const wikiTags = [...content.matchAll(/\[\[([^\]]+)\]\]/g)].map((match) => match[1].trim()).filter(Boolean)
-
+function toRecentBlock(capture: RawCaptureRecord): RecentNoteBlock {
   return {
-    title: firstLine.length > 72 ? `${firstLine.slice(0, 69)}...` : firstLine,
-    content,
-    page: pageMatch?.[1]?.replace(/\s+/g, '') ?? null,
-    tags: [...new Set([...hashTags, ...wikiTags])].slice(0, 6),
+    id: String(capture.id),
+    captureId: capture.id,
+    bookId: capture.bookId,
+    bookTitle: capture.bookTitle,
+    type: toMarker(capture.parsedType),
+    parsedType: capture.parsedType,
+    title: makeTitle(capture),
+    content: capture.cleanText || capture.rawText,
+    tags: [...capture.tags, ...capture.concepts].slice(0, 6),
+    concepts: capture.concepts,
+    page: pageLabel(capture.pageStart, capture.pageEnd),
+    createdAt: capture.createdAt,
+    bookmarked: isBookmarked(capture.id),
+    status: capture.status,
   }
+}
+
+function applyMarker(content: string, marker: CaptureMarker) {
+  const trimmed = content.trim()
+  if (marker === 'text' || marker === 'emoji' || startsWithKnownMarker(trimmed)) {
+    return trimmed
+  }
+
+  const markerPrefix: Record<Exclude<CaptureMarker, 'text' | 'emoji'>, string> = {
+    quote: '\uD83D\uDCAC',
+    link: '\uD83D\uDD17',
+    inspiration: '\uD83D\uDCA1',
+    favorite: '\uD83D\uDCCC',
+    important: '\uD83D\uDCCC',
+    question: '\u2753',
+    idea: '\uD83D\uDCA1',
+  }
+
+  return `${markerPrefix[marker]} ${trimmed}`
+}
+
+function startsWithKnownMarker(value: string) {
+  return /^[\u2600-\u27BF]|\uD83C|\uD83D|\uD83E/.test(value)
+}
+
+function toMarker(type: NoteBlockType): CaptureMarker {
+  if (type === 'QUOTE') return 'quote'
+  if (type === 'LINK') return 'link'
+  if (type === 'INSPIRATION') return 'inspiration'
+  if (type === 'IMPORTANT') return 'important'
+  if (type === 'QUESTION') return 'question'
+  if (type === 'ACTION_ITEM') return 'favorite'
+  if (type === 'IDEA' || type === 'RELATED_CONCEPT') return 'idea'
+  return 'text'
+}
+
+function makeTitle(capture: RawCaptureRecord) {
+  const value = (capture.cleanText || capture.rawText || 'Untitled capture').split(/\r?\n/).find(Boolean) ?? 'Untitled capture'
+  return value.length > 72 ? `${value.slice(0, 69)}...` : value
+}
+
+function pageLabel(pageStart: number | null, pageEnd: number | null) {
+  if (pageStart && pageEnd) return `${pageStart}-${pageEnd}`
+  if (pageStart) return String(pageStart)
+  return null
+}
+
+function bookmarkKey(captureId: number) {
+  return `bookos.capture.bookmark.${captureId}`
+}
+
+function isBookmarked(captureId: number) {
+  return window.localStorage.getItem(bookmarkKey(captureId)) === 'true'
 }

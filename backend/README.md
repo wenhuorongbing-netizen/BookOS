@@ -52,7 +52,9 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 .\mvnw.cmd test
 ```
 
-## Seed accounts
+## Optional local seed accounts
+
+Seed accounts are disabled by default. Set `APP_SEED_ENABLED=true` only in a local development environment if you want demo data.
 
 - `designer@bookos.local` / `Password123!`
 - `admin@bookos.local` / `Admin123!`

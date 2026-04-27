@@ -6,7 +6,12 @@
           <div class="eyebrow">Quick Capture</div>
           <h2 id="quick-capture-title">Capture while the source is still warm</h2>
         </div>
-        <AppBadge variant="primary" size="sm">{{ book.title }}</AppBadge>
+        <div class="quick-capture__header-actions">
+          <AppBadge variant="primary" size="sm">{{ book.title }}</AppBadge>
+          <RouterLink :to="{ name: 'capture-inbox', query: { bookId: String(book.id) } }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Open Inbox</AppButton>
+          </RouterLink>
+        </div>
       </div>
 
       <label class="quick-capture__field" for="quick-capture-input">
@@ -39,7 +44,15 @@
 
         <div class="quick-capture__submit">
           <span class="quick-capture__shortcut">Ctrl/Cmd + Enter to capture</span>
-          <AppButton variant="primary" aria-label="Submit quick capture" @click="submitCapture">Capture</AppButton>
+          <AppButton
+            variant="primary"
+            aria-label="Submit quick capture"
+            :loading="submitting"
+            :disabled="!draft.trim()"
+            @click="submitCapture"
+          >
+            Capture
+          </AppButton>
         </div>
       </div>
 
@@ -61,7 +74,9 @@
         </label>
       </div>
 
-      <div v-if="sortedBlocks.length" class="note-block-list">
+      <AppLoadingState v-if="capture.loading" label="Loading capture inbox" />
+
+      <div v-else-if="sortedBlocks.length" class="note-block-list">
         <article v-for="block in sortedBlocks" :key="block.id" class="note-block-card">
           <button class="note-block-card__main" type="button" :aria-label="`Open note block ${block.title}`" @click="openSource(block)">
             <span class="note-block-card__icon" aria-hidden="true">{{ markerIcon(block.type) }}</span>
@@ -78,6 +93,20 @@
           </div>
 
           <div class="note-block-card__actions">
+            <AppButton
+              variant="secondary"
+              :loading="convertingCaptureId === block.captureId"
+              @click="convertBlock(block)"
+            >
+              Convert to Note
+            </AppButton>
+            <AppButton
+              variant="ghost"
+              :disabled="archivingCaptureId === block.captureId"
+              @click="archiveBlock(block)"
+            >
+              Archive
+            </AppButton>
             <AppIconButton
               :label="block.bookmarked ? `Remove bookmark from ${block.title}` : `Bookmark ${block.title}`"
               :selected="block.bookmarked"
@@ -94,7 +123,7 @@
       <AppEmptyState
         v-else
         title="No note blocks yet"
-        description="Use Quick Capture above to create a local reading note for this book."
+        description="Use Quick Capture above to create a persisted inbox capture for this book."
         compact
       />
     </AppCard>
@@ -102,9 +131,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, RouterLink, useRouter } from 'vue-router'
 import type { BookRecord } from '../../types'
 import { useCaptureStore, type CaptureMarker, type RecentNoteBlock } from '../../stores/capture'
 import { useRightRailStore } from '../../stores/rightRail'
@@ -113,6 +142,7 @@ import AppButton from '../ui/AppButton.vue'
 import AppCard from '../ui/AppCard.vue'
 import AppEmptyState from '../ui/AppEmptyState.vue'
 import AppIconButton from '../ui/AppIconButton.vue'
+import AppLoadingState from '../ui/AppLoadingState.vue'
 
 const props = defineProps<{
   book: BookRecord
@@ -125,6 +155,9 @@ const draft = ref('')
 const feedback = ref('')
 const selectedMarker = ref<CaptureMarker>('text')
 const sortOrder = ref<'latest' | 'oldest'>('latest')
+const submitting = ref(false)
+const convertingCaptureId = ref<number | null>(null)
+const archivingCaptureId = ref<number | null>(null)
 
 const markers: Array<{ value: CaptureMarker; label: string; icon: string }> = [
   { value: 'text', label: 'Text note marker', icon: 'TX' },
@@ -148,6 +181,7 @@ const sortedBlocks = computed(() => {
 
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
+  void capture.loadBookCaptures(props.book.id)
 })
 
 onBeforeUnmount(() => {
@@ -159,7 +193,14 @@ onBeforeRouteLeave(() => {
   return window.confirm('You have an unsaved quick capture draft. Leave this page and discard it?')
 })
 
-function submitCapture() {
+watch(
+  () => props.book.id,
+  (bookId) => {
+    void capture.loadBookCaptures(bookId)
+  },
+)
+
+async function submitCapture() {
   const value = draft.value.trim()
   if (!value) {
     feedback.value = 'Write a thought before capturing.'
@@ -167,11 +208,19 @@ function submitCapture() {
     return
   }
 
-  const block = capture.addCapture(props.book, value, selectedMarker.value)
-  draft.value = ''
-  feedback.value = `Captured ${markerLabel(block.type)} for ${props.book.title}.`
-  ElMessage.success(feedback.value)
-  openSource(block, false)
+  submitting.value = true
+  try {
+    const block = await capture.addCapture(props.book, value, selectedMarker.value)
+    draft.value = ''
+    feedback.value = `Captured ${markerLabel(block.type)} for ${props.book.title}.`
+    ElMessage.success(feedback.value)
+    openSource(block, false)
+  } catch {
+    feedback.value = 'Capture could not be saved. Add this book to your library first if needed.'
+    ElMessage.error(feedback.value)
+  } finally {
+    submitting.value = false
+  }
 }
 
 function openSource(block: RecentNoteBlock, navigate = true) {
@@ -196,6 +245,31 @@ function openSource(block: RecentNoteBlock, navigate = true) {
 
 function openTag(tag: string) {
   router.push({ name: 'dashboard', query: { focus: 'tag', tag, bookId: String(props.book.id) } })
+}
+
+async function convertBlock(block: RecentNoteBlock) {
+  convertingCaptureId.value = block.captureId
+  try {
+    const conversion = await capture.convertToNote(block.captureId, block.title)
+    ElMessage.success('Capture converted to a formal note.')
+    router.push({ name: 'note-detail', params: { id: conversion.targetId } })
+  } catch {
+    ElMessage.error('Capture conversion failed.')
+  } finally {
+    convertingCaptureId.value = null
+  }
+}
+
+async function archiveBlock(block: RecentNoteBlock) {
+  archivingCaptureId.value = block.captureId
+  try {
+    await capture.archive(block.captureId)
+    ElMessage.success('Capture archived.')
+  } catch {
+    ElMessage.error('Capture archive failed.')
+  } finally {
+    archivingCaptureId.value = null
+  }
 }
 
 function markerIcon(marker: CaptureMarker) {
@@ -242,6 +316,14 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
 .quick-capture__header,
 .recent-notes__header {
   align-items: flex-start;
+}
+
+.quick-capture__header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .quick-capture h2,

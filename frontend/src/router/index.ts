@@ -16,6 +16,7 @@ const CurrentlyReadingView = () => import('../views/CurrentlyReadingView.vue')
 const AntiLibraryView = () => import('../views/AntiLibraryView.vue')
 const NotesView = () => import('../views/NotesView.vue')
 const NoteDetailView = () => import('../views/NoteDetailView.vue')
+const CaptureInboxView = () => import('../views/CaptureInboxView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
 
 const APP_TITLE = 'BookOS'
@@ -103,6 +104,12 @@ const router = createRouter({
           name: 'note-detail',
           component: NoteDetailView,
           meta: { requiresAuth: true, title: 'Note Detail' },
+        },
+        {
+          path: 'captures/inbox',
+          name: 'capture-inbox',
+          component: CaptureInboxView,
+          meta: { requiresAuth: true, title: 'Capture Inbox' },
         },
         {
           path: 'five-star',

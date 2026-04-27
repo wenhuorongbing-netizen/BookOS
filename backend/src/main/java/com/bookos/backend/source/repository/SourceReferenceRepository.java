@@ -9,4 +9,8 @@ public interface SourceReferenceRepository extends JpaRepository<SourceReference
     List<SourceReference> findByNoteBlockIdOrderByCreatedAtAsc(Long noteBlockId);
 
     void deleteByNoteBlockId(Long noteBlockId);
+
+    List<SourceReference> findByRawCaptureIdOrderByCreatedAtAsc(Long rawCaptureId);
+
+    void deleteByRawCaptureId(Long rawCaptureId);
 }

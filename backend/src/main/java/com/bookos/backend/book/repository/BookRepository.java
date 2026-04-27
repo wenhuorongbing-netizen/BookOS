@@ -9,13 +9,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BookRepository extends JpaRepository<Book, Long> {
 
     @Override
-    @EntityGraph(attributePaths = {"bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
+    @EntityGraph(attributePaths = {"owner", "owner.role", "bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
     List<Book> findAll();
 
-    @EntityGraph(attributePaths = {"bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
+    @EntityGraph(attributePaths = {"owner", "owner.role", "bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
     List<Book> findAllByOrderByTitleAsc();
 
     @Override
-    @EntityGraph(attributePaths = {"bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
+    @EntityGraph(attributePaths = {"owner", "owner.role", "bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
     Optional<Book> findById(Long id);
 }

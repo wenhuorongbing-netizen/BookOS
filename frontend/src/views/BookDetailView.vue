@@ -17,6 +17,9 @@
   <div v-else-if="book" class="page-shell">
     <BookContextHeader>
       <template #actions>
+        <RouterLink :to="{ name: 'book-notes', params: { bookId: book.id } }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Open Notes</AppButton>
+        </RouterLink>
         <RouterLink :to="`/books/${book.id}/edit`" custom v-slot="{ navigate }">
           <AppButton variant="secondary" @click="navigate">Edit Book</AppButton>
         </RouterLink>

@@ -40,6 +40,8 @@ export type NoteBlockType =
   | 'SUMMARY'
   | 'REFERENCE'
 export type SourceConfidence = 'LOW' | 'MEDIUM' | 'HIGH'
+export type CaptureStatus = 'INBOX' | 'CONVERTED' | 'ARCHIVED' | 'DISCARDED'
+export type CaptureConversionTarget = 'NOTE' | 'QUOTE' | 'ACTION_ITEM' | 'CONCEPT'
 
 export interface AuthUser {
   id: number
@@ -248,6 +250,46 @@ export interface BookNotePayload {
 export interface NoteBlockPayload {
   rawText: string
   sortOrder?: number | null
+}
+
+export interface RawCapturePayload {
+  bookId: number
+  rawText: string
+}
+
+export interface RawCaptureUpdatePayload {
+  rawText: string
+}
+
+export interface RawCaptureRecord {
+  id: number
+  bookId: number
+  bookTitle: string
+  rawText: string
+  cleanText: string
+  parsedType: NoteBlockType
+  pageStart: number | null
+  pageEnd: number | null
+  tags: string[]
+  concepts: string[]
+  parserWarnings: string[]
+  status: CaptureStatus
+  convertedEntityType: string | null
+  convertedEntityId: number | null
+  sourceReferences: SourceReferenceRecord[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RawCaptureConvertPayload {
+  targetType?: CaptureConversionTarget
+  title?: string | null
+}
+
+export interface RawCaptureConversionRecord {
+  capture: RawCaptureRecord
+  targetType: string
+  targetId: number
 }
 
 export interface BookFilterState {

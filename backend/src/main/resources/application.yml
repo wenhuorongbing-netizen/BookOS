@@ -21,7 +21,7 @@ spring:
 
 app:
   seed:
-    enabled: ${APP_SEED_ENABLED:true}
+    enabled: ${APP_SEED_ENABLED:false}
   cors:
     allowed-origins:
       - ${APP_CORS_ALLOWED_ORIGIN:http://localhost:5173}

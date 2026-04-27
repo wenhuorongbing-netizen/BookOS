@@ -62,7 +62,7 @@
               type="textarea"
               :rows="7"
               maxlength="50000"
-              placeholder="💬 p.42 Capture a quote or idea... #quote [[Meaningful Choice]]"
+              placeholder="&#x1F4AC; p.42 Capture a quote or idea... #quote [[Meaningful Choice]]"
               aria-describedby="notes-parser-help"
             />
           </label>
