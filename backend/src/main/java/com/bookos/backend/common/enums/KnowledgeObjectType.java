@@ -2,9 +2,19 @@ package com.bookos.backend.common.enums;
 
 public enum KnowledgeObjectType {
     CONCEPT,
-    LENS,
     PRINCIPLE,
-    MECHANIC,
+    DESIGN_LENS,
+    LENS,
+    DIAGNOSTIC_QUESTION,
     QUESTION,
-    EXERCISE
+    CHECKLIST,
+    METHOD,
+    PATTERN,
+    ANTI_PATTERN,
+    EXAMPLE_CASE,
+    EXERCISE,
+    PROTOTYPE_TASK,
+    CROSS_BOOK_SYNTHESIS,
+    MECHANIC,
+    METHOD_PATTERN
 }

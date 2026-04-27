@@ -4,6 +4,7 @@ import com.bookos.backend.book.entity.Book;
 import com.bookos.backend.book.repository.UserBookRepository;
 import com.bookos.backend.book.service.BookService;
 import com.bookos.backend.common.enums.Visibility;
+import com.bookos.backend.knowledge.service.ConceptService;
 import com.bookos.backend.note.dto.BookNoteRequest;
 import com.bookos.backend.note.dto.BookNoteResponse;
 import com.bookos.backend.note.dto.NoteBlockRequest;
@@ -14,6 +15,7 @@ import com.bookos.backend.note.repository.BookNoteRepository;
 import com.bookos.backend.note.repository.NoteBlockRepository;
 import com.bookos.backend.parser.dto.ParsedNoteResponse;
 import com.bookos.backend.parser.service.NoteParserService;
+import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.service.SourceReferenceService;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
@@ -37,6 +39,7 @@ public class BookNoteService {
     private final BookService bookService;
     private final NoteParserService parserService;
     private final SourceReferenceService sourceReferenceService;
+    private final ConceptService conceptService;
 
     @Transactional(readOnly = true)
     public List<BookNoteResponse> listBookNotes(String email, Long bookId) {
@@ -71,7 +74,8 @@ public class BookNoteService {
         BookNote saved = bookNoteRepository.save(note);
         for (NoteBlock savedBlock : saved.getBlocks()) {
             ParsedNoteResponse parsed = parserService.parse(savedBlock.getRawText());
-            sourceReferenceService.createForNoteBlock(user, book, saved, savedBlock, parsed);
+            SourceReference sourceReference = sourceReferenceService.createForNoteBlock(user, book, saved, savedBlock, parsed);
+            conceptService.indexParsedConcepts(user, book, sourceReference, parsed.concepts());
         }
 
         return toResponse(saved);
@@ -103,7 +107,8 @@ public class BookNoteService {
         BookNote saved = bookNoteRepository.save(note);
         NoteBlock savedBlock = saved.getBlocks().get(saved.getBlocks().size() - 1);
         ParsedNoteResponse parsed = parserService.parse(savedBlock.getRawText());
-        sourceReferenceService.createForNoteBlock(user, saved.getBook(), saved, savedBlock, parsed);
+        SourceReference sourceReference = sourceReferenceService.createForNoteBlock(user, saved.getBook(), saved, savedBlock, parsed);
+        conceptService.indexParsedConcepts(user, saved.getBook(), sourceReference, parsed.concepts());
         return toBlockResponse(savedBlock);
     }
 
@@ -118,7 +123,8 @@ public class BookNoteService {
         }
         NoteBlock saved = noteBlockRepository.save(block);
         ParsedNoteResponse parsed = parserService.parse(saved.getRawText());
-        sourceReferenceService.replaceForNoteBlock(user, saved.getBook(), saved.getNote(), saved, parsed);
+        SourceReference sourceReference = sourceReferenceService.replaceForNoteBlock(user, saved.getBook(), saved.getNote(), saved, parsed);
+        conceptService.indexParsedConcepts(user, saved.getBook(), sourceReference, parsed.concepts());
         return toBlockResponse(saved);
     }
 

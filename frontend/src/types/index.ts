@@ -5,7 +5,7 @@ export interface ApiResponse<T> {
   timestamp: string
 }
 
-export type RoleName = 'ADMIN' | 'USER'
+export type RoleName = 'ADMIN' | 'MODERATOR' | 'USER'
 export type Visibility = 'PRIVATE' | 'SHARED' | 'PUBLIC'
 export type ReadingStatus =
   | 'BACKLOG'
@@ -42,6 +42,24 @@ export type NoteBlockType =
 export type SourceConfidence = 'LOW' | 'MEDIUM' | 'HIGH'
 export type CaptureStatus = 'INBOX' | 'CONVERTED' | 'ARCHIVED' | 'DISCARDED'
 export type CaptureConversionTarget = 'NOTE' | 'QUOTE' | 'ACTION_ITEM' | 'CONCEPT'
+export type ActionPriority = 'LOW' | 'MEDIUM' | 'HIGH'
+export type KnowledgeObjectType =
+  | 'CONCEPT'
+  | 'PRINCIPLE'
+  | 'DESIGN_LENS'
+  | 'LENS'
+  | 'DIAGNOSTIC_QUESTION'
+  | 'QUESTION'
+  | 'CHECKLIST'
+  | 'METHOD'
+  | 'PATTERN'
+  | 'ANTI_PATTERN'
+  | 'EXAMPLE_CASE'
+  | 'EXERCISE'
+  | 'PROTOTYPE_TASK'
+  | 'CROSS_BOOK_SYNTHESIS'
+  | 'MECHANIC'
+  | 'METHOD_PATTERN'
 
 export interface AuthUser {
   id: number
@@ -290,6 +308,134 @@ export interface RawCaptureConversionRecord {
   capture: RawCaptureRecord
   targetType: string
   targetId: number
+}
+
+export interface ConceptPayload {
+  name: string
+  description?: string | null
+  visibility?: Visibility | null
+  bookId?: number | null
+  sourceReferenceId?: number | null
+}
+
+export interface ConceptRecord {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  visibility: Visibility
+  bookId: number | null
+  bookTitle: string | null
+  mentionCount: number
+  firstSourceReference: SourceReferenceRecord | null
+  sourceReferences: SourceReferenceRecord[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeObjectPayload {
+  type: KnowledgeObjectType
+  title: string
+  description?: string | null
+  visibility?: Visibility | null
+  bookId?: number | null
+  noteId?: number | null
+  conceptId?: number | null
+  sourceReferenceId?: number | null
+  tags?: string[]
+}
+
+export interface KnowledgeObjectRecord {
+  id: number
+  type: KnowledgeObjectType
+  title: string
+  slug: string
+  description: string | null
+  visibility: Visibility
+  bookId: number | null
+  bookTitle: string | null
+  noteId: number | null
+  noteTitle: string | null
+  conceptId: number | null
+  conceptName: string | null
+  sourceReference: SourceReferenceRecord | null
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface EntityLinkPayload {
+  sourceType: string
+  sourceId: number
+  targetType: string
+  targetId: number
+  relationType: string
+  sourceReferenceId?: number | null
+}
+
+export interface EntityLinkRecord {
+  id: number
+  sourceType: string
+  sourceId: number
+  targetType: string
+  targetId: number
+  relationType: string
+  sourceReferenceId: number | null
+  createdAt: string
+}
+
+export interface QuotePayload {
+  bookId: number
+  text: string
+  attribution?: string | null
+  sourceReferenceId?: number | null
+  visibility?: Visibility | null
+}
+
+export interface QuoteRecord {
+  id: number
+  bookId: number
+  bookTitle: string
+  noteId: number | null
+  noteBlockId: number | null
+  rawCaptureId: number | null
+  text: string
+  attribution: string | null
+  pageStart: number | null
+  pageEnd: number | null
+  visibility: Visibility
+  sourceReference: SourceReferenceRecord | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ActionItemPayload {
+  bookId: number
+  title: string
+  description?: string | null
+  priority?: ActionPriority | null
+  sourceReferenceId?: number | null
+  visibility?: Visibility | null
+}
+
+export interface ActionItemRecord {
+  id: number
+  bookId: number
+  bookTitle: string
+  noteId: number | null
+  noteBlockId: number | null
+  rawCaptureId: number | null
+  title: string
+  description: string | null
+  priority: ActionPriority
+  pageStart: number | null
+  pageEnd: number | null
+  completed: boolean
+  completedAt: string | null
+  visibility: Visibility
+  sourceReference: SourceReferenceRecord | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface BookFilterState {

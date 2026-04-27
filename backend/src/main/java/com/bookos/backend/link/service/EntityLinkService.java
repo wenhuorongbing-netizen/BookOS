@@ -1,0 +1,126 @@
+package com.bookos.backend.link.service;
+
+import com.bookos.backend.book.repository.UserBookRepository;
+import com.bookos.backend.capture.repository.RawCaptureRepository;
+import com.bookos.backend.knowledge.repository.ConceptRepository;
+import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
+import com.bookos.backend.link.dto.EntityLinkRequest;
+import com.bookos.backend.link.dto.EntityLinkResponse;
+import com.bookos.backend.link.entity.EntityLink;
+import com.bookos.backend.link.repository.EntityLinkRepository;
+import com.bookos.backend.note.repository.BookNoteRepository;
+import com.bookos.backend.source.repository.SourceReferenceRepository;
+import com.bookos.backend.user.entity.User;
+import com.bookos.backend.user.service.UserService;
+import java.util.List;
+import java.util.Locale;
+import java.util.NoSuchElementException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+@Service
+@RequiredArgsConstructor
+public class EntityLinkService {
+
+    private final EntityLinkRepository entityLinkRepository;
+    private final SourceReferenceRepository sourceReferenceRepository;
+    private final ConceptRepository conceptRepository;
+    private final KnowledgeObjectRepository knowledgeObjectRepository;
+    private final BookNoteRepository bookNoteRepository;
+    private final RawCaptureRepository rawCaptureRepository;
+    private final UserBookRepository userBookRepository;
+    private final UserService userService;
+
+    @Transactional(readOnly = true)
+    public List<EntityLinkResponse> listEntityLinks(String email, String sourceType, Long sourceId, String targetType, Long targetId) {
+        User user = userService.getByEmailRequired(email);
+        if (StringUtils.hasText(sourceType) && sourceId != null) {
+            return entityLinkRepository.findByUserIdAndSourceTypeAndSourceIdOrderByCreatedAtDesc(
+                            user.getId(), normalize(sourceType), sourceId)
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+        if (StringUtils.hasText(targetType) && targetId != null) {
+            return entityLinkRepository.findByUserIdAndTargetTypeAndTargetIdOrderByCreatedAtDesc(
+                            user.getId(), normalize(targetType), targetId)
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+        return entityLinkRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public EntityLinkResponse createEntityLink(String email, EntityLinkRequest request) {
+        User user = userService.getByEmailRequired(email);
+        String sourceType = normalize(request.sourceType());
+        String targetType = normalize(request.targetType());
+        String relationType = normalize(request.relationType());
+
+        assertOwnedOrLinkable(user, sourceType, request.sourceId());
+        assertOwnedOrLinkable(user, targetType, request.targetId());
+        if (request.sourceReferenceId() != null) {
+            sourceReferenceRepository.findByIdAndUserId(request.sourceReferenceId(), user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Source reference not found."));
+        }
+
+        EntityLink link = entityLinkRepository.findByUserIdAndSourceTypeAndSourceIdAndTargetTypeAndTargetIdAndRelationType(
+                        user.getId(), sourceType, request.sourceId(), targetType, request.targetId(), relationType)
+                .orElseGet(() -> {
+                    EntityLink created = new EntityLink();
+                    created.setUser(user);
+                    created.setSourceType(sourceType);
+                    created.setSourceId(request.sourceId());
+                    created.setTargetType(targetType);
+                    created.setTargetId(request.targetId());
+                    created.setRelationType(relationType);
+                    return created;
+                });
+        link.setSourceReferenceId(request.sourceReferenceId());
+        return toResponse(entityLinkRepository.save(link));
+    }
+
+    private void assertOwnedOrLinkable(User user, String type, Long id) {
+        switch (type) {
+            case "SOURCE_REFERENCE" -> sourceReferenceRepository.findByIdAndUserId(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Source reference not found."));
+            case "CONCEPT" -> conceptRepository.findByIdAndUserIdAndArchivedFalse(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Concept not found."));
+            case "KNOWLEDGE_OBJECT" -> knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Knowledge object not found."));
+            case "NOTE" -> bookNoteRepository.findByIdAndUserId(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Note not found."));
+            case "RAW_CAPTURE" -> rawCaptureRepository.findByIdAndUserId(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Capture not found."));
+            case "BOOK" -> {
+                if (userBookRepository.findByUserIdAndBookId(user.getId(), id).isEmpty()) {
+                    throw new AccessDeniedException("Add this book to your library before linking it.");
+                }
+            }
+            default -> throw new IllegalArgumentException("Unsupported entity link type: " + type);
+        }
+    }
+
+    private EntityLinkResponse toResponse(EntityLink link) {
+        return new EntityLinkResponse(
+                link.getId(),
+                link.getSourceType(),
+                link.getSourceId(),
+                link.getTargetType(),
+                link.getTargetId(),
+                link.getRelationType(),
+                link.getSourceReferenceId(),
+                link.getCreatedAt());
+    }
+
+    private String normalize(String value) {
+        return value.trim().toUpperCase(Locale.ROOT);
+    }
+}

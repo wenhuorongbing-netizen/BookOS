@@ -1,5 +1,6 @@
 package com.bookos.backend.capture.service;
 
+import com.bookos.backend.action.service.ActionItemService;
 import com.bookos.backend.book.entity.Book;
 import com.bookos.backend.book.repository.UserBookRepository;
 import com.bookos.backend.book.service.BookService;
@@ -13,10 +14,13 @@ import com.bookos.backend.capture.entity.RawCapture;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.enums.CaptureStatus;
 import com.bookos.backend.common.enums.Visibility;
+import com.bookos.backend.knowledge.service.ConceptService;
 import com.bookos.backend.note.dto.BookNoteRequest;
 import com.bookos.backend.note.service.BookNoteService;
 import com.bookos.backend.parser.dto.ParsedNoteResponse;
 import com.bookos.backend.parser.service.NoteParserService;
+import com.bookos.backend.quote.service.QuoteService;
+import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
 import com.bookos.backend.source.service.SourceReferenceService;
 import com.bookos.backend.user.entity.User;
@@ -43,8 +47,11 @@ public class RawCaptureService {
     private final UserService userService;
     private final BookService bookService;
     private final BookNoteService bookNoteService;
+    private final QuoteService quoteService;
+    private final ActionItemService actionItemService;
     private final NoteParserService noteParserService;
     private final SourceReferenceService sourceReferenceService;
+    private final ConceptService conceptService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -61,7 +68,8 @@ public class RawCaptureService {
         applyParsedCapture(capture, parsed);
 
         RawCapture saved = rawCaptureRepository.save(capture);
-        sourceReferenceService.createForRawCapture(user, book, saved.getId(), parsed);
+        SourceReference sourceReference = sourceReferenceService.createForRawCapture(user, book, saved.getId(), parsed);
+        conceptService.indexParsedConcepts(user, book, sourceReference, parsed.concepts());
         return toResponse(saved);
     }
 
@@ -99,7 +107,8 @@ public class RawCaptureService {
         ParsedNoteResponse parsed = noteParserService.parse(request.rawText());
         applyParsedCapture(capture, parsed);
         RawCapture saved = rawCaptureRepository.save(capture);
-        sourceReferenceService.replaceForRawCapture(user, saved.getBook(), saved.getId(), parsed);
+        SourceReference sourceReference = sourceReferenceService.replaceForRawCapture(user, saved.getBook(), saved.getId(), parsed);
+        conceptService.indexParsedConcepts(user, saved.getBook(), sourceReference, parsed.concepts());
         return toResponse(saved);
     }
 
@@ -112,21 +121,34 @@ public class RawCaptureService {
         }
 
         CaptureConversionTarget target = request.targetType() == null ? CaptureConversionTarget.NOTE : request.targetType();
-        if (target != CaptureConversionTarget.NOTE) {
-            throw new IllegalArgumentException("Only NOTE conversion is available before quote, action, and concept modules are built.");
+        String convertedEntityType;
+        Long convertedEntityId;
+
+        if (target == CaptureConversionTarget.NOTE) {
+            var note = bookNoteService.createNote(
+                    email,
+                    capture.getBook().getId(),
+                    new BookNoteRequest(resolveTitle(request.title(), capture), capture.getRawText(), Visibility.PRIVATE));
+            convertedEntityType = "NOTE";
+            convertedEntityId = note.id();
+        } else if (target == CaptureConversionTarget.QUOTE) {
+            var quote = quoteService.createFromCapture(user, capture);
+            convertedEntityType = "QUOTE";
+            convertedEntityId = quote.id();
+        } else if (target == CaptureConversionTarget.ACTION_ITEM) {
+            var actionItem = actionItemService.createFromCapture(user, capture, request.title());
+            convertedEntityType = "ACTION_ITEM";
+            convertedEntityId = actionItem.id();
+        } else {
+            throw new IllegalArgumentException("CONCEPT conversion is not available until the concept review workflow is built.");
         }
 
-        var note = bookNoteService.createNote(
-                email,
-                capture.getBook().getId(),
-                new BookNoteRequest(resolveTitle(request.title(), capture), capture.getRawText(), Visibility.PRIVATE));
-
         capture.setStatus(CaptureStatus.CONVERTED);
-        capture.setConvertedEntityType("NOTE");
-        capture.setConvertedEntityId(note.id());
+        capture.setConvertedEntityType(convertedEntityType);
+        capture.setConvertedEntityId(convertedEntityId);
         RawCapture saved = rawCaptureRepository.save(capture);
 
-        return new CaptureConversionResponse(toResponse(saved), "NOTE", note.id());
+        return new CaptureConversionResponse(toResponse(saved), convertedEntityType, convertedEntityId);
     }
 
     @Transactional
