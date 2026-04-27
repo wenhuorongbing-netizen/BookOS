@@ -1,0 +1,6 @@
+backend/target/
+frontend/node_modules/
+frontend/dist/
+tools/jdk21.zip
+tools/jdk21-extracted/
+.env

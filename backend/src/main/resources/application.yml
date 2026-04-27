@@ -1,0 +1,32 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: bookos-backend
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:bookos}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USER:bookos}
+    password: ${MYSQL_PASSWORD:bookos}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+        default_batch_fetch_size: 32
+
+app:
+  seed:
+    enabled: ${APP_SEED_ENABLED:true}
+  cors:
+    allowed-origins:
+      - ${APP_CORS_ALLOWED_ORIGIN:http://localhost:5173}
+      - ${APP_CORS_ALLOWED_ORIGIN_ALT:http://127.0.0.1:5173}
+  jwt:
+    issuer: ${JWT_ISSUER:bookos-local}
+    secret: ${JWT_SECRET:}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:720}
