@@ -41,7 +41,8 @@
         :last-read-at="book.lastReadAt"
         :notes-count="book.notesCount"
         :quotes-count="book.quotesCount"
-        :lenses-count="book.lensesCount"
+        :action-items-count="book.actionItemsCount"
+        :concepts-count="book.conceptsCount ?? book.ontologyConceptCount"
       />
     </div>
   </AppCard>

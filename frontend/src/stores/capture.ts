@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { archiveCapture, convertCapture, createCapture, getCaptureInbox } from '../api/captures'
-import type { BookRecord, NoteBlockType, RawCaptureRecord } from '../types'
+import type { BookRecord, NoteBlockType, RawCaptureRecord, SourceReferenceRecord } from '../types'
 
 export type CaptureMarker = 'text' | 'quote' | 'link' | 'emoji' | 'inspiration' | 'favorite' | 'important' | 'question' | 'idea'
 
@@ -17,9 +17,18 @@ export interface RecentNoteBlock {
   tags: string[]
   concepts: string[]
   page: string | null
+  pageStart: number | null
+  pageEnd: number | null
+  sourceReferences: SourceReferenceRecord[]
   createdAt: string
   bookmarked: boolean
   status: RawCaptureRecord['status']
+}
+
+export interface CaptureConvertibleBlock {
+  captureId: number
+  parsedType: NoteBlockType
+  title?: string | null
 }
 
 export const useCaptureStore = defineStore('capture', () => {
@@ -58,6 +67,31 @@ export const useCaptureStore = defineStore('capture', () => {
     return conversion
   }
 
+  async function convertToQuote(captureId: number) {
+    const conversion = await convertCapture(captureId, { targetType: 'QUOTE' })
+    removeCapture(captureId)
+    return conversion
+  }
+
+  async function convertToActionItem(captureId: number, title?: string) {
+    const normalizedTitle = title?.trim() ? title.trim() : null
+    const conversion = await convertCapture(captureId, { targetType: 'ACTION_ITEM', title: normalizedTitle })
+    removeCapture(captureId)
+    return conversion
+  }
+
+  async function convertByParsedType(block: CaptureConvertibleBlock) {
+    if (block.parsedType === 'QUOTE') {
+      return convertToQuote(block.captureId)
+    }
+
+    if (block.parsedType === 'ACTION_ITEM') {
+      return convertToActionItem(block.captureId, block.title ?? undefined)
+    }
+
+    return convertToNote(block.captureId, block.title ?? undefined)
+  }
+
   async function archive(captureId: number) {
     await archiveCapture(captureId)
     removeCapture(captureId)
@@ -91,6 +125,9 @@ export const useCaptureStore = defineStore('capture', () => {
     loadBookCaptures,
     addCapture,
     convertToNote,
+    convertToQuote,
+    convertToActionItem,
+    convertByParsedType,
     archive,
     toggleBookmark,
     forBook,
@@ -110,6 +147,9 @@ function toRecentBlock(capture: RawCaptureRecord): RecentNoteBlock {
     tags: [...capture.tags, ...capture.concepts].slice(0, 6),
     concepts: capture.concepts,
     page: pageLabel(capture.pageStart, capture.pageEnd),
+    pageStart: capture.pageStart,
+    pageEnd: capture.pageEnd,
+    sourceReferences: capture.sourceReferences,
     createdAt: capture.createdAt,
     bookmarked: isBookmarked(capture.id),
     status: capture.status,

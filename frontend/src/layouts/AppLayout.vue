@@ -17,6 +17,8 @@
         <RightRail />
       </div>
     </div>
+    <SourceReferenceDrawer />
+    <GlobalSearchDialog />
   </div>
 </template>
 
@@ -25,6 +27,8 @@ import { computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import RightRail from '../components/RightRail.vue'
 import Sidebar from '../components/Sidebar.vue'
+import GlobalSearchDialog from '../components/search/GlobalSearchDialog.vue'
+import SourceReferenceDrawer from '../components/source/SourceReferenceDrawer.vue'
 import TopNav from '../components/TopNav.vue'
 import { useAuthStore } from '../stores/auth'
 import { useRightRailStore } from '../stores/rightRail'

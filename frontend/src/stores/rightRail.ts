@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { BookRecord } from '../types'
+import { completeActionItem, reopenActionItem } from '../api/actionItems'
+import type { ActionItemRecord, BookRecord, QuoteRecord, SourceReferenceRecord } from '../types'
 
 export type RailSourceType = 'book' | 'quote' | 'note' | 'daily-sentence' | 'action-item'
 export type AiDraftStatus = 'DRAFT' | 'ACCEPTED' | 'DISCARDED'
@@ -9,6 +10,8 @@ export type ActionItemPriority = 'LOW' | 'MEDIUM' | 'HIGH'
 export interface RailSourceReference {
   id: string
   type: RailSourceType
+  entityId?: number | string | null
+  sourceReferenceId?: number | string | null
   bookId: number
   bookTitle: string
   subtitle?: string | null
@@ -18,6 +21,7 @@ export interface RailSourceReference {
   pageRange?: string | null
   location?: string | null
   addedAt?: string | null
+  excerpt?: string | null
 }
 
 export interface AiDraftSuggestion {
@@ -29,10 +33,13 @@ export interface AiDraftSuggestion {
 
 export interface ExtractedActionItem {
   id: string
+  bookId: number
+  bookTitle: string
   text: string
   priority: ActionItemPriority
   completed: boolean
   sourceId?: string | null
+  pageRange?: string | null
 }
 
 export const useRightRailStore = defineStore('rightRail', () => {
@@ -46,6 +53,7 @@ export const useRightRailStore = defineStore('rightRail', () => {
     setSourceReference({
       id: `book-${book.id}`,
       type: 'book',
+      entityId: book.id,
       bookId: book.id,
       bookTitle: book.title,
       subtitle: book.subtitle,
@@ -62,10 +70,67 @@ export const useRightRailStore = defineStore('rightRail', () => {
     sourceReference.value = source
   }
 
+  function setSourceFromQuote(quote: QuoteRecord, book?: BookRecord) {
+    setSourceReference({
+      id: `quote-${quote.id}`,
+      type: 'quote',
+      entityId: quote.id,
+      sourceReferenceId: quote.sourceReference?.id ?? null,
+      bookId: quote.bookId,
+      bookTitle: quote.bookTitle,
+      subtitle: book?.subtitle,
+      author: book?.authors.join(', ') || quote.attribution,
+      coverUrl: book?.coverImageUrl ?? book?.coverUrl,
+      pageRange: buildPageRangeFromValues(quote.pageStart, quote.pageEnd),
+      location: quote.sourceReference?.locationLabel ?? 'Quote',
+      addedAt: quote.createdAt,
+      excerpt: quote.text,
+    })
+  }
+
+  function setSourceFromActionItem(item: ActionItemRecord, book?: BookRecord) {
+    setSourceReference({
+      id: `action-${item.id}`,
+      type: 'action-item',
+      entityId: item.id,
+      sourceReferenceId: item.sourceReference?.id ?? null,
+      bookId: item.bookId,
+      bookTitle: item.bookTitle,
+      subtitle: book?.subtitle,
+      author: book?.authors.join(', ') || null,
+      coverUrl: book?.coverImageUrl ?? book?.coverUrl,
+      pageRange: buildPageRangeFromValues(item.pageStart, item.pageEnd),
+      location: item.sourceReference?.locationLabel ?? 'Action item',
+      addedAt: item.createdAt,
+      excerpt: item.description || item.title,
+    })
+  }
+
+  function setSourceFromReference(source: SourceReferenceRecord, bookTitle: string, book?: BookRecord) {
+    setSourceReference({
+      id: `source-${source.id}`,
+      type: source.rawCaptureId || source.noteId || source.noteBlockId ? 'note' : 'book',
+      entityId: source.id,
+      sourceReferenceId: source.id,
+      bookId: source.bookId,
+      bookTitle,
+      subtitle: book?.subtitle,
+      author: book?.authors.join(', ') || null,
+      coverUrl: book?.coverImageUrl ?? book?.coverUrl,
+      pageRange: buildPageRangeFromValues(source.pageStart, source.pageEnd),
+      location: source.locationLabel ?? source.sourceType,
+      excerpt: source.sourceText,
+    })
+  }
+
   function clearSourceForBook(bookId: number) {
     if (sourceReference.value?.bookId === bookId) {
       sourceReference.value = null
     }
+  }
+
+  function setActionItemsFromRecords(records: ActionItemRecord[]) {
+    actionItems.value = records.map(toRailActionItem)
   }
 
   function updateAiDraftText(id: string, text: string) {
@@ -83,9 +148,22 @@ export const useRightRailStore = defineStore('rightRail', () => {
     if (draft) draft.status = 'DISCARDED'
   }
 
-  function toggleActionItem(id: string) {
+  async function toggleActionItem(id: string) {
     const item = actionItems.value.find((entry) => entry.id === id)
     if (item) item.completed = !item.completed
+    const numericId = Number(id)
+    if (!item || Number.isNaN(numericId)) return
+
+    try {
+      const updated = item.completed ? await completeActionItem(numericId) : await reopenActionItem(numericId)
+      const index = actionItems.value.findIndex((entry) => entry.id === id)
+      if (index >= 0) {
+        actionItems.value[index] = toRailActionItem(updated)
+      }
+    } catch (error) {
+      item.completed = !item.completed
+      throw error
+    }
   }
 
   return {
@@ -94,8 +172,12 @@ export const useRightRailStore = defineStore('rightRail', () => {
     visibleAiDrafts,
     actionItems,
     setSourceReference,
+    setSourceFromQuote,
+    setSourceFromActionItem,
+    setSourceFromReference,
     setCurrentBookSource,
     clearSourceForBook,
+    setActionItemsFromRecords,
     updateAiDraftText,
     acceptAiDraft,
     discardAiDraft,
@@ -109,4 +191,23 @@ function buildPageRange(book: BookRecord) {
   }
 
   return book.pageRange ?? null
+}
+
+function buildPageRangeFromValues(pageStart: number | null, pageEnd: number | null) {
+  if (pageStart && pageEnd) return `p.${pageStart}-${pageEnd}`
+  if (pageStart) return `p.${pageStart}`
+  return null
+}
+
+function toRailActionItem(item: ActionItemRecord): ExtractedActionItem {
+  return {
+    id: String(item.id),
+    bookId: item.bookId,
+    bookTitle: item.bookTitle,
+    text: item.title,
+    priority: item.priority,
+    completed: item.completed,
+    sourceId: item.sourceReference ? String(item.sourceReference.id) : null,
+    pageRange: buildPageRangeFromValues(item.pageStart, item.pageEnd),
+  }
 }

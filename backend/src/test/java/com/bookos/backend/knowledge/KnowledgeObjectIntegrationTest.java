@@ -163,7 +163,7 @@ class KnowledgeObjectIntegrationTest {
     }
 
     @Test
-    void rawCaptureConceptsAreIndexedWithSourceReferences() throws Exception {
+    void rawCaptureConceptsRequireReviewAndPreserveSourceReferences() throws Exception {
         String token = loginAsDesigner();
         Long bookId = createBookAndAddToLibrary(token);
 
@@ -190,6 +190,36 @@ class KnowledgeObjectIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[?(@.id == %s)]".formatted(sourceReferenceId)).exists());
+
+        mockMvc.perform(get("/api/concepts")
+                        .header("Authorization", "Bearer " + token)
+                        .param("bookId", String.valueOf(bookId))
+                        .param("q", "Core Loop Phase 5A"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        mockMvc.perform(post("/api/captures/{captureId}/review/concepts", captureId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "concepts": [
+                                    {
+                                      "rawName": "Core Loop Phase 5A",
+                                      "finalName": "Core Loop Phase 5A",
+                                      "action": "CREATE",
+                                      "existingConceptId": null,
+                                      "tags": ["systems", "loop"]
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.capture.status").value("INBOX"))
+                .andExpect(jsonPath("$.data.concepts[0].concept.name").value("Core Loop Phase 5A"))
+                .andExpect(jsonPath("$.data.concepts[0].sourceReference.rawCaptureId").value(captureId))
+                .andExpect(jsonPath("$.data.concepts[0].knowledgeObject.type").value("CONCEPT"))
+                .andExpect(jsonPath("$.data.concepts[0].knowledgeObject.tags[0]").value("systems"));
 
         mockMvc.perform(get("/api/concepts")
                         .header("Authorization", "Bearer " + token)

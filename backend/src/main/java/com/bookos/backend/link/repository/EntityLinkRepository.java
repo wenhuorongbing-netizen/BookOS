@@ -23,5 +23,7 @@ public interface EntityLinkRepository extends JpaRepository<EntityLink, Long> {
             Long targetId,
             String relationType);
 
+    Optional<EntityLink> findByIdAndUserId(Long id, Long userId);
+
     long countByUserIdAndTargetTypeAndTargetIdAndRelationType(Long userId, String targetType, Long targetId, String relationType);
 }

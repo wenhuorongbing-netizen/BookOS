@@ -12,5 +12,8 @@ public interface BookNoteRepository extends JpaRepository<BookNote, Long> {
     List<BookNote> findByBookIdAndUserIdAndArchivedFalseOrderByUpdatedAtDesc(Long bookId, Long userId);
 
     @EntityGraph(attributePaths = {"book", "blocks"})
+    List<BookNote> findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(Long userId);
+
+    @EntityGraph(attributePaths = {"book", "blocks"})
     Optional<BookNote> findByIdAndUserId(Long id, Long userId);
 }

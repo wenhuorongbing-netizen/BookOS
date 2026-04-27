@@ -42,6 +42,7 @@ export type NoteBlockType =
 export type SourceConfidence = 'LOW' | 'MEDIUM' | 'HIGH'
 export type CaptureStatus = 'INBOX' | 'CONVERTED' | 'ARCHIVED' | 'DISCARDED'
 export type CaptureConversionTarget = 'NOTE' | 'QUOTE' | 'ACTION_ITEM' | 'CONCEPT'
+export type ConceptReviewAction = 'ACCEPT' | 'CREATE' | 'SKIP'
 export type ActionPriority = 'LOW' | 'MEDIUM' | 'HIGH'
 export type KnowledgeObjectType =
   | 'CONCEPT'
@@ -60,6 +61,28 @@ export type KnowledgeObjectType =
   | 'CROSS_BOOK_SYNTHESIS'
   | 'MECHANIC'
   | 'METHOD_PATTERN'
+export type ForumThreadStatus = 'ACTIVE' | 'CLOSED' | 'ARCHIVED'
+export type SearchResultType =
+  | 'BOOK'
+  | 'NOTE'
+  | 'CAPTURE'
+  | 'QUOTE'
+  | 'ACTION_ITEM'
+  | 'CONCEPT'
+  | 'KNOWLEDGE_OBJECT'
+  | 'FORUM_THREAD'
+export type GraphNodeType =
+  | 'BOOK'
+  | 'NOTE'
+  | 'CAPTURE'
+  | 'QUOTE'
+  | 'ACTION_ITEM'
+  | 'CONCEPT'
+  | 'KNOWLEDGE_OBJECT'
+  | 'SOURCE_REFERENCE'
+  | string
+export type AISuggestionType = 'NOTE_SUMMARY' | 'EXTRACT_ACTIONS' | 'EXTRACT_CONCEPTS'
+export type AISuggestionStatus = 'DRAFT' | 'ACCEPTED' | 'REJECTED'
 
 export interface AuthUser {
   id: number
@@ -114,7 +137,11 @@ export interface BookRecord {
   sourceAddedAt?: string | null
   notesCount?: number | null
   quotesCount?: number | null
+  actionItemsCount?: number | null
   lensesCount?: number | null
+  conceptsCount?: number | null
+  capturesCount?: number | null
+  sourceReferencesCount?: number | null
   dailyQuote?: BookQuotePreview | null
   latestQuote?: BookQuotePreview | null
   dailyDesignPrompt?: BookDesignPromptPreview | null
@@ -137,6 +164,8 @@ export interface BookDesignPromptPreview {
   question: string
   linkedConcept?: string | null
   linkedLens?: string | null
+  sourceTitle?: string | null
+  templatePrompt?: boolean | null
 }
 
 export interface BookConceptPreview {
@@ -161,6 +190,65 @@ export interface BookLensPreview {
 export interface BookGraphPreview {
   concepts?: BookConceptPreview[] | string[] | null
   lenses?: BookLensPreview[] | string[] | null
+  nodes?: GraphNodeRecord[] | null
+  edges?: GraphEdgeRecord[] | null
+}
+
+export interface SearchResultRecord {
+  type: SearchResultType
+  id: number
+  title: string
+  excerpt: string | null
+  bookId: number | null
+  bookTitle: string | null
+  sourceReferenceId: number | null
+  updatedAt: string | null
+}
+
+export interface GraphNodeRecord {
+  id: string
+  type: GraphNodeType
+  label: string
+  entityId: number
+}
+
+export interface GraphEdgeRecord {
+  source: string
+  target: string
+  type: string
+}
+
+export interface GraphRecord {
+  nodes: GraphNodeRecord[]
+  edges: GraphEdgeRecord[]
+}
+
+export interface AISuggestionPayload {
+  bookId?: number | null
+  noteId?: number | null
+  rawCaptureId?: number | null
+  sourceReferenceId?: number | null
+  text?: string | null
+}
+
+export interface AISuggestionEditPayload {
+  draftText?: string | null
+  draftJson?: string | null
+}
+
+export interface AISuggestionRecord {
+  id: number
+  suggestionType: AISuggestionType
+  status: AISuggestionStatus
+  providerName: string
+  bookId: number | null
+  bookTitle: string | null
+  sourceReferenceId: number | null
+  sourceReference: SourceReferenceRecord | null
+  draftText: string
+  draftJson: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface UserBookRecord {
@@ -220,12 +308,14 @@ export interface SourceReferenceRecord {
   bookId: number
   noteId: number | null
   noteBlockId: number | null
+  chapterId?: number | null
   rawCaptureId: number | null
   pageStart: number | null
   pageEnd: number | null
   locationLabel: string | null
   sourceText: string | null
   sourceConfidence: SourceConfidence
+  createdAt?: string | null
 }
 
 export interface NoteBlockRecord {
@@ -310,6 +400,18 @@ export interface RawCaptureConversionRecord {
   targetId: number
 }
 
+export interface ConceptReviewItemPayload {
+  rawName: string
+  finalName?: string | null
+  action: ConceptReviewAction
+  existingConceptId?: number | null
+  tags?: string[]
+}
+
+export interface ConceptReviewPayload {
+  concepts: ConceptReviewItemPayload[]
+}
+
 export interface ConceptPayload {
   name: string
   description?: string | null
@@ -331,6 +433,21 @@ export interface ConceptRecord {
   sourceReferences: SourceReferenceRecord[]
   createdAt: string
   updatedAt: string
+}
+
+export interface ReviewedConceptRecord {
+  rawName: string
+  finalName: string
+  action: ConceptReviewAction
+  concept: ConceptRecord | null
+  knowledgeObject: KnowledgeObjectRecord | null
+  sourceReference: SourceReferenceRecord | null
+  tags: string[]
+}
+
+export interface ConceptReviewRecord {
+  capture: RawCaptureRecord
+  concepts: ReviewedConceptRecord[]
 }
 
 export interface KnowledgeObjectPayload {
@@ -364,6 +481,176 @@ export interface KnowledgeObjectRecord {
   updatedAt: string
 }
 
+export type DailyTarget = 'SENTENCE' | 'PROMPT'
+
+export interface DailySentenceRecord {
+  id: number
+  day: string
+  text: string
+  attribution: string | null
+  bookId: number | null
+  bookTitle: string | null
+  sourceType: string | null
+  sourceId: number | null
+  pageStart: number | null
+  pageEnd: number | null
+  sourceBacked: boolean
+  skipped: boolean
+  sourceReference: SourceReferenceRecord | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DailyDesignPromptRecord {
+  id: number
+  day: string
+  question: string
+  sourceTitle: string | null
+  bookId: number | null
+  bookTitle: string | null
+  sourceType: string | null
+  sourceId: number | null
+  knowledgeObjectId: number | null
+  templatePrompt: boolean
+  skipped: boolean
+  sourceReference: SourceReferenceRecord | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DailyReflectionRecord {
+  id: number
+  day: string
+  target: DailyTarget
+  dailySentenceId: number | null
+  dailyDesignPromptId: number | null
+  reflectionText: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DailyHistoryRecord {
+  id: number
+  day: string
+  target: DailyTarget
+  action: string
+  sourceType: string | null
+  sourceId: number | null
+  dailySentenceId: number | null
+  dailyDesignPromptId: number | null
+  createdAt: string
+}
+
+export interface DailyTodayRecord {
+  day: string
+  sentence: DailySentenceRecord | null
+  prompt: DailyDesignPromptRecord
+  reflections: DailyReflectionRecord[]
+}
+
+export interface DailyReflectionPayload {
+  target: DailyTarget
+  dailySentenceId?: number | null
+  dailyDesignPromptId?: number | null
+  reflectionText: string
+}
+
+export interface DailyPrototypeTaskPayload {
+  dailyDesignPromptId?: number | null
+  title?: string | null
+  description?: string | null
+}
+
+export interface ForumCategoryPayload {
+  name: string
+  description?: string | null
+  sortOrder?: number | null
+}
+
+export interface ForumCategoryRecord {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  sortOrder: number
+  threadCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ForumThreadPayload {
+  categoryId: number
+  title: string
+  bodyMarkdown: string
+  relatedEntityType?: string | null
+  relatedEntityId?: number | null
+  relatedBookId?: number | null
+  relatedConceptId?: number | null
+  sourceReferenceId?: number | null
+  visibility?: Visibility | null
+}
+
+export interface ForumThreadRecord {
+  id: number
+  categoryId: number
+  categoryName: string
+  categorySlug: string
+  authorId: number
+  authorDisplayName: string
+  title: string
+  bodyMarkdown: string
+  relatedEntityType: string | null
+  relatedEntityId: number | null
+  relatedBookId: number | null
+  relatedBookTitle: string | null
+  relatedConceptId: number | null
+  relatedConceptName: string | null
+  sourceReferenceId: number | null
+  sourceReference: SourceReferenceRecord | null
+  status: ForumThreadStatus
+  visibility: Visibility
+  commentCount: number
+  likeCount: number
+  bookmarkCount: number
+  likedByCurrentUser: boolean
+  bookmarkedByCurrentUser: boolean
+  canEdit: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ForumCommentPayload {
+  bodyMarkdown: string
+  parentCommentId?: number | null
+}
+
+export interface ForumCommentRecord {
+  id: number
+  threadId: number
+  authorId: number
+  authorDisplayName: string
+  bodyMarkdown: string
+  parentCommentId: number | null
+  canEdit: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ForumReportPayload {
+  reason: string
+  details?: string | null
+}
+
+export interface StructuredPostTemplateRecord {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  bodyMarkdownTemplate: string
+  defaultRelatedEntityType: string | null
+  sortOrder: number
+}
+
 export interface EntityLinkPayload {
   sourceType: string
   sourceId: number
@@ -389,6 +676,10 @@ export interface QuotePayload {
   text: string
   attribution?: string | null
   sourceReferenceId?: number | null
+  pageStart?: number | null
+  pageEnd?: number | null
+  tags?: string[]
+  concepts?: string[]
   visibility?: Visibility | null
 }
 
@@ -403,6 +694,8 @@ export interface QuoteRecord {
   attribution: string | null
   pageStart: number | null
   pageEnd: number | null
+  tags: string[]
+  concepts: string[]
   visibility: Visibility
   sourceReference: SourceReferenceRecord | null
   createdAt: string
@@ -415,6 +708,8 @@ export interface ActionItemPayload {
   description?: string | null
   priority?: ActionPriority | null
   sourceReferenceId?: number | null
+  pageStart?: number | null
+  pageEnd?: number | null
   visibility?: Visibility | null
 }
 

@@ -12,6 +12,7 @@ import com.bookos.backend.book.service.UserLibraryService;
 import com.bookos.backend.common.enums.RoleName;
 import com.bookos.backend.common.enums.Visibility;
 import com.bookos.backend.common.enums.ReadingStatus;
+import com.bookos.backend.forum.service.ForumService;
 import com.bookos.backend.user.entity.Role;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.entity.UserProfile;
@@ -35,6 +36,7 @@ public class DemoDataInitializer implements CommandLineRunner {
     private final UserBookRepository userBookRepository;
     private final BookService bookService;
     private final UserLibraryService userLibraryService;
+    private final ForumService forumService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -52,6 +54,11 @@ public class DemoDataInitializer implements CommandLineRunner {
         Role userRole = roleRepository.findByName(RoleName.USER).orElseGet(() -> {
             Role role = new Role();
             role.setName(RoleName.USER);
+            return roleRepository.save(role);
+        });
+        roleRepository.findByName(RoleName.MODERATOR).orElseGet(() -> {
+            Role role = new Role();
+            role.setName(RoleName.MODERATOR);
             return roleRepository.save(role);
         });
 
@@ -74,6 +81,8 @@ public class DemoDataInitializer implements CommandLineRunner {
         if (userBookRepository.count() == 0) {
             seedLibrary(designer.getEmail());
         }
+
+        forumService.ensureDefaults();
     }
 
     private User createUser(String email, String password, String displayName, Role role) {

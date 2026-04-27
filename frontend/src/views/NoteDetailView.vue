@@ -120,9 +120,16 @@
               <AppButton variant="danger" :disabled="deletingBlockId === block.id" @click.stop="handleDeleteBlock(block.id)">
                 Delete
               </AppButton>
+              <AppButton variant="secondary" @click.stop="openBlockSource(block)">Open Source</AppButton>
             </div>
 
             <p class="block-card__text">{{ block.plainText || block.rawText }}</p>
+            <div v-if="parsedConcepts(block).length" class="block-card__concepts" aria-label="Parsed concepts">
+              <AppBadge v-for="concept in parsedConcepts(block)" :key="`${block.id}-${concept}`" variant="info" size="sm">
+                [[{{ concept }}]]
+              </AppBadge>
+              <AppButton variant="accent" @click.stop="openConceptReview(block)">Review Concepts</AppButton>
+            </div>
             <details class="block-card__details">
               <summary>Raw and source data</summary>
               <pre>{{ block.rawText }}</pre>
@@ -144,6 +151,22 @@
           </article>
         </template>
       </AppCard>
+
+      <BacklinksSection
+        entity-type="NOTE"
+        :entity-id="note.id"
+        :source-references="noteSourceReferences"
+        :book-title="note.bookTitle"
+      />
+
+      <ConceptReviewDialog
+        v-model="conceptDialogOpen"
+        :parsed-concepts="selectedConceptBlock ? parsedConcepts(selectedConceptBlock) : []"
+        :concepts="conceptOptions"
+        :source-reference="selectedConceptBlock?.sourceReferences[0] ?? null"
+        :saving="savingConceptReview"
+        @submit="saveNoteConceptReview"
+      />
     </template>
   </div>
 </template>
@@ -152,7 +175,9 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { createKnowledgeObject, createConcept, getConcepts, updateConcept } from '../api/knowledge'
 import { addNoteBlock, archiveNote, deleteNoteBlock, getNote, updateNote, updateNoteBlock } from '../api/notes'
+import ConceptReviewDialog from '../components/concept/ConceptReviewDialog.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -160,12 +185,15 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import BacklinksSection from '../components/source/BacklinksSection.vue'
+import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
-import type { BookNoteRecord, NoteBlockRecord, NoteBlockType, Visibility } from '../types'
+import type { BookNoteRecord, ConceptRecord, ConceptReviewPayload, NoteBlockRecord, NoteBlockType, Visibility } from '../types'
 
 const route = useRoute()
 const router = useRouter()
 const rightRail = useRightRailStore()
+const { openSource } = useOpenSource()
 
 const note = ref<BookNoteRecord | null>(null)
 const loading = ref(false)
@@ -174,6 +202,10 @@ const savingNote = ref(false)
 const addingBlock = ref(false)
 const deletingBlockId = ref<number | null>(null)
 const updatingBlockId = ref<number | null>(null)
+const conceptDialogOpen = ref(false)
+const selectedConceptBlock = ref<NoteBlockRecord | null>(null)
+const conceptOptions = ref<ConceptRecord[]>([])
+const savingConceptReview = ref(false)
 const blockEdits = reactive<Record<number, string>>({})
 
 const editForm = reactive({
@@ -189,6 +221,7 @@ const blockForm = reactive({
 const sortedBlocks = computed(() => {
   return [...(note.value?.blocks ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
 })
+const noteSourceReferences = computed(() => note.value?.blocks.flatMap((block) => block.sourceReferences) ?? [])
 const canSaveNote = computed(() => Boolean(editForm.title.trim() && editForm.markdown.trim()))
 
 onMounted(loadNote)
@@ -205,6 +238,7 @@ async function loadNote() {
     result.blocks.forEach((block) => {
       blockEdits[block.id] = block.rawText
     })
+    await loadConceptOptions()
     if (result.blocks[0]) setRailSource(result.blocks[0])
   } catch {
     note.value = null
@@ -304,12 +338,99 @@ function setRailSource(block: NoteBlockRecord) {
   rightRail.setSourceReference({
     id: `note-block-${block.id}`,
     type: 'note',
+    entityId: block.id,
     bookId: note.value.bookId,
     bookTitle: note.value.bookTitle,
     pageRange: pageLabel(block.pageStart, block.pageEnd),
     location: block.sourceReferences[0]?.locationLabel ?? null,
     addedAt: block.createdAt,
+    excerpt: block.plainText || block.rawText,
   })
+}
+
+function openBlockSource(block: NoteBlockRecord) {
+  if (!note.value) return
+  setRailSource(block)
+  const sourceReference = block.sourceReferences[0] ?? null
+  void openSource({
+    sourceType: 'NOTE_BLOCK',
+    sourceId: block.id,
+    bookId: note.value.bookId,
+    bookTitle: note.value.bookTitle,
+    pageStart: block.pageStart,
+    noteId: note.value.id,
+    noteBlockId: block.id,
+    sourceReference,
+    sourceReferenceId: sourceReference?.id ?? null,
+  })
+}
+
+function openConceptReview(block: NoteBlockRecord) {
+  selectedConceptBlock.value = block
+  conceptDialogOpen.value = true
+}
+
+async function saveNoteConceptReview(payload: ConceptReviewPayload) {
+  if (!note.value || !selectedConceptBlock.value) return
+  const sourceReference = selectedConceptBlock.value.sourceReferences[0] ?? null
+  if (!sourceReference) {
+    ElMessage.warning('This note block has no source reference to attach concepts to.')
+    return
+  }
+
+  savingConceptReview.value = true
+  try {
+    for (const item of payload.concepts) {
+      if (item.action === 'SKIP') continue
+      const concept = item.existingConceptId
+        ? await updateConcept(item.existingConceptId, {
+            name: conceptOptions.value.find((entry) => entry.id === item.existingConceptId)?.name ?? item.finalName ?? item.rawName,
+            description: conceptOptions.value.find((entry) => entry.id === item.existingConceptId)?.description ?? null,
+            visibility: conceptOptions.value.find((entry) => entry.id === item.existingConceptId)?.visibility ?? 'PRIVATE',
+            bookId: note.value.bookId,
+            sourceReferenceId: sourceReference.id,
+          })
+        : await createConcept({
+            name: item.finalName?.trim() || item.rawName,
+            visibility: 'PRIVATE',
+            bookId: note.value.bookId,
+            sourceReferenceId: sourceReference.id,
+          })
+
+      try {
+        await createKnowledgeObject({
+          type: 'CONCEPT',
+          title: concept.name,
+          visibility: 'PRIVATE',
+          bookId: note.value.bookId,
+          noteId: note.value.id,
+          conceptId: concept.id,
+          sourceReferenceId: sourceReference.id,
+          tags: item.tags ?? [],
+        })
+      } catch {
+        // Existing concept knowledge objects are safe to leave unchanged.
+      }
+    }
+    await loadConceptOptions()
+    conceptDialogOpen.value = false
+    ElMessage.success('Note concepts reviewed and linked to source.')
+  } catch {
+    ElMessage.error('Concept review failed.')
+  } finally {
+    savingConceptReview.value = false
+  }
+}
+
+async function loadConceptOptions() {
+  conceptOptions.value = await getConcepts()
+}
+
+function parsedConcepts(block: NoteBlockRecord) {
+  return [...block.rawText.matchAll(/\[\[([^\]]+)\]\]/g)]
+    .map((match) => match[1]?.trim())
+    .filter(Boolean)
+    .filter((value, index, all) => all.findIndex((entry) => entry.toLowerCase() === value.toLowerCase()) === index)
 }
 
 function formatType(type: NoteBlockType) {
@@ -393,6 +514,13 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 
 .block-card__badges {
   display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.block-card__concepts {
+  display: flex;
+  align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
 }

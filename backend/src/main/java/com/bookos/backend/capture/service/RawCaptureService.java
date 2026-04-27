@@ -6,15 +6,21 @@ import com.bookos.backend.book.repository.UserBookRepository;
 import com.bookos.backend.book.service.BookService;
 import com.bookos.backend.capture.dto.CaptureConversionResponse;
 import com.bookos.backend.capture.dto.CaptureConversionTarget;
+import com.bookos.backend.capture.dto.ConceptReviewAction;
+import com.bookos.backend.capture.dto.ConceptReviewItemRequest;
+import com.bookos.backend.capture.dto.ConceptReviewRequest;
+import com.bookos.backend.capture.dto.ConceptReviewResponse;
 import com.bookos.backend.capture.dto.RawCaptureConvertRequest;
 import com.bookos.backend.capture.dto.RawCaptureRequest;
 import com.bookos.backend.capture.dto.RawCaptureResponse;
 import com.bookos.backend.capture.dto.RawCaptureUpdateRequest;
+import com.bookos.backend.capture.dto.ReviewedConceptResponse;
 import com.bookos.backend.capture.entity.RawCapture;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.enums.CaptureStatus;
 import com.bookos.backend.common.enums.Visibility;
 import com.bookos.backend.knowledge.service.ConceptService;
+import com.bookos.backend.knowledge.service.KnowledgeObjectService;
 import com.bookos.backend.note.dto.BookNoteRequest;
 import com.bookos.backend.note.service.BookNoteService;
 import com.bookos.backend.parser.dto.ParsedNoteResponse;
@@ -52,6 +58,7 @@ public class RawCaptureService {
     private final NoteParserService noteParserService;
     private final SourceReferenceService sourceReferenceService;
     private final ConceptService conceptService;
+    private final KnowledgeObjectService knowledgeObjectService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -68,8 +75,7 @@ public class RawCaptureService {
         applyParsedCapture(capture, parsed);
 
         RawCapture saved = rawCaptureRepository.save(capture);
-        SourceReference sourceReference = sourceReferenceService.createForRawCapture(user, book, saved.getId(), parsed);
-        conceptService.indexParsedConcepts(user, book, sourceReference, parsed.concepts());
+        sourceReferenceService.createForRawCapture(user, book, saved.getId(), parsed);
         return toResponse(saved);
     }
 
@@ -107,8 +113,7 @@ public class RawCaptureService {
         ParsedNoteResponse parsed = noteParserService.parse(request.rawText());
         applyParsedCapture(capture, parsed);
         RawCapture saved = rawCaptureRepository.save(capture);
-        SourceReference sourceReference = sourceReferenceService.replaceForRawCapture(user, saved.getBook(), saved.getId(), parsed);
-        conceptService.indexParsedConcepts(user, saved.getBook(), sourceReference, parsed.concepts());
+        sourceReferenceService.replaceForRawCapture(user, saved.getBook(), saved.getId(), parsed);
         return toResponse(saved);
     }
 
@@ -152,6 +157,17 @@ public class RawCaptureService {
     }
 
     @Transactional
+    public ConceptReviewResponse reviewCaptureConcepts(String email, Long id, ConceptReviewRequest request) {
+        User user = userService.getByEmailRequired(email);
+        RawCapture capture = getOwnedCapture(id, user);
+        SourceReference sourceReference = firstOrCreateCaptureSource(user, capture);
+        List<ReviewedConceptResponse> reviewed = request.concepts().stream()
+                .map(item -> reviewConceptDecision(user, capture, sourceReference, item))
+                .toList();
+        return new ConceptReviewResponse(toResponse(capture), reviewed);
+    }
+
+    @Transactional
     public RawCaptureResponse archiveCapture(String email, Long id) {
         User user = userService.getByEmailRequired(email);
         RawCapture capture = getOwnedCapture(id, user);
@@ -165,6 +181,74 @@ public class RawCaptureService {
     private RawCapture getOwnedCapture(Long id, User user) {
         return rawCaptureRepository.findByIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new NoSuchElementException("Capture not found."));
+    }
+
+    private SourceReference firstOrCreateCaptureSource(User user, RawCapture capture) {
+        return sourceReferenceRepository.findByRawCaptureIdOrderByCreatedAtAsc(capture.getId())
+                .stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    ParsedNoteResponse parsed = noteParserService.parse(capture.getRawText());
+                    return sourceReferenceService.createForRawCapture(user, capture.getBook(), capture.getId(), parsed);
+                });
+    }
+
+    private ReviewedConceptResponse reviewConceptDecision(
+            User user,
+            RawCapture capture,
+            SourceReference sourceReference,
+            ConceptReviewItemRequest item) {
+        List<String> tags = cleanTags(item.tags());
+        if (item.action() == ConceptReviewAction.SKIP) {
+            return new ReviewedConceptResponse(
+                    item.rawName(),
+                    resolveFinalName(item),
+                    item.action(),
+                    null,
+                    null,
+                    sourceReferenceService.toResponse(sourceReference),
+                    tags);
+        }
+
+        String finalName = resolveFinalName(item);
+        var concept = conceptService.reviewParsedConcept(
+                user,
+                capture.getBook(),
+                sourceReference,
+                finalName,
+                item.action() == ConceptReviewAction.ACCEPT ? item.existingConceptId() : null);
+        var knowledgeObject = knowledgeObjectService.upsertReviewedConceptObject(
+                user,
+                capture.getBook(),
+                sourceReference,
+                conceptService.getOwnedConcept(user, concept.id()),
+                tags);
+        return new ReviewedConceptResponse(
+                item.rawName(),
+                concept.name(),
+                item.action(),
+                concept,
+                knowledgeObject,
+                sourceReferenceService.toResponse(sourceReference),
+                tags);
+    }
+
+    private String resolveFinalName(ConceptReviewItemRequest item) {
+        if (StringUtils.hasText(item.finalName())) {
+            return item.finalName().trim();
+        }
+        return item.rawName().trim();
+    }
+
+    private List<String> cleanTags(List<String> tags) {
+        if (tags == null) {
+            return List.of();
+        }
+        return tags.stream()
+                .filter(StringUtils::hasText)
+                .map(tag -> tag.trim().replaceFirst("^#", "").toLowerCase())
+                .distinct()
+                .toList();
     }
 
     private void applyParsedCapture(RawCapture capture, ParsedNoteResponse parsed) {

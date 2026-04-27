@@ -2,6 +2,7 @@ package com.bookos.backend.action.dto;
 
 import com.bookos.backend.common.enums.ActionPriority;
 import com.bookos.backend.common.enums.Visibility;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -20,5 +21,11 @@ public record ActionItemRequest(
         ActionPriority priority,
 
         Long sourceReferenceId,
+
+        @Min(value = 1, message = "Page start must be at least 1.")
+        Integer pageStart,
+
+        @Min(value = 1, message = "Page end must be at least 1.")
+        Integer pageEnd,
 
         Visibility visibility) {}

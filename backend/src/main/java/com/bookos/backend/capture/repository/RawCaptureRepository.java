@@ -17,4 +17,7 @@ public interface RawCaptureRepository extends JpaRepository<RawCapture, Long> {
 
     @EntityGraph(attributePaths = {"book"})
     List<RawCapture> findByUserIdAndBookIdAndStatusOrderByCreatedAtDesc(Long userId, Long bookId, CaptureStatus status);
+
+    @EntityGraph(attributePaths = {"book"})
+    List<RawCapture> findByUserIdAndStatusOrderByUpdatedAtDesc(Long userId, CaptureStatus status);
 }

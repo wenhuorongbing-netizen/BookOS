@@ -19,7 +19,8 @@ const props = defineProps<{
   lastReadAt?: string | null
   notesCount?: number | null
   quotesCount?: number | null
-  lensesCount?: number | null
+  actionItemsCount?: number | null
+  conceptsCount?: number | null
 }>()
 
 const missing = 'Not tracked yet'
@@ -48,7 +49,8 @@ const items = computed(() => [
   { icon: 'LR', label: 'Last read', value: lastReadValue.value },
   { icon: 'NO', label: 'Notes', value: countValue(props.notesCount) },
   { icon: 'QT', label: 'Quotes', value: countValue(props.quotesCount) },
-  { icon: 'LN', label: 'Lenses', value: countValue(props.lensesCount) },
+  { icon: 'AC', label: 'Actions', value: countValue(props.actionItemsCount) },
+  { icon: 'CN', label: 'Concepts', value: countValue(props.conceptsCount) },
 ])
 </script>
 
@@ -56,7 +58,7 @@ const items = computed(() => [
 .book-meta-stats {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-3);
 }
 

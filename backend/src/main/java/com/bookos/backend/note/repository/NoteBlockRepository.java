@@ -13,4 +13,7 @@ public interface NoteBlockRepository extends JpaRepository<NoteBlock, Long> {
 
     @EntityGraph(attributePaths = {"sourceReferences"})
     List<NoteBlock> findByNoteIdAndUserIdOrderBySortOrderAsc(Long noteId, Long userId);
+
+    @EntityGraph(attributePaths = {"note", "book", "sourceReferences"})
+    List<NoteBlock> findByUserIdOrderByUpdatedAtDesc(Long userId);
 }

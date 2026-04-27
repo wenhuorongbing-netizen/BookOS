@@ -345,6 +345,15 @@ select {
   opacity: 0.62;
 }
 
+.bookos-source-highlight {
+  outline: 3px solid color-mix(in srgb, var(--bookos-accent) 72%, transparent);
+  outline-offset: 5px;
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--bookos-accent-soft) 62%, transparent);
+  transition:
+    outline-color var(--motion-normal) var(--motion-ease),
+    box-shadow var(--motion-normal) var(--motion-ease);
+}
+
 @media (max-width: 900px) {
   .page-header {
     flex-direction: column;

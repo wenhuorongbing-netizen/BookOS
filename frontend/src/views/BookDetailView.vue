@@ -20,6 +20,13 @@
         <RouterLink :to="{ name: 'book-notes', params: { bookId: book.id } }" custom v-slot="{ navigate }">
           <AppButton variant="primary" @click="navigate">Open Notes</AppButton>
         </RouterLink>
+        <RouterLink
+          :to="{ name: 'forum-new', query: { relatedEntityType: 'BOOK', relatedEntityId: String(book.id), bookId: String(book.id), title: `Discuss ${book.title}` } }"
+          custom
+          v-slot="{ navigate }"
+        >
+          <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
+        </RouterLink>
         <RouterLink :to="`/books/${book.id}/edit`" custom v-slot="{ navigate }">
           <AppButton variant="secondary" @click="navigate">Edit Book</AppButton>
         </RouterLink>
@@ -35,8 +42,22 @@
       :favorite-loading="favoriteLoading"
       @toggle-favorite="handleFavoriteToggle"
     />
+    <AppCard v-if="cockpitWarning" class="cockpit-warning" as="section" role="status">
+      <strong>Some cockpit data could not load</strong>
+      <p>{{ cockpitWarning }}</p>
+    </AppCard>
 
-    <BookInsightCards :book="book" @open-source="handleOpenSource" @open-graph="handleOpenGraph" />
+    <BookInsightCards
+      :book="book"
+      :daily="daily"
+      :daily-action-loading="dailyActionLoading"
+      @open-source="handleOpenSource"
+      @open-graph="handleOpenGraph"
+      @regenerate-daily="handleRegenerateDaily"
+      @skip-daily="handleSkipDaily"
+      @save-reflection="handleSaveDailyReflection"
+      @create-prototype-task="handleCreatePrototypeTask"
+    />
     <BookKnowledgeSection
       :book="book"
       @open-graph="handleOpenGraph"
@@ -118,14 +139,30 @@
         </div>
       </AppCard>
     </section>
+
+    <BacklinksSection
+      entity-type="BOOK"
+      :entity-id="book.id"
+      :source-references="sourceReferenceRecords"
+      :book-title="book.title"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import axios from 'axios'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { addBookToLibrary, getBook } from '../api/books'
+import { getActionItems } from '../api/actionItems'
+import { getCaptureInbox } from '../api/captures'
+import { createPrototypeTaskFromDaily, getDailyToday, regenerateDaily, saveDailyReflection, skipDaily } from '../api/daily'
+import { getBookGraph } from '../api/graph'
+import { getBookConcepts } from '../api/knowledge'
+import { getBookNotes } from '../api/notes'
+import { getQuotes } from '../api/quotes'
+import { getBookSourceReferences } from '../api/sourceReferences'
 import { updateUserBookProgress, updateUserBookRating, updateUserBookStatus } from '../api/userBooks'
 import BookContextHeader from '../components/book-detail/BookContextHeader.vue'
 import BookCaptureSection from '../components/book-detail/BookCaptureSection.vue'
@@ -140,13 +177,29 @@ import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
+import BacklinksSection from '../components/source/BacklinksSection.vue'
+import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
-import type { BookRecord, ReadingStatus } from '../types'
+import type {
+  ActionItemRecord,
+  BookConceptPreview,
+  BookNoteRecord,
+  BookRecord,
+  ConceptRecord,
+  DailyTarget,
+  DailyTodayRecord,
+  GraphRecord,
+  QuoteRecord,
+  RawCaptureRecord,
+  ReadingStatus,
+  SourceReferenceRecord,
+} from '../types'
 import { readingStatusOptions } from '../types'
 
 const route = useRoute()
 const router = useRouter()
 const rightRail = useRightRailStore()
+const { openSource } = useOpenSource()
 const book = ref<BookRecord | null>(null)
 const status = ref<ReadingStatus>('BACKLOG')
 const progress = ref(0)
@@ -154,30 +207,240 @@ const rating = ref(0)
 const favoriteLoading = ref(false)
 const loading = ref(true)
 const errorMessage = ref('')
+const cockpitWarning = ref('')
 const statusOptions = readingStatusOptions
+const latestQuote = ref<QuoteRecord | null>(null)
+const latestSourceReference = ref<SourceReferenceRecord | null>(null)
+const quoteRecords = ref<QuoteRecord[]>([])
+const actionItemRecords = ref<ActionItemRecord[]>([])
+const sourceReferenceRecords = ref<SourceReferenceRecord[]>([])
+const daily = ref<DailyTodayRecord | null>(null)
+const dailyActionLoading = ref(false)
 
 onMounted(loadBook)
 onUnmounted(() => {
   if (book.value) rightRail.clearSourceForBook(book.value.id)
+  rightRail.setActionItemsFromRecords([])
 })
 
 async function loadBook() {
   loading.value = true
   errorMessage.value = ''
+  cockpitWarning.value = ''
 
   try {
     const result = await getBook(Number(route.params.id))
-    book.value = result
-    rightRail.setCurrentBookSource(result)
-    status.value = result.readingStatus ?? 'BACKLOG'
-    progress.value = result.progressPercent ?? 0
-    rating.value = result.rating ?? 0
+    const hydrated = await hydrateBookKnowledge(result)
+    book.value = hydrated
+    setRightRailSourceFromRouteOrLatest(hydrated)
+    status.value = hydrated.readingStatus ?? 'BACKLOG'
+    progress.value = hydrated.progressPercent ?? 0
+    rating.value = hydrated.rating ?? 0
   } catch {
     book.value = null
     errorMessage.value = 'Check your connection and try opening this book again.'
   } finally {
     loading.value = false
   }
+}
+
+async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
+  const [notesResult, capturesResult, quotesResult, actionItemsResult, sourceReferencesResult, conceptsResult, dailyResult, graphResult] =
+    (await Promise.allSettled([
+      getBookNotes(base.id),
+      getCaptureInbox({ bookId: base.id }),
+      getQuotes({ bookId: base.id }),
+      getActionItems({ bookId: base.id }),
+      getBookSourceReferences(base.id),
+      getBookConcepts(base.id),
+      getDailyToday(),
+      getBookGraph(base.id),
+    ])) as [
+      PromiseSettledResult<BookNoteRecord[]>,
+      PromiseSettledResult<RawCaptureRecord[]>,
+      PromiseSettledResult<QuoteRecord[]>,
+      PromiseSettledResult<ActionItemRecord[]>,
+      PromiseSettledResult<SourceReferenceRecord[]>,
+      PromiseSettledResult<ConceptRecord[]>,
+      PromiseSettledResult<DailyTodayRecord>,
+      PromiseSettledResult<GraphRecord>,
+    ]
+
+  const notes = settledValue(notesResult, [])
+  const captures = settledValue(capturesResult, [])
+  const quotes = settledValue(quotesResult, [])
+  const actionItems = settledValue(actionItemsResult, [])
+  const sourceReferences = settledValue(sourceReferencesResult, [])
+  const concepts = settledValue(conceptsResult, [])
+  const dailyData = settledValue<DailyTodayRecord | null>(dailyResult, null)
+  const graph = settledValue<GraphRecord | null>(graphResult, null)
+
+  daily.value = dailyData
+  quoteRecords.value = quotes
+  actionItemRecords.value = actionItems
+  sourceReferenceRecords.value = sourceReferences
+  latestQuote.value = quotes[0] ?? null
+  latestSourceReference.value = sourceReferences[0] ?? null
+  rightRail.setActionItemsFromRecords(actionItems.slice(0, 6))
+  cockpitWarning.value = buildCockpitWarning([
+    ['notes', notesResult],
+    ['raw captures', capturesResult],
+    ['quotes', quotesResult],
+    ['action items', actionItemsResult],
+    ['source references', sourceReferencesResult],
+    ['concepts', conceptsResult],
+    ['daily resurfacing', dailyResult],
+    ['knowledge graph', graphResult],
+  ])
+
+  const conceptPreviews = concepts.map(toConceptPreview)
+  const quotePreview = dailyData?.sentence
+    ? dailySentencePreview(dailyData)
+    : latestQuote.value
+    ? {
+        id: latestQuote.value.id,
+        text: latestQuote.value.text,
+        author: latestQuote.value.attribution,
+        page: latestQuote.value.pageStart,
+        sourceLabel: latestQuote.value.sourceReference?.locationLabel,
+      }
+    : null
+
+  return {
+    ...base,
+    latestQuote: quotePreview,
+    dailyQuote: quotePreview,
+    dailyDesignPrompt: dailyData?.prompt ? dailyPromptPreview(dailyData) : base.dailyDesignPrompt,
+    notesCount: notes.length,
+    quotesCount: quotes.length,
+    actionItemsCount: actionItems.length,
+    capturesCount: captures.length,
+    sourceReferencesCount: sourceReferences.length,
+    conceptsCount: conceptPreviews.length,
+    concepts: conceptPreviews,
+    ontologyConceptCount: conceptPreviews.length,
+    knowledgeGraph: {
+      ...(base.knowledgeGraph ?? {}),
+      concepts: conceptPreviews,
+      nodes: graph?.nodes ?? [],
+      edges: graph?.edges ?? [],
+    },
+  }
+}
+
+function dailySentencePreview(dailyData: DailyTodayRecord) {
+  if (!dailyData.sentence) return null
+  return {
+    id: dailyData.sentence.id,
+    text: dailyData.sentence.text,
+    author: dailyData.sentence.attribution ?? dailyData.sentence.bookTitle,
+    page: dailyData.sentence.pageStart,
+    sourceLabel: dailyData.sentence.sourceReference?.locationLabel ?? dailyData.sentence.bookTitle,
+  }
+}
+
+function dailyPromptPreview(dailyData: DailyTodayRecord) {
+  return {
+    id: dailyData.prompt.id,
+    question: dailyData.prompt.question,
+    linkedConcept: dailyData.prompt.sourceTitle,
+    sourceTitle: dailyData.prompt.sourceTitle,
+    templatePrompt: dailyData.prompt.templatePrompt,
+  }
+}
+
+function applyDailyState(dailyData: DailyTodayRecord) {
+  daily.value = dailyData
+  if (!book.value) return
+  book.value = {
+    ...book.value,
+    dailyQuote: dailySentencePreview(dailyData),
+    dailyDesignPrompt: dailyPromptPreview(dailyData),
+  }
+}
+
+function settledValue<T>(result: PromiseSettledResult<T>, fallback: T) {
+  return result.status === 'fulfilled' ? result.value : fallback
+}
+
+function toConceptPreview(concept: ConceptRecord): BookConceptPreview {
+  const mentionCount = concept.mentionCount ?? concept.sourceReferences.length
+  return {
+    id: concept.id,
+    name: concept.name,
+    type: 'Concept',
+    relevance: Math.min(100, mentionCount * 20),
+    mentions: mentionCount,
+    edgeStrength: mentionCount >= 3 ? 'strong' : mentionCount >= 2 ? 'medium' : 'weak',
+  }
+}
+
+function setRightRailSourceFromRouteOrLatest(currentBook: BookRecord) {
+  const sourceType = typeof route.query.sourceType === 'string' ? route.query.sourceType.toUpperCase() : null
+  const sourceId = typeof route.query.sourceId === 'string' ? Number(route.query.sourceId) : null
+
+  if (sourceType === 'QUOTE' && sourceId) {
+    const quote = quoteRecords.value.find((item) => item.id === sourceId)
+    if (quote) {
+      rightRail.setSourceFromQuote(quote, currentBook)
+      return
+    }
+  }
+
+  if (sourceType === 'ACTION_ITEM' && sourceId) {
+    const actionItem = actionItemRecords.value.find((item) => item.id === sourceId)
+    if (actionItem) {
+      rightRail.setSourceFromActionItem(actionItem, currentBook)
+      return
+    }
+  }
+
+  if ((sourceType === 'SOURCE_REFERENCE' || sourceType === 'NOTE') && sourceId) {
+    const sourceReference = sourceReferenceRecords.value.find((item) => item.id === sourceId)
+    if (sourceReference) {
+      rightRail.setSourceFromReference(sourceReference, currentBook.title, currentBook)
+      return
+    }
+  }
+
+  if (latestQuote.value) {
+    rightRail.setSourceFromQuote(latestQuote.value, currentBook)
+    return
+  }
+
+  if (latestSourceReference.value) {
+    rightRail.setSourceFromReference(latestSourceReference.value, currentBook.title, currentBook)
+    return
+  }
+
+  rightRail.setCurrentBookSource(currentBook)
+}
+
+function buildCockpitWarning(results: Array<[string, PromiseSettledResult<unknown>]>) {
+  const failed = results
+    .filter(([, result]) => result.status === 'rejected')
+    .map(([label, result]) => `${label}: ${loadFailureReason(result)}`)
+
+  return failed.length ? failed.join(' ') : ''
+}
+
+function loadFailureReason(result: PromiseSettledResult<unknown>) {
+  if (result.status !== 'rejected') return ''
+
+  if (!axios.isAxiosError(result.reason)) {
+    return 'unavailable.'
+  }
+
+  if (!result.reason.response) {
+    return 'backend unavailable.'
+  }
+
+  if (result.reason.response.status === 403) {
+    return 'permission denied.'
+  }
+
+  const data = result.reason.response.data as { message?: string } | undefined
+  return data?.message ? `${data.message}.` : 'could not be loaded.'
 }
 
 async function handleAddToLibrary() {
@@ -241,9 +504,128 @@ async function handleFavoriteToggle() {
   }
 }
 
-function handleOpenSource() {
+function handleOpenSource(target?: DailyTarget) {
   if (!book.value) return
+  if (target === 'SENTENCE' && daily.value?.sentence?.sourceReference) {
+    const source = daily.value.sentence.sourceReference
+    rightRail.setSourceFromReference(source, daily.value.sentence.bookTitle ?? book.value.title, book.value)
+    void openSource({
+      sourceType: 'DAILY_SENTENCE',
+      sourceId: daily.value.sentence.id,
+      bookId: source.bookId,
+      bookTitle: daily.value.sentence.bookTitle ?? book.value.title,
+      pageStart: source.pageStart,
+      noteId: source.noteId ?? undefined,
+      rawCaptureId: source.rawCaptureId ?? undefined,
+      noteBlockId: source.noteBlockId ?? undefined,
+      sourceReference: source,
+      sourceReferenceId: source.id,
+    })
+    return
+  }
+
+  if (target === 'PROMPT' && daily.value?.prompt?.sourceReference) {
+    const source = daily.value.prompt.sourceReference
+    rightRail.setSourceFromReference(source, daily.value.prompt.bookTitle ?? book.value.title, book.value)
+    void openSource({
+      sourceType: 'DAILY_PROMPT',
+      sourceId: daily.value.prompt.id,
+      bookId: source.bookId,
+      bookTitle: daily.value.prompt.bookTitle ?? book.value.title,
+      pageStart: source.pageStart,
+      noteId: source.noteId ?? undefined,
+      rawCaptureId: source.rawCaptureId ?? undefined,
+      noteBlockId: source.noteBlockId ?? undefined,
+      sourceReference: source,
+      sourceReferenceId: source.id,
+    })
+    return
+  }
+
+  if (latestQuote.value) {
+    rightRail.setSourceFromQuote(latestQuote.value, book.value)
+    void openSource({
+      sourceType: 'QUOTE',
+      sourceId: latestQuote.value.id,
+      bookId: book.value.id,
+      bookTitle: book.value.title,
+      pageStart: latestQuote.value.pageStart,
+      noteId: latestQuote.value.noteId ?? undefined,
+      rawCaptureId: latestQuote.value.rawCaptureId ?? undefined,
+      noteBlockId: latestQuote.value.noteBlockId ?? undefined,
+      sourceReference: latestQuote.value.sourceReference,
+      sourceReferenceId: latestQuote.value.sourceReference?.id ?? null,
+    })
+    return
+  }
+
+  if (latestSourceReference.value) {
+    rightRail.setSourceFromReference(latestSourceReference.value, book.value.title, book.value)
+    void openSource({
+      sourceType: 'SOURCE_REFERENCE',
+      sourceId: latestSourceReference.value.id,
+      bookId: book.value.id,
+      bookTitle: book.value.title,
+      pageStart: latestSourceReference.value.pageStart,
+      noteId: latestSourceReference.value.noteId ?? undefined,
+      rawCaptureId: latestSourceReference.value.rawCaptureId ?? undefined,
+      noteBlockId: latestSourceReference.value.noteBlockId ?? undefined,
+      sourceReference: latestSourceReference.value,
+      sourceReferenceId: latestSourceReference.value.id,
+    })
+    return
+  } else {
+    rightRail.setCurrentBookSource(book.value)
+  }
   router.push({ name: 'book-detail', params: { id: book.value.id }, hash: '#library-state' })
+}
+
+async function handleRegenerateDaily(target: DailyTarget) {
+  dailyActionLoading.value = true
+  try {
+    applyDailyState(await regenerateDaily(target))
+    ElMessage.success('Daily item regenerated.')
+  } finally {
+    dailyActionLoading.value = false
+  }
+}
+
+async function handleSkipDaily(target: DailyTarget) {
+  dailyActionLoading.value = true
+  try {
+    applyDailyState(await skipDaily(target))
+    ElMessage.success('Daily item skipped.')
+  } finally {
+    dailyActionLoading.value = false
+  }
+}
+
+async function handleSaveDailyReflection(payload: { target: DailyTarget; text: string }) {
+  dailyActionLoading.value = true
+  try {
+    const currentDaily = daily.value
+    await saveDailyReflection({
+      target: payload.target,
+      dailySentenceId: payload.target === 'SENTENCE' ? currentDaily?.sentence?.id ?? null : null,
+      dailyDesignPromptId: payload.target === 'PROMPT' ? currentDaily?.prompt.id ?? null : null,
+      reflectionText: payload.text,
+    })
+    applyDailyState(await getDailyToday())
+    ElMessage.success('Daily reflection saved.')
+  } finally {
+    dailyActionLoading.value = false
+  }
+}
+
+async function handleCreatePrototypeTask(promptId: number | string | null) {
+  dailyActionLoading.value = true
+  try {
+    const task = await createPrototypeTaskFromDaily({ dailyDesignPromptId: promptId === null ? null : Number(promptId) })
+    ElMessage.success('Prototype task created.')
+    router.push({ name: 'knowledge-detail', params: { id: task.id } })
+  } finally {
+    dailyActionLoading.value = false
+  }
 }
 
 function handleOpenGraph() {
@@ -271,6 +653,21 @@ function handleOpenLens(name: string) {
 
 .book-detail-state {
   padding: var(--space-6);
+}
+
+.cockpit-warning {
+  padding: var(--space-4);
+  border-color: color-mix(in srgb, var(--bookos-warning) 28%, var(--bookos-border));
+  background: color-mix(in srgb, var(--bookos-warning-soft) 52%, var(--bookos-surface));
+}
+
+.cockpit-warning strong {
+  color: var(--bookos-text-primary);
+}
+
+.cockpit-warning p {
+  margin: var(--space-2) 0 0;
+  color: var(--bookos-text-secondary);
 }
 
 .detail-panel,

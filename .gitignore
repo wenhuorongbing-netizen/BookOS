@@ -4,3 +4,8 @@ frontend/dist/
 tools/jdk21.zip
 tools/jdk21-extracted/
 .env
+backend.zip
+*.7z
+*.log
+*.out
+*.err

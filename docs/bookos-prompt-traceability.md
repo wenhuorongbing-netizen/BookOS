@@ -203,3 +203,50 @@ The following are documented as the target but not fully implemented as function
 
 > Continue from `docs/bookos-prompt-traceability.md`. Implement the actual cockpit dashboard content in `DashboardView.vue` using the existing design system components. Preserve existing routes, framework, Element Plus, and backend APIs. Use local frontend mock data only for notes/quotes/lenses/concepts/source/AI modules that do not have backend APIs yet, and keep existing library data connected.
 
+## Current-State Hygiene Review - 2026-04-27
+
+Repository state checked against `origin/main` after `git fetch origin`.
+
+Current status:
+
+- Branch: `main`
+- Local SHA: `20b85049c334ee9620a67df31303fe983040d3cc`
+- Remote `origin/main` SHA: `20b85049c334ee9620a67df31303fe983040d3cc`
+- Remote commit label: `phase5b`
+- Phase 5B quote/action modules are present on remote main.
+- No `.7z` archive is present in the working tree.
+
+Phase 5B files confirmed:
+
+- `backend/src/main/java/com/bookos/backend/quote/**`
+- `backend/src/main/java/com/bookos/backend/action/**`
+- `frontend/src/api/quotes.ts`
+- `frontend/src/api/actionItems.ts`
+
+Hygiene cleanup performed:
+
+- Removed tracked generated archive: `backend.zip`
+- Removed tracked backend runtime logs: `backend/backend-18080.log`, `backend/backend.out`, `backend/backend.err`
+- Removed ignored local frontend runtime log: `frontend/frontend-dev.log`
+- Updated root `.gitignore` to ignore `backend.zip`, `.7z` archives, logs, `.out`, and `.err` files.
+- Existing ignored build outputs remain ignored: `backend/target/`, `frontend/dist/`, `frontend/node_modules/`.
+
+Uncommitted product-code changes preserved from the previous checkpoint:
+
+- `frontend/src/components/RightRail.vue`
+- `frontend/src/components/book-detail/BookCaptureSection.vue`
+- `frontend/src/stores/capture.ts`
+- `frontend/src/stores/rightRail.ts`
+- `frontend/src/views/BookDetailView.vue`
+- `frontend/src/views/CaptureInboxView.vue`
+
+Verification:
+
+- Backend: `.\mvnw.cmd test` passed, 13 tests, 0 failures.
+- Frontend dependency check: `npm install` completed, 0 vulnerabilities.
+- Frontend typecheck: `npm run typecheck` passed.
+- Frontend build: `npm run build` passed.
+
+Remaining hygiene note:
+
+- `frontend/dist/` and `backend/target/` are regenerated locally by verification commands but are ignored and not tracked.

@@ -63,6 +63,12 @@ public class Quote extends BaseEntity {
 
     private Integer pageEnd;
 
+    @Lob
+    private String tagsJson;
+
+    @Lob
+    private String conceptsJson;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private Visibility visibility = Visibility.PRIVATE;

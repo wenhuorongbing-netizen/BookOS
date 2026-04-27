@@ -70,3 +70,7 @@ export function getEntityLinks(params?: {
 export function createEntityLink(payload: EntityLinkPayload) {
   return unwrap<EntityLinkRecord>(api.post('/entity-links', payload))
 }
+
+export function deleteEntityLink(id: number | string) {
+  return unwrap<void>(api.delete(`/entity-links/${id}`))
+}

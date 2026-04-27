@@ -1,6 +1,7 @@
 package com.bookos.backend.link.service;
 
 import com.bookos.backend.book.repository.UserBookRepository;
+import com.bookos.backend.action.repository.ActionItemRepository;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.knowledge.repository.ConceptRepository;
 import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
@@ -9,6 +10,7 @@ import com.bookos.backend.link.dto.EntityLinkResponse;
 import com.bookos.backend.link.entity.EntityLink;
 import com.bookos.backend.link.repository.EntityLinkRepository;
 import com.bookos.backend.note.repository.BookNoteRepository;
+import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
@@ -27,6 +29,8 @@ public class EntityLinkService {
 
     private final EntityLinkRepository entityLinkRepository;
     private final SourceReferenceRepository sourceReferenceRepository;
+    private final QuoteRepository quoteRepository;
+    private final ActionItemRepository actionItemRepository;
     private final ConceptRepository conceptRepository;
     private final KnowledgeObjectRepository knowledgeObjectRepository;
     private final BookNoteRepository bookNoteRepository;
@@ -87,6 +91,14 @@ public class EntityLinkService {
         return toResponse(entityLinkRepository.save(link));
     }
 
+    @Transactional
+    public void deleteEntityLink(String email, Long id) {
+        User user = userService.getByEmailRequired(email);
+        EntityLink link = entityLinkRepository.findByIdAndUserId(id, user.getId())
+                .orElseThrow(() -> new NoSuchElementException("Entity link not found."));
+        entityLinkRepository.delete(link);
+    }
+
     private void assertOwnedOrLinkable(User user, String type, Long id) {
         switch (type) {
             case "SOURCE_REFERENCE" -> sourceReferenceRepository.findByIdAndUserId(id, user.getId())
@@ -99,6 +111,10 @@ public class EntityLinkService {
                     .orElseThrow(() -> new NoSuchElementException("Note not found."));
             case "RAW_CAPTURE" -> rawCaptureRepository.findByIdAndUserId(id, user.getId())
                     .orElseThrow(() -> new NoSuchElementException("Capture not found."));
+            case "QUOTE" -> quoteRepository.findByIdAndUserIdAndArchivedFalse(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Quote not found."));
+            case "ACTION_ITEM" -> actionItemRepository.findByIdAndUserIdAndArchivedFalse(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Action item not found."));
             case "BOOK" -> {
                 if (userBookRepository.findByUserIdAndBookId(user.getId(), id).isEmpty()) {
                     throw new AccessDeniedException("Add this book to your library before linking it.");

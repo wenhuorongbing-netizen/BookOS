@@ -14,10 +14,15 @@
           <p>{{ quote.text }}</p>
         </blockquote>
         <div class="insight-card__source">
-          <span>{{ quote.author || authorLine }}</span>
+          <span>{{ quote.author || quote.sourceLabel || authorLine }}</span>
           <AppBadge v-if="quote.page" variant="accent" size="sm">p.{{ quote.page }}</AppBadge>
+          <AppBadge v-if="quote.sourceBacked" variant="success" size="sm">Source-backed</AppBadge>
         </div>
-        <AppButton variant="secondary" @click="$emit('open-source')">Open source</AppButton>
+        <div class="insight-card__actions">
+          <AppButton variant="secondary" :disabled="!quote.hasSource" @click="$emit('open-source', 'SENTENCE')">Open source</AppButton>
+          <AppButton variant="ghost" :loading="dailyActionLoading" @click="$emit('regenerate-daily', 'SENTENCE')">Regenerate</AppButton>
+          <AppButton variant="text" :loading="dailyActionLoading" @click="$emit('skip-daily', 'SENTENCE')">Skip</AppButton>
+        </div>
       </template>
 
       <AppEmptyState
@@ -36,16 +41,27 @@
       <div class="insight-card__heading">
         <div>
           <div class="eyebrow">Daily Design Prompt</div>
-          <h2>Think</h2>
+          <h2>
+            Think
+            <AppBadge v-if="prompt.templatePrompt" variant="warning" size="sm">Template Prompt</AppBadge>
+            <AppBadge v-else variant="success" size="sm">Source-backed</AppBadge>
+          </h2>
         </div>
         <span class="insight-card__icon" aria-hidden="true">DP</span>
       </div>
 
       <p class="insight-card__prompt">{{ prompt.question }}</p>
       <div class="insight-card__source">
-        <AppBadge variant="primary" size="sm">{{ prompt.linkedConcept ?? prompt.linkedLens ?? 'Design lens' }}</AppBadge>
+        <AppBadge variant="primary" size="sm">{{ prompt.sourceTitle ?? prompt.linkedConcept ?? prompt.linkedLens ?? 'Design prompt' }}</AppBadge>
       </div>
-      <AppButton variant="primary" @click="promptOpen = true">Start Prompt</AppButton>
+      <div class="insight-card__actions">
+        <AppButton variant="primary" @click="promptOpen = true">Save Reflection</AppButton>
+        <AppButton variant="accent" :loading="dailyActionLoading" @click="$emit('create-prototype-task', prompt.id ?? null)">
+          Create Prototype Task
+        </AppButton>
+        <AppButton variant="ghost" :loading="dailyActionLoading" @click="$emit('regenerate-daily', 'PROMPT')">Regenerate</AppButton>
+        <AppButton variant="text" :loading="dailyActionLoading" @click="$emit('skip-daily', 'PROMPT')">Skip</AppButton>
+      </div>
     </AppCard>
 
     <AppCard as="article" class="insight-card insight-card--ontology" variant="default">
@@ -58,7 +74,7 @@
       </div>
 
       <p class="insight-card__prompt">
-        This book connects to {{ conceptCount }} {{ conceptCount === 1 ? 'concept' : 'concepts' }} in your knowledge graph.
+        This book connects to {{ conceptCount }} {{ conceptCount === 1 ? 'concept' : 'concepts' }} captured from your notes and source references.
       </p>
       <div class="mini-graph" role="img" :aria-label="graphDescription">
         <span class="mini-graph__node mini-graph__node--book">{{ book.title }}</span>
@@ -97,11 +113,11 @@
             v-model="reflectionDraft"
             type="textarea"
             :rows="5"
-            placeholder="Write a quick design reflection. This stays local until capture APIs exist."
+            placeholder="Write a quick design reflection. It will be saved to your daily reflection history."
           />
         </label>
         <div class="prompt-modal__actions">
-          <AppButton variant="primary" @click="saveDraft">Save draft locally</AppButton>
+          <AppButton variant="primary" :loading="dailyActionLoading" @click="saveDraft">Save reflection</AppButton>
           <AppButton variant="ghost" @click="promptOpen = false">Close</AppButton>
         </div>
       </div>
@@ -112,7 +128,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { BookConceptPreview, BookDesignPromptPreview, BookQuotePreview, BookRecord } from '../../types'
+import type { BookConceptPreview, BookDesignPromptPreview, BookQuotePreview, BookRecord, DailyTarget, DailyTodayRecord } from '../../types'
 import AppBadge from '../ui/AppBadge.vue'
 import AppButton from '../ui/AppButton.vue'
 import AppCard from '../ui/AppCard.vue'
@@ -121,11 +137,17 @@ import AppIconButton from '../ui/AppIconButton.vue'
 
 const props = defineProps<{
   book: BookRecord
+  daily?: DailyTodayRecord | null
+  dailyActionLoading?: boolean
 }>()
 
-defineEmits<{
-  'open-source': []
+const emit = defineEmits<{
+  'open-source': [target?: DailyTarget]
   'open-graph': []
+  'regenerate-daily': [target: DailyTarget]
+  'skip-daily': [target: DailyTarget]
+  'save-reflection': [payload: { target: DailyTarget; text: string }]
+  'create-prototype-task': [promptId: number | string | null]
 }>()
 
 const promptOpen = ref(false)
@@ -133,38 +155,57 @@ const promptPanel = ref<HTMLElement | null>(null)
 const reflectionDraft = ref('')
 
 const authorLine = computed(() => (props.book.authors.length ? props.book.authors.join(', ') : 'Unknown author'))
-const quote = computed<BookQuotePreview | null>(() => props.book.dailyQuote ?? props.book.latestQuote ?? null)
+const quote = computed<(BookQuotePreview & { sourceBacked?: boolean; hasSource?: boolean }) | null>(() => {
+  if (props.daily?.sentence) {
+    return {
+      id: props.daily.sentence.id,
+      text: props.daily.sentence.text,
+      author: props.daily.sentence.attribution,
+      page: props.daily.sentence.pageStart,
+      sourceLabel: props.daily.sentence.bookTitle,
+      sourceBacked: props.daily.sentence.sourceBacked,
+      hasSource: Boolean(props.daily.sentence.sourceReference || props.daily.sentence.bookId),
+    }
+  }
 
-const conceptFallbacks = computed<BookConceptPreview[]>(() => {
+  const fallback = props.book.dailyQuote ?? props.book.latestQuote ?? null
+  return fallback ? { ...fallback, sourceBacked: Boolean(fallback.sourceLabel), hasSource: Boolean(fallback.id) } : null
+})
+
+const directConcepts = computed<BookConceptPreview[]>(() => {
   const fromConcepts = props.book.concepts
     ?.map((concept) => (typeof concept === 'string' ? { name: concept, type: 'Concept' } : concept))
     .filter((concept) => concept.name.trim().length)
 
-  if (fromConcepts?.length) {
-    return fromConcepts
-  }
-
-  const derived = [...props.book.tags]
-  if (props.book.category) derived.unshift(props.book.category)
-
-  return derived.slice(0, 5).map((name) => ({ name, type: 'Book tag' }))
+  return fromConcepts ?? []
 })
 
 const visibleConcepts = computed(() => {
-  const values = conceptFallbacks.value.slice(0, 3)
+  const values = directConcepts.value.slice(0, 3)
   if (values.length) return values
   return [{ name: 'No concepts yet', type: 'Empty state' }]
 })
 
-const conceptCount = computed(() => props.book.ontologyConceptCount ?? conceptFallbacks.value.length)
-
+const conceptCount = computed(() => props.book.ontologyConceptCount ?? directConcepts.value.length)
 const prompt = computed<BookDesignPromptPreview>(() => {
+  if (props.daily?.prompt) {
+    return {
+      id: props.daily.prompt.id,
+      question: props.daily.prompt.question,
+      linkedConcept: props.daily.prompt.templatePrompt ? null : props.daily.prompt.sourceTitle,
+      sourceTitle: props.daily.prompt.sourceTitle,
+      templatePrompt: props.daily.prompt.templatePrompt,
+    }
+  }
+
   if (props.book.dailyDesignPrompt) return props.book.dailyDesignPrompt
 
-  const anchor = conceptFallbacks.value[0]?.name ?? props.book.category ?? 'player experience'
+  const anchor = directConcepts.value[0]?.name ?? props.book.category ?? 'player experience'
   return {
-    question: `How could ${props.book.title} change one design decision in your current game prototype today?`,
+    question: `What one design decision in ${props.book.title} could you test with a smaller prototype today?`,
     linkedConcept: anchor,
+    sourceTitle: 'Template Prompt',
+    templatePrompt: true,
   }
 })
 
@@ -181,11 +222,12 @@ watch(promptOpen, async (open) => {
 
 function saveDraft() {
   if (!reflectionDraft.value.trim()) {
-    ElMessage.warning('Write a short reflection before saving a local draft.')
+    ElMessage.warning('Write a short reflection before saving.')
     return
   }
 
-  ElMessage.success('Prompt reflection saved locally for this session.')
+  emit('save-reflection', { target: 'PROMPT', text: reflectionDraft.value.trim() })
+  reflectionDraft.value = ''
   promptOpen.value = false
 }
 </script>
@@ -281,6 +323,13 @@ function saveDraft() {
   color: var(--bookos-text-secondary);
   font-size: var(--type-metadata);
   font-weight: 800;
+}
+
+.insight-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .mini-graph {

@@ -12,10 +12,16 @@ public interface SourceReferenceRepository extends JpaRepository<SourceReference
     Optional<SourceReference> findByIdAndUserId(Long id, Long userId);
 
     @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
+    List<SourceReference> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
     List<SourceReference> findByBookIdAndUserIdOrderByCreatedAtDesc(Long bookId, Long userId);
 
     @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
     List<SourceReference> findByNoteIdAndUserIdOrderByCreatedAtDesc(Long noteId, Long userId);
+
+    @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
+    List<SourceReference> findByNoteBlockIdAndUserIdOrderByCreatedAtDesc(Long noteBlockId, Long userId);
 
     @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
     List<SourceReference> findByRawCaptureIdAndUserIdOrderByCreatedAtDesc(Long rawCaptureId, Long userId);

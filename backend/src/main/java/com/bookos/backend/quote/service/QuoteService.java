@@ -14,6 +14,10 @@ import com.bookos.backend.source.repository.SourceReferenceRepository;
 import com.bookos.backend.source.service.SourceReferenceService;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
@@ -34,6 +38,7 @@ public class QuoteService {
     private final UserBookRepository userBookRepository;
     private final UserService userService;
     private final BookService bookService;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<QuoteResponse> listQuotes(String email, Long bookId, String query) {
@@ -72,6 +77,9 @@ public class QuoteService {
         quote.setAttribution(trimToNull(request.attribution()));
         quote.setVisibility(request.visibility() == null ? Visibility.PRIVATE : request.visibility());
         applySource(quote, sourceReference);
+        applyManualSourceFields(quote, request, sourceReference);
+        quote.setTagsJson(writeList(cleanList(request.tags())));
+        quote.setConceptsJson(writeList(cleanList(request.concepts())));
         return toResponse(quoteRepository.save(quote));
     }
 
@@ -90,6 +98,9 @@ public class QuoteService {
         quote.setAttribution(trimToNull(request.attribution()));
         quote.setVisibility(request.visibility() == null ? quote.getVisibility() : request.visibility());
         applySource(quote, sourceReference);
+        applyManualSourceFields(quote, request, sourceReference);
+        quote.setTagsJson(writeList(cleanList(request.tags())));
+        quote.setConceptsJson(writeList(cleanList(request.concepts())));
         return toResponse(quoteRepository.save(quote));
     }
 
@@ -110,6 +121,8 @@ public class QuoteService {
         quote.setRawCaptureId(capture.getId());
         quote.setText(resolveText(capture.getCleanText(), capture.getRawText()));
         quote.setVisibility(Visibility.PRIVATE);
+        quote.setTagsJson(capture.getTagsJson());
+        quote.setConceptsJson(capture.getConceptsJson());
         applySource(quote, sourceReference);
         return toResponse(quoteRepository.save(quote));
     }
@@ -129,6 +142,19 @@ public class QuoteService {
         quote.setPageEnd(sourceReference == null ? null : sourceReference.getPageEnd());
     }
 
+    private void applyManualSourceFields(Quote quote, QuoteRequest request, SourceReference sourceReference) {
+        if (sourceReference != null) {
+            return;
+        }
+        Integer pageStart = request.pageStart();
+        Integer pageEnd = request.pageEnd();
+        if (pageStart != null && pageEnd != null && pageEnd < pageStart) {
+            throw new IllegalArgumentException("Page end must be greater than or equal to page start.");
+        }
+        quote.setPageStart(pageStart);
+        quote.setPageEnd(pageEnd);
+    }
+
     private QuoteResponse toResponse(Quote quote) {
         return new QuoteResponse(
                 quote.getId(),
@@ -141,6 +167,8 @@ public class QuoteService {
                 quote.getAttribution(),
                 quote.getPageStart(),
                 quote.getPageEnd(),
+                readList(quote.getTagsJson()),
+                readList(quote.getConceptsJson()),
                 quote.getVisibility(),
                 quote.getSourceReferenceId() == null
                         ? null
@@ -184,5 +212,38 @@ public class QuoteService {
 
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private List<String> cleanList(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        List<String> cleaned = new ArrayList<>();
+        for (String value : values) {
+            String clean = trimToNull(value);
+            if (clean != null && !cleaned.contains(clean)) {
+                cleaned.add(clean);
+            }
+        }
+        return cleaned;
+    }
+
+    private String writeList(List<String> values) {
+        try {
+            return objectMapper.writeValueAsString(values);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Could not serialize quote metadata.", exception);
+        }
+    }
+
+    private List<String> readList(String value) {
+        if (!StringUtils.hasText(value)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<>() {});
+        } catch (JsonProcessingException exception) {
+            return List.of();
+        }
     }
 }

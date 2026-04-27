@@ -2,6 +2,11 @@
   <aside class="right-rail" aria-label="Contextual sidebar">
     <ContextPanel eyebrow="Source Reference" title="Current source">
       <div v-if="source" class="source-card">
+        <div class="source-card__topline">
+          <AppBadge :variant="source.type === 'quote' ? 'accent' : source.type === 'action-item' ? 'warning' : 'primary'" size="sm">
+            {{ sourceTypeLabel(source.type) }}
+          </AppBadge>
+        </div>
         <div class="source-card__book">
           <img v-if="source.coverUrl" :src="source.coverUrl" :alt="`Cover of ${source.bookTitle}`" />
           <div v-else class="source-card__cover-fallback" role="img" :aria-label="`Cover placeholder for ${source.bookTitle}`">
@@ -13,6 +18,10 @@
             <span>{{ source.author ?? 'Unknown author' }}</span>
           </div>
         </div>
+
+        <blockquote v-if="source.excerpt" class="source-card__excerpt">
+          <p>{{ source.excerpt }}</p>
+        </blockquote>
 
         <dl class="source-card__meta" aria-label="Source metadata">
           <div>
@@ -46,28 +55,48 @@
     </ContextPanel>
 
     <ContextPanel eyebrow="AI Draft Suggestions" title="Draft assistance">
-      <div v-if="visibleDrafts.length" class="draft-list">
+      <div class="draft-disabled">
+        <AppBadge variant="info" size="sm">MockAIProvider</AppBadge>
+        <p>Draft-only suggestions are generated from your existing BookOS content. They never overwrite notes, quotes, concepts, or actions.</p>
+      </div>
+      <div class="right-rail__actions" aria-label="Generate mock AI draft suggestions">
+        <AppButton variant="secondary" :loading="aiGenerating === 'NOTE_SUMMARY'" @click="generateSuggestion('NOTE_SUMMARY')">
+          Summarize
+        </AppButton>
+        <AppButton variant="secondary" :loading="aiGenerating === 'EXTRACT_ACTIONS'" @click="generateSuggestion('EXTRACT_ACTIONS')">
+          Extract actions
+        </AppButton>
+        <AppButton variant="secondary" :loading="aiGenerating === 'EXTRACT_CONCEPTS'" @click="generateSuggestion('EXTRACT_CONCEPTS')">
+          Extract concepts
+        </AppButton>
+      </div>
+
+      <AppLoadingState v-if="aiLoading" label="Loading AI drafts" compact />
+      <AppErrorState v-else-if="aiError" title="AI drafts unavailable" :description="aiError" retry-label="Retry" @retry="loadAISuggestions" />
+
+      <div v-else-if="visibleDrafts.length" class="draft-list">
         <article v-for="draft in visibleDrafts" :key="draft.id" class="draft-card">
           <div class="draft-card__topline">
             <AppBadge variant="warning" size="sm">Draft</AppBadge>
-            <span>{{ formatDate(draft.generatedAt) }}</span>
+            <span>{{ formatSuggestionType(draft.suggestionType) }} · {{ formatDate(draft.updatedAt) }}</span>
           </div>
 
           <label v-if="editingDraftId === draft.id" class="draft-card__editor">
             <span>Edit draft suggestion</span>
             <el-input v-model="draftEditText" type="textarea" :rows="4" />
           </label>
-          <p v-else>{{ draft.text }}</p>
+          <p v-else>{{ draft.draftText }}</p>
 
           <div class="right-rail__actions" :aria-label="`Actions for draft suggestion ${draft.id}`">
             <template v-if="editingDraftId === draft.id">
-              <AppButton variant="primary" @click="saveDraftEdit(draft.id)">Save edit</AppButton>
+              <AppButton variant="primary" :loading="aiMutatingId === draft.id" @click="saveDraftEdit(draft)">Save edit</AppButton>
               <AppButton variant="ghost" @click="cancelDraftEdit">Cancel</AppButton>
             </template>
             <template v-else>
               <AppButton variant="secondary" @click="pendingAcceptDraft = draft">Accept</AppButton>
               <AppButton variant="ghost" @click="startDraftEdit(draft)">Edit</AppButton>
-              <AppButton variant="text" @click="discardDraft(draft.id)">Discard</AppButton>
+              <AppButton variant="text" :loading="aiMutatingId === draft.id" @click="discardDraft(draft.id)">Reject</AppButton>
+              <AppButton v-if="draft.sourceReference" variant="text" @click="openAISource(draft)">View source</AppButton>
             </template>
           </div>
         </article>
@@ -75,22 +104,30 @@
 
       <div v-else class="rail-empty">
         <strong>No AI drafts available</strong>
-        <p>Suggestions will appear here as drafts only. They will not overwrite your notes unless accepted.</p>
+        <p>Generate a MockAIProvider draft from the current source or recent user content.</p>
       </div>
     </ContextPanel>
 
     <ContextPanel eyebrow="Action Items Extracted" title="Next actions">
       <div v-if="actionItems.length" class="action-list">
-        <label v-for="item in actionItems" :key="item.id" class="action-item" :class="{ 'action-item--complete': item.completed }">
-          <input type="checkbox" :checked="item.completed" @change="toggleActionItem(item.id)" />
-          <span class="action-item__text">{{ item.text }}</span>
-          <AppBadge :variant="priorityVariant(item.priority)" size="sm">{{ priorityLabel(item.priority) }}</AppBadge>
-        </label>
+        <article v-for="item in actionItems" :key="item.id" class="action-item" :class="{ 'action-item--complete': item.completed }">
+          <div class="action-item__body">
+            <span class="action-item__text">{{ item.text }}</span>
+            <span v-if="item.pageRange" class="action-item__source">{{ item.pageRange }}</span>
+          </div>
+          <div class="action-item__actions">
+            <AppBadge :variant="priorityVariant(item.priority)" size="sm">{{ priorityLabel(item.priority) }}</AppBadge>
+            <AppButton variant="text" :loading="togglingActionItemId === item.id" @click="toggleActionItem(item.id)">
+              {{ item.completed ? 'Reopen' : 'Complete' }}
+            </AppButton>
+            <AppButton variant="text" @click="openActionItemSource(item)">Open source</AppButton>
+          </div>
+        </article>
       </div>
 
       <div v-else class="rail-empty">
         <strong>No extracted action items yet</strong>
-        <p>Action items from quotes, notes, and AI-reviewed drafts will be listed here.</p>
+        <p>Action items converted from captures, notes, or manual entries will be listed here.</p>
       </div>
 
       <AppButton variant="secondary" @click="openActionItems">View all action items</AppButton>
@@ -106,9 +143,9 @@
     >
       <div ref="confirmPanel" class="rail-confirm__panel" tabindex="-1">
         <h2 id="accept-draft-title">Accept AI draft?</h2>
-        <p>This will only mark the suggestion as accepted in the local draft state. It will not overwrite an existing note.</p>
+        <p>This marks the suggestion as accepted. It still will not overwrite existing user content automatically.</p>
         <div class="right-rail__actions">
-          <AppButton variant="primary" @click="confirmAcceptDraft">Accept draft</AppButton>
+          <AppButton variant="primary" :loading="aiMutatingId === pendingAcceptDraft.id" @click="confirmAcceptDraft">Accept draft</AppButton>
           <AppButton variant="ghost" @click="pendingAcceptDraft = null">Cancel</AppButton>
         </div>
       </div>
@@ -117,25 +154,47 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import {
+  acceptAISuggestion,
+  createExtractActionsSuggestion,
+  createExtractConceptsSuggestion,
+  createNoteSummarySuggestion,
+  editAISuggestion,
+  getAISuggestions,
+  rejectAISuggestion,
+} from '../api/ai'
 import ContextPanel from './ContextPanel.vue'
 import AppBadge from './ui/AppBadge.vue'
 import AppButton from './ui/AppButton.vue'
-import { useRightRailStore, type ActionItemPriority, type AiDraftSuggestion } from '../stores/rightRail'
+import AppErrorState from './ui/AppErrorState.vue'
+import AppLoadingState from './ui/AppLoadingState.vue'
+import { useOpenSource } from '../composables/useOpenSource'
+import { useRightRailStore, type ActionItemPriority, type ExtractedActionItem, type RailSourceType } from '../stores/rightRail'
+import type { AISuggestionPayload, AISuggestionRecord, AISuggestionType } from '../types'
 
 const router = useRouter()
 const rail = useRightRailStore()
+const { openSource: openSourceDrawer } = useOpenSource()
 
-const editingDraftId = ref<string | null>(null)
+const aiSuggestions = ref<AISuggestionRecord[]>([])
+const aiLoading = ref(false)
+const aiError = ref('')
+const aiGenerating = ref<AISuggestionType | null>(null)
+const aiMutatingId = ref<number | null>(null)
+const editingDraftId = ref<number | null>(null)
 const draftEditText = ref('')
-const pendingAcceptDraft = ref<AiDraftSuggestion | null>(null)
+const pendingAcceptDraft = ref<AISuggestionRecord | null>(null)
 const confirmPanel = ref<HTMLElement | null>(null)
+const togglingActionItemId = ref<string | null>(null)
 
 const source = computed(() => rail.sourceReference)
-const visibleDrafts = computed(() => rail.visibleAiDrafts)
+const visibleDrafts = computed(() => aiSuggestions.value.filter((draft) => draft.status === 'DRAFT'))
 const actionItems = computed(() => rail.actionItems)
+
+onMounted(loadAISuggestions)
 
 watch(pendingAcceptDraft, async (draft) => {
   if (!draft) return
@@ -145,23 +204,96 @@ watch(pendingAcceptDraft, async (draft) => {
 
 function openSource() {
   if (!source.value) return
-  const hash = source.value.type === 'note' ? '#recent-note-blocks-title' : '#library-state'
-  router.push({ name: 'book-detail', params: { id: source.value.bookId }, hash })
+  const querySourceType = source.value.type === 'note' && source.value.id.startsWith('note-block-') ? 'NOTE_BLOCK' : sourceTypeQuery(source.value.type)
+  const sourceId = source.value.entityId ?? source.value.id.split('-').at(-1)
+  void openSourceDrawer({
+    sourceType: querySourceType ?? source.value.type,
+    sourceId: sourceId ?? source.value.id,
+    bookId: source.value.bookId,
+    bookTitle: source.value.bookTitle,
+    sourceReferenceId: source.value.sourceReferenceId ?? null,
+    locationLabel: source.value.location,
+    sourceText: source.value.excerpt,
+  })
 }
 
 function openActionItems() {
-  router.push({ name: 'dashboard', query: { focus: 'action-items', bookId: source.value?.bookId ? String(source.value.bookId) : undefined } })
+  router.push({
+    name: 'action-items',
+    query: source.value?.bookId ? { bookId: String(source.value.bookId) } : undefined,
+  })
 }
 
-function startDraftEdit(draft: AiDraftSuggestion) {
+function openActionItemSource(item: ExtractedActionItem) {
+  rail.setSourceReference({
+    id: `action-${item.id}`,
+    type: 'action-item',
+    entityId: item.id,
+    bookId: item.bookId,
+    bookTitle: item.bookTitle,
+    pageRange: item.pageRange,
+    location: 'Action item',
+    excerpt: item.text,
+  })
+  void openSourceDrawer({
+    sourceType: item.sourceId ? 'SOURCE_REFERENCE' : 'ACTION_ITEM',
+    sourceId: item.sourceId ?? item.id,
+    bookId: item.bookId,
+    bookTitle: item.bookTitle,
+    sourceReferenceId: item.sourceId ?? null,
+    locationLabel: 'Action item',
+    sourceText: item.text,
+  })
+}
+
+async function loadAISuggestions() {
+  aiLoading.value = true
+  aiError.value = ''
+  try {
+    aiSuggestions.value = await getAISuggestions()
+  } catch (error) {
+    aiError.value = apiErrorMessage(error, 'AI drafts could not be loaded.')
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+async function generateSuggestion(type: AISuggestionType) {
+  aiGenerating.value = type
+  try {
+    const payload = currentSuggestionPayload()
+    const suggestion =
+      type === 'NOTE_SUMMARY'
+        ? await createNoteSummarySuggestion(payload)
+        : type === 'EXTRACT_ACTIONS'
+        ? await createExtractActionsSuggestion(payload)
+        : await createExtractConceptsSuggestion(payload)
+    upsertSuggestion(suggestion)
+    ElMessage.success('MockAIProvider draft created.')
+  } catch (error) {
+    ElMessage.error(apiErrorMessage(error, 'AI draft generation failed.'))
+  } finally {
+    aiGenerating.value = null
+  }
+}
+
+function startDraftEdit(draft: AISuggestionRecord) {
   editingDraftId.value = draft.id
-  draftEditText.value = draft.text
+  draftEditText.value = draft.draftText
 }
 
-function saveDraftEdit(id: string) {
-  rail.updateAiDraftText(id, draftEditText.value)
-  cancelDraftEdit()
-  ElMessage.success('Draft suggestion updated locally.')
+async function saveDraftEdit(draft: AISuggestionRecord) {
+  aiMutatingId.value = draft.id
+  try {
+    const updated = await editAISuggestion(draft.id, { draftText: draftEditText.value, draftJson: draft.draftJson })
+    upsertSuggestion(updated)
+    cancelDraftEdit()
+    ElMessage.success('Draft suggestion updated.')
+  } catch (error) {
+    ElMessage.error(apiErrorMessage(error, 'Draft suggestion could not be edited.'))
+  } finally {
+    aiMutatingId.value = null
+  }
 }
 
 function cancelDraftEdit() {
@@ -169,20 +301,123 @@ function cancelDraftEdit() {
   draftEditText.value = ''
 }
 
-function confirmAcceptDraft() {
+async function confirmAcceptDraft() {
   if (!pendingAcceptDraft.value) return
-  rail.acceptAiDraft(pendingAcceptDraft.value.id)
-  pendingAcceptDraft.value = null
-  ElMessage.success('Draft suggestion accepted locally.')
+  aiMutatingId.value = pendingAcceptDraft.value.id
+  try {
+    const updated = await acceptAISuggestion(pendingAcceptDraft.value.id)
+    upsertSuggestion(updated)
+    pendingAcceptDraft.value = null
+    ElMessage.success('Draft suggestion accepted. No user content was overwritten.')
+  } catch (error) {
+    ElMessage.error(apiErrorMessage(error, 'Draft suggestion could not be accepted.'))
+  } finally {
+    aiMutatingId.value = null
+  }
 }
 
-function discardDraft(id: string) {
-  rail.discardAiDraft(id)
-  ElMessage.success('Draft suggestion discarded locally.')
+async function discardDraft(id: number) {
+  aiMutatingId.value = id
+  try {
+    const updated = await rejectAISuggestion(id)
+    upsertSuggestion(updated)
+    ElMessage.success('Draft suggestion rejected.')
+  } catch (error) {
+    ElMessage.error(apiErrorMessage(error, 'Draft suggestion could not be rejected.'))
+  } finally {
+    aiMutatingId.value = null
+  }
 }
 
-function toggleActionItem(id: string) {
-  rail.toggleActionItem(id)
+function openAISource(draft: AISuggestionRecord) {
+  if (!draft.sourceReference) return
+  void openSourceDrawer({
+    sourceType: 'SOURCE_REFERENCE',
+    sourceId: draft.sourceReference.id,
+    bookId: draft.sourceReference.bookId,
+    bookTitle: draft.bookTitle,
+    sourceReferenceId: draft.sourceReference.id,
+    sourceReference: draft.sourceReference,
+  })
+}
+
+function currentSuggestionPayload(): AISuggestionPayload {
+  const current = source.value
+  if (!current) return {}
+  const sourceReferenceId = current.sourceReferenceId ?? (current.id.startsWith('source-') ? current.entityId : null)
+  const numericSourceReferenceId = sourceReferenceId === null || sourceReferenceId === undefined ? null : Number(sourceReferenceId)
+  return {
+    bookId: current.bookId,
+    sourceReferenceId: numericSourceReferenceId && !Number.isNaN(numericSourceReferenceId) ? numericSourceReferenceId : null,
+    text: current.excerpt ?? null,
+  }
+}
+
+function upsertSuggestion(suggestion: AISuggestionRecord) {
+  const index = aiSuggestions.value.findIndex((item) => item.id === suggestion.id)
+  if (index >= 0) {
+    aiSuggestions.value[index] = suggestion
+    return
+  }
+  aiSuggestions.value.unshift(suggestion)
+}
+
+async function toggleActionItem(id: string) {
+  togglingActionItemId.value = id
+  try {
+    await rail.toggleActionItem(id)
+    ElMessage.success('Action item updated.')
+  } catch (error) {
+    ElMessage.error(actionItemErrorMessage(error))
+  } finally {
+    togglingActionItemId.value = null
+  }
+}
+
+function sourceTypeLabel(type: RailSourceType) {
+  if (type === 'quote') return 'Quote'
+  if (type === 'action-item') return 'Action item'
+  if (type === 'note') return 'Note source'
+  if (type === 'daily-sentence') return 'Daily sentence'
+  return 'Book context'
+}
+
+function sourceTypeQuery(type: RailSourceType) {
+  if (type === 'quote') return 'QUOTE'
+  if (type === 'action-item') return 'ACTION_ITEM'
+  if (type === 'note') return 'NOTE'
+  if (type === 'daily-sentence') return 'DAILY_SENTENCE'
+  return null
+}
+
+function actionItemErrorMessage(error: unknown) {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return 'Action item update failed. Check that the backend is available and try again.'
+  }
+
+  const response = (error as { response?: { status?: number; data?: { message?: string } } }).response
+  if (!response) return 'Backend unavailable. Check that the API server is running and try again.'
+  if (response.status === 403) return 'Permission denied. You do not have access to update this action item.'
+  if (response.status === 400) return response.data?.message ?? 'Validation error. The action item could not be updated.'
+  return response.data?.message ?? 'Action item update failed.'
+}
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return fallback
+  }
+
+  const response = (error as { response?: { status?: number; data?: { message?: string } } }).response
+  if (!response) return 'Backend unavailable. Check that the API server is running and try again.'
+  if (response.status === 403) return 'Permission denied. You do not have access to this AI draft.'
+  if (response.status === 400) return response.data?.message ?? 'Validation error. The AI draft request could not be completed.'
+  return response.data?.message ?? fallback
+}
+
+function formatSuggestionType(type: AISuggestionType) {
+  if (type === 'NOTE_SUMMARY') return 'Note summary'
+  if (type === 'EXTRACT_ACTIONS') return 'Extract actions'
+  return 'Extract concepts'
 }
 
 function priorityLabel(priority: ActionItemPriority) {
@@ -215,12 +450,18 @@ function formatDate(value: string | null | undefined) {
 }
 
 .source-card,
+.source-card__topline,
 .draft-list,
 .draft-card,
+.draft-disabled,
 .action-list,
 .rail-empty {
   display: grid;
   gap: var(--space-3);
+}
+
+.source-card__topline {
+  justify-items: start;
 }
 
 .source-card__book {
@@ -270,6 +511,21 @@ function formatDate(value: string | null | undefined) {
   white-space: nowrap;
 }
 
+.source-card__excerpt {
+  margin: 0;
+  padding: var(--space-3);
+  border-left: 4px solid var(--bookos-accent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bookos-accent-soft) 42%, var(--bookos-surface));
+}
+
+.source-card__excerpt p {
+  margin: 0;
+  color: var(--bookos-text-primary);
+  font-family: var(--font-book-title);
+  line-height: 1.4;
+}
+
 .source-card__meta {
   margin: 0;
   display: grid;
@@ -316,6 +572,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 .draft-card p,
+.draft-disabled p,
 .rail-empty p {
   margin: 0;
   color: var(--bookos-text-secondary);
@@ -348,21 +605,32 @@ function formatDate(value: string | null | undefined) {
 .action-item {
   min-height: 56px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--space-2);
-  align-items: center;
-  cursor: pointer;
-}
-
-.action-item input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--bookos-primary);
+  gap: var(--space-3);
 }
 
 .action-item__text {
   color: var(--bookos-text-primary);
   font-weight: 700;
+}
+
+.action-item__body {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.action-item__source {
+  color: var(--bookos-text-tertiary);
+  font-size: var(--type-micro);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.action-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .action-item--complete .action-item__text {

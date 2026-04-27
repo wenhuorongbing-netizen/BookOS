@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActionItemFormDialog: typeof import('./components/action-items/ActionItemFormDialog.vue')['default']
     AppBadge: typeof import('./components/ui/AppBadge.vue')['default']
     AppButton: typeof import('./components/ui/AppButton.vue')['default']
     AppCard: typeof import('./components/ui/AppCard.vue')['default']
@@ -23,6 +24,7 @@ declare module 'vue' {
     AppSectionHeader: typeof import('./components/ui/AppSectionHeader.vue')['default']
     AppStat: typeof import('./components/ui/AppStat.vue')['default']
     AppTooltip: typeof import('./components/ui/AppTooltip.vue')['default']
+    BacklinksSection: typeof import('./components/source/BacklinksSection.vue')['default']
     BookCaptureSection: typeof import('./components/book-detail/BookCaptureSection.vue')['default']
     BookCard: typeof import('./components/BookCard.vue')['default']
     BookContextHeader: typeof import('./components/book-detail/BookContextHeader.vue')['default']
@@ -37,9 +39,15 @@ declare module 'vue' {
     BookRating: typeof import('./components/BookRating.vue')['default']
     BookStatusBadge: typeof import('./components/BookStatusBadge.vue')['default']
     BookTable: typeof import('./components/BookTable.vue')['default']
+    ConceptReviewDialog: typeof import('./components/concept/ConceptReviewDialog.vue')['default']
     ContextPanel: typeof import('./components/ContextPanel.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElButton: typeof import('element-plus/es')['ElButton']
+    ElDialog: typeof import('element-plus/es')['ElDialog']
+    ElDrawer: typeof import('element-plus/es')['ElDrawer']
+    ElDropdown: typeof import('element-plus/es')['ElDropdown']
+    ElDropdownItem: typeof import('element-plus/es')['ElDropdownItem']
+    ElDropdownMenu: typeof import('element-plus/es')['ElDropdownMenu']
     ElForm: typeof import('element-plus/es')['ElForm']
     ElFormItem: typeof import('element-plus/es')['ElFormItem']
     ElInput: typeof import('element-plus/es')['ElInput']
@@ -51,11 +59,14 @@ declare module 'vue' {
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     FavoriteBookButton: typeof import('./components/book-detail/FavoriteBookButton.vue')['default']
+    GlobalSearchDialog: typeof import('./components/search/GlobalSearchDialog.vue')['default']
+    QuoteFormDialog: typeof import('./components/quotes/QuoteFormDialog.vue')['default']
     ReadingProgressBar: typeof import('./components/book-detail/ReadingProgressBar.vue')['default']
     RightRail: typeof import('./components/RightRail.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Sidebar: typeof import('./components/Sidebar.vue')['default']
+    SourceReferenceDrawer: typeof import('./components/source/SourceReferenceDrawer.vue')['default']
     TopNav: typeof import('./components/TopNav.vue')['default']
   }
   export interface GlobalDirectives {

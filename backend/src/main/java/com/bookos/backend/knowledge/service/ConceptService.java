@@ -119,6 +119,34 @@ public class ConceptService {
     }
 
     @Transactional
+    public ConceptResponse reviewParsedConcept(
+            User user,
+            Book book,
+            SourceReference sourceReference,
+            String finalName,
+            Long existingConceptId) {
+        Concept concept;
+        if (existingConceptId != null) {
+            concept = getOwnedConcept(user, existingConceptId);
+            if (concept.getFirstBook() == null) {
+                concept.setFirstBook(book);
+            }
+            if (concept.getFirstSourceReference() == null) {
+                concept.setFirstSourceReference(sourceReference);
+            }
+            concept = conceptRepository.save(concept);
+        } else {
+            if (!StringUtils.hasText(finalName)) {
+                throw new IllegalArgumentException("Final concept name is required.");
+            }
+            concept = upsertConcept(user, book, sourceReference, finalName, null, Visibility.PRIVATE);
+        }
+
+        linkSourceToConcept(user, sourceReference, concept);
+        return toResponse(user, concept);
+    }
+
+    @Transactional
     public void indexParsedConcepts(User user, Book book, SourceReference sourceReference, List<String> conceptNames) {
         for (String conceptName : dedupe(conceptNames)) {
             Concept concept = upsertConcept(user, book, sourceReference, conceptName, null, Visibility.PRIVATE);
@@ -259,12 +287,14 @@ public class ConceptService {
                 sourceReference.getBook().getId(),
                 sourceReference.getNote() != null ? sourceReference.getNote().getId() : null,
                 sourceReference.getNoteBlock() != null ? sourceReference.getNoteBlock().getId() : null,
+                sourceReference.getChapterId(),
                 sourceReference.getRawCaptureId(),
                 sourceReference.getPageStart(),
                 sourceReference.getPageEnd(),
                 sourceReference.getLocationLabel(),
                 sourceReference.getSourceText(),
-                sourceReference.getSourceConfidence());
+                sourceReference.getSourceConfidence(),
+                sourceReference.getCreatedAt());
     }
 
     private Book getLibraryBook(User user, Long bookId) {

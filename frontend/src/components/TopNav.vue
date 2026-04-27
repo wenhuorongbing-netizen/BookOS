@@ -15,6 +15,9 @@
           placeholder="Search books, notes, quotes, concepts"
           aria-label="Global search"
           aria-describedby="global-search-shortcut"
+          readonly
+          @focus="openGlobalSearch"
+          @click="openGlobalSearch"
         />
         <kbd id="global-search-shortcut" class="top-nav__shortcut">Ctrl / Cmd K</kbd>
       </div>
@@ -116,8 +119,12 @@ onBeforeUnmount(() => {
 function handleGlobalShortcut(event: KeyboardEvent) {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
-    document.getElementById('global-search')?.focus()
+    openGlobalSearch()
   }
+}
+
+function openGlobalSearch() {
+  window.dispatchEvent(new CustomEvent('bookos:open-search'))
 }
 
 function closeMenus() {

@@ -5,7 +5,7 @@
         <div class="eyebrow">Middle Knowledge Layer</div>
         <h2 id="knowledge-section-title">Graph, concepts, and active lenses</h2>
       </div>
-      <AppBadge v-if="isSeededPreview" variant="warning" size="sm">Seeded preview</AppBadge>
+      <AppBadge v-if="!directConcepts.length && !directLenses.length" variant="warning" size="sm">No extracted data yet</AppBadge>
     </div>
 
     <div class="knowledge-section__grid">
@@ -15,12 +15,12 @@
             <div class="eyebrow">Knowledge Graph Preview</div>
             <h3>Current book network</h3>
           </div>
-          <AppIconButton label="About this knowledge graph preview" tooltip="Derived from current book concepts and tags" variant="ghost">
+          <AppIconButton label="About this knowledge graph preview" tooltip="Derived from source references, concepts, notes, quotes, actions, and entity links" variant="ghost">
             i
           </AppIconButton>
         </div>
 
-        <div v-if="graphConcepts.length" class="graph-preview" role="img" :aria-label="graphSummary">
+        <div v-if="graphNodesAround.length" class="graph-preview" role="img" :aria-label="graphSummary">
           <button
             class="graph-node graph-node--book"
             type="button"
@@ -30,21 +30,21 @@
             {{ book.title }}
           </button>
           <button
-            v-for="(concept, index) in graphConcepts"
-            :key="concept.name"
+            v-for="(node, index) in graphNodesAround"
+            :key="`${node.type}-${node.id ?? node.name}`"
             class="graph-node graph-node--concept"
-            :class="[`graph-node--${index + 1}`, `graph-node--${concept.edgeStrength ?? 'weak'}`]"
+            :class="[`graph-node--${index + 1}`, `graph-node--${node.edgeStrength ?? 'weak'}`]"
             type="button"
-            :aria-label="`Open concept ${concept.name}, ${concept.edgeStrength ?? 'weak'} relationship`"
-            @click="$emit('open-concept', concept.name)"
+            :aria-label="`${node.type ?? 'Graph'} node ${node.name}, ${node.edgeStrength ?? 'weak'} relationship`"
+            @click="openGraphNode(node)"
           >
-            {{ concept.name }}
+            {{ node.name }}
           </button>
           <span
-            v-for="(concept, index) in graphConcepts"
-            :key="`${concept.name}-edge`"
+            v-for="(node, index) in graphNodesAround"
+            :key="`${node.type}-${node.id ?? node.name}-edge`"
             class="graph-edge"
-            :class="[`graph-edge--${index + 1}`, `graph-edge--${concept.edgeStrength ?? 'weak'}`]"
+            :class="[`graph-edge--${index + 1}`, `graph-edge--${node.edgeStrength ?? 'weak'}`]"
             aria-hidden="true"
           />
         </div>
@@ -52,7 +52,7 @@
         <AppEmptyState
           v-else
           title="No graph nodes yet"
-          description="Add concepts or tags to this book to build a graph preview."
+          description="Add source-backed notes, concepts, quotes, or action items to build a graph preview."
           compact
         />
 
@@ -152,60 +152,65 @@ const props = defineProps<{
   book: BookRecord
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'open-graph': []
   'open-concept': [name: string]
   'open-lens': [name: string]
 }>()
 
-const seededConcepts: BookConceptPreview[] = [
-  { name: 'Game Mechanics', relevance: 96, mentions: 18, edgeStrength: 'strong' },
-  { name: 'Choices', relevance: 91, mentions: 15, edgeStrength: 'strong' },
-  { name: 'Challenge', relevance: 84, mentions: 12, edgeStrength: 'medium' },
-  { name: 'Fun', relevance: 79, mentions: 10, edgeStrength: 'medium' },
-  { name: 'Player Motivation', relevance: 74, mentions: 8, edgeStrength: 'medium' },
-  { name: 'MDA Framework', relevance: 68, mentions: 6, edgeStrength: 'weak' },
-  { name: 'Aesthetics', relevance: 63, mentions: 5, edgeStrength: 'weak' },
-  { name: 'Game Balance', relevance: 58, mentions: 4, edgeStrength: 'weak' },
-]
-
-const seededLenses: BookLensPreview[] = [
-  { name: 'Choices', description: 'Inspect the meaningful decisions this book asks players to make.', count: 12, icon: 'CH' },
-  { name: 'Challenge', description: 'Track difficulty, mastery, pressure, and learning curves.', count: 9, icon: 'CL' },
-  { name: 'Fun', description: 'Find the emotional reward loops behind the design.', count: 8, icon: 'FN' },
-  { name: 'Fantasy', description: 'Connect systems to theme, role, and player imagination.', count: 5, icon: 'FA' },
-  { name: 'Sensation', description: 'Surface feedback, feel, juice, and sensory clarity.', count: 4, icon: 'SN' },
-]
-
 const directConcepts = computed(() => normalizeConcepts(props.book.knowledgeGraph?.concepts ?? props.book.concepts))
 const directLenses = computed(() => normalizeLenses(props.book.knowledgeGraph?.lenses ?? props.book.linkedLenses))
 
-const isSeededPreview = computed(() => directConcepts.value.length === 0 && directLenses.value.length === 0)
-
 const conceptRows = computed(() => {
-  const values = directConcepts.value.length ? directConcepts.value : deriveSeededConcepts()
-  return values
+  return directConcepts.value
     .map((concept, index) => ({
       ...concept,
-      relevance: clampScore(concept.relevance ?? 92 - index * 7),
-      mentions: Math.max(0, Math.round(concept.mentions ?? 14 - index * 2)),
+      relevance: clampScore(concept.relevance ?? (concept.mentions ?? 0) * 20),
+      mentions: Math.max(0, Math.round(concept.mentions ?? 0)),
       edgeStrength: concept.edgeStrength ?? edgeStrengthForIndex(index),
     }))
     .sort((a, b) => (b.mentions ?? 0) - (a.mentions ?? 0) || (b.relevance ?? 0) - (a.relevance ?? 0))
     .slice(0, 8)
 })
 
-const graphConcepts = computed(() => conceptRows.value.slice(0, 6))
+const graphNodesAround = computed(() => {
+  const graphNodes = props.book.knowledgeGraph?.nodes ?? []
+  if (graphNodes.length) {
+    const bookNodeId = graphNodes.find((node) => node.type === 'BOOK')?.id
+    const relatedNodes = graphNodes.filter((node) => node.id !== bookNodeId && node.type !== 'SOURCE_REFERENCE')
+    return relatedNodes.slice(0, 6).map((node) => {
+      const relatedEdge = props.book.knowledgeGraph?.edges?.find((edge) => edge.source === node.id || edge.target === node.id)
+      const matchingConcept = directConcepts.value.find((concept) => String(concept.id ?? '') === String(node.entityId) || concept.name === node.label)
+      return {
+        ...matchingConcept,
+        id: node.entityId,
+        name: node.label,
+        type: node.type,
+        edgeStrength: edgeStrengthForEdge(relatedEdge?.type),
+        relevance: matchingConcept?.relevance ?? 0,
+        mentions: matchingConcept?.mentions ?? 0,
+      }
+    })
+  }
+  return conceptRows.value.slice(0, 6)
+})
 
 const activeLenses = computed(() => {
-  const values = directLenses.value.length ? directLenses.value : seededLenses
-  return values.slice(0, 5)
+  return directLenses.value.slice(0, 5)
 })
 
 const graphSummary = computed(() => {
-  const concepts = graphConcepts.value.map((concept) => `${concept.name} (${concept.edgeStrength ?? 'weak'})`).join(', ')
-  return `${props.book.title} is shown as the central node connected to ${concepts}. Edge strengths are strong, medium, or weak.`
+  const nodes = graphNodesAround.value.map((node) => `${node.name} (${node.type ?? 'node'}, ${node.edgeStrength ?? 'weak'})`).join(', ')
+  return `${props.book.title} is shown as the central node connected to ${nodes}. Edge strengths are derived from real graph relationships.`
 })
+
+function openGraphNode(node: BookConceptPreview) {
+  if (node.type === 'CONCEPT') {
+    emit('open-concept', node.name)
+    return
+  }
+  emit('open-graph')
+}
 
 function normalizeConcepts(values: BookConceptPreview[] | string[] | null | undefined) {
   if (!values?.length) return []
@@ -223,30 +228,16 @@ function normalizeLenses(values: BookLensPreview[] | string[] | null | undefined
     .filter((value) => value.name.trim().length)
 }
 
-function deriveSeededConcepts() {
-  const bookSignals = [...props.book.tags]
-  if (props.book.category) bookSignals.unshift(props.book.category)
-
-  const derived = bookSignals.map((name, index) => ({
-    name,
-    relevance: 88 - index * 5,
-    mentions: 11 - index,
-    edgeStrength: edgeStrengthForIndex(index),
-  }))
-
-  const merged = [...derived, ...seededConcepts]
-  const seen = new Set<string>()
-  return merged.filter((concept) => {
-    const key = concept.name.toLowerCase()
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
 function edgeStrengthForIndex(index: number): KnowledgeEdgeStrength {
   if (index < 2) return 'strong'
   if (index < 5) return 'medium'
+  return 'weak'
+}
+
+function edgeStrengthForEdge(type: string | null | undefined): KnowledgeEdgeStrength {
+  if (!type) return 'weak'
+  if (type === 'MENTIONS' || type === 'HAS_KNOWLEDGE') return 'strong'
+  if (type === 'HAS_QUOTE' || type === 'HAS_ACTION' || type === 'HAS_NOTE') return 'medium'
   return 'weak'
 }
 

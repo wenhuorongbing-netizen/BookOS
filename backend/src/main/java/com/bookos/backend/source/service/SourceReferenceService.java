@@ -12,10 +12,12 @@ import com.bookos.backend.source.repository.SourceReferenceRepository;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
 import java.util.List;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +31,28 @@ public class SourceReferenceService {
     public SourceReferenceResponse getSourceReference(String email, Long id) {
         User user = userService.getByEmailRequired(email);
         return toResponse(getOwnedSourceReference(user, id));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SourceReferenceResponse> listSourceReferences(String email, Long bookId, String entityType, Long entityId) {
+        User user = userService.getByEmailRequired(email);
+        if (StringUtils.hasText(entityType) && entityId != null) {
+            return listByEntity(user, normalize(entityType), entityId).stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        if (bookId != null) {
+            return sourceReferenceRepository.findByBookIdAndUserIdOrderByCreatedAtDesc(bookId, user.getId())
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        return sourceReferenceRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -118,12 +142,29 @@ public class SourceReferenceService {
                 sourceReference.getBook().getId(),
                 sourceReference.getNote() != null ? sourceReference.getNote().getId() : null,
                 sourceReference.getNoteBlock() != null ? sourceReference.getNoteBlock().getId() : null,
+                sourceReference.getChapterId(),
                 sourceReference.getRawCaptureId(),
                 sourceReference.getPageStart(),
                 sourceReference.getPageEnd(),
                 sourceReference.getLocationLabel(),
                 sourceReference.getSourceText(),
-                sourceReference.getSourceConfidence());
+                sourceReference.getSourceConfidence(),
+                sourceReference.getCreatedAt());
+    }
+
+    private List<SourceReference> listByEntity(User user, String entityType, Long entityId) {
+        return switch (entityType) {
+            case "BOOK" -> sourceReferenceRepository.findByBookIdAndUserIdOrderByCreatedAtDesc(entityId, user.getId());
+            case "NOTE" -> sourceReferenceRepository.findByNoteIdAndUserIdOrderByCreatedAtDesc(entityId, user.getId());
+            case "NOTE_BLOCK" -> sourceReferenceRepository.findByNoteBlockIdAndUserIdOrderByCreatedAtDesc(entityId, user.getId());
+            case "RAW_CAPTURE", "CAPTURE" -> sourceReferenceRepository.findByRawCaptureIdAndUserIdOrderByCreatedAtDesc(entityId, user.getId());
+            case "SOURCE_REFERENCE" -> sourceReferenceRepository.findByIdAndUserId(entityId, user.getId()).stream().toList();
+            default -> throw new IllegalArgumentException("Unsupported source reference entity type: " + entityType);
+        };
+    }
+
+    private String normalize(String value) {
+        return value.trim().toUpperCase(Locale.ROOT);
     }
 
     private String buildLocationLabel(ParsedNoteResponse parsed) {

@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -21,6 +22,17 @@ public class SourceReferenceController {
     @GetMapping("/api/source-references/{id}")
     public ApiResponse<SourceReferenceResponse> getSourceReference(Authentication authentication, @PathVariable Long id) {
         return ApiResponse.ok("Source reference loaded.", sourceReferenceService.getSourceReference(authentication.getName(), id));
+    }
+
+    @GetMapping("/api/source-references")
+    public ApiResponse<List<SourceReferenceResponse>> listSourceReferences(
+            Authentication authentication,
+            @RequestParam(required = false) Long bookId,
+            @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) Long entityId) {
+        return ApiResponse.ok(
+                "Source references loaded.",
+                sourceReferenceService.listSourceReferences(authentication.getName(), bookId, entityType, entityId));
     }
 
     @GetMapping("/api/books/{bookId}/source-references")

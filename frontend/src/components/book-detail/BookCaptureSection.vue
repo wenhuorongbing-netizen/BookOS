@@ -101,6 +101,25 @@
               Convert to Note
             </AppButton>
             <AppButton
+              v-if="block.parsedType === 'QUOTE'"
+              variant="secondary"
+              :loading="convertingQuoteCaptureId === block.captureId"
+              @click="convertQuoteBlock(block)"
+            >
+              Convert to Quote
+            </AppButton>
+            <AppButton
+              v-if="block.parsedType === 'ACTION_ITEM'"
+              variant="secondary"
+              :loading="convertingActionCaptureId === block.captureId"
+              @click="convertActionBlock(block)"
+            >
+              Convert to Action
+            </AppButton>
+            <AppButton v-if="block.concepts.length" variant="accent" @click="openConceptReview(block)">
+              Review Concepts
+            </AppButton>
+            <AppButton
               variant="ghost"
               :disabled="archivingCaptureId === block.captureId"
               @click="archiveBlock(block)"
@@ -127,6 +146,16 @@
         compact
       />
     </AppCard>
+
+    <ConceptReviewDialog
+      v-model="conceptDialogOpen"
+      :parsed-concepts="selectedConceptBlock?.concepts ?? []"
+      :concepts="conceptOptions"
+      :source-reference="selectedConceptBlock?.sourceReferences[0] ?? null"
+      :default-tags="selectedConceptBlock ? selectedConceptBlock.tags.filter((tag) => !selectedConceptBlock?.concepts.includes(tag)) : []"
+      :saving="savingConceptReview"
+      @submit="saveCaptureConceptReview"
+    />
   </section>
 </template>
 
@@ -134,15 +163,19 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { onBeforeRouteLeave, RouterLink, useRouter } from 'vue-router'
-import type { BookRecord } from '../../types'
+import { getConcepts } from '../../api/knowledge'
+import { reviewCaptureConcepts } from '../../api/captures'
+import type { BookRecord, ConceptRecord, ConceptReviewPayload } from '../../types'
 import { useCaptureStore, type CaptureMarker, type RecentNoteBlock } from '../../stores/capture'
 import { useRightRailStore } from '../../stores/rightRail'
+import ConceptReviewDialog from '../concept/ConceptReviewDialog.vue'
 import AppBadge from '../ui/AppBadge.vue'
 import AppButton from '../ui/AppButton.vue'
 import AppCard from '../ui/AppCard.vue'
 import AppEmptyState from '../ui/AppEmptyState.vue'
 import AppIconButton from '../ui/AppIconButton.vue'
 import AppLoadingState from '../ui/AppLoadingState.vue'
+import { useOpenSource } from '../../composables/useOpenSource'
 
 const props = defineProps<{
   book: BookRecord
@@ -151,13 +184,20 @@ const props = defineProps<{
 const router = useRouter()
 const capture = useCaptureStore()
 const rightRail = useRightRailStore()
+const { openSource: openSourceDrawer } = useOpenSource()
 const draft = ref('')
 const feedback = ref('')
 const selectedMarker = ref<CaptureMarker>('text')
 const sortOrder = ref<'latest' | 'oldest'>('latest')
 const submitting = ref(false)
 const convertingCaptureId = ref<number | null>(null)
+const convertingQuoteCaptureId = ref<number | null>(null)
+const convertingActionCaptureId = ref<number | null>(null)
 const archivingCaptureId = ref<number | null>(null)
+const conceptDialogOpen = ref(false)
+const selectedConceptBlock = ref<RecentNoteBlock | null>(null)
+const conceptOptions = ref<ConceptRecord[]>([])
+const savingConceptReview = ref(false)
 
 const markers: Array<{ value: CaptureMarker; label: string; icon: string }> = [
   { value: 'text', label: 'Text note marker', icon: 'TX' },
@@ -182,6 +222,7 @@ const sortedBlocks = computed(() => {
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   void capture.loadBookCaptures(props.book.id)
+  void loadConceptOptions()
 })
 
 onBeforeUnmount(() => {
@@ -224,6 +265,7 @@ async function submitCapture() {
 }
 
 function openSource(block: RecentNoteBlock, navigate = true) {
+  const sourceReference = block.sourceReferences[0] ?? null
   rightRail.setSourceReference({
     id: block.id,
     type: 'note',
@@ -236,10 +278,20 @@ function openSource(block: RecentNoteBlock, navigate = true) {
     pageRange: block.page ? `p.${block.page}` : props.book.pageRange ?? null,
     location: `${markerLabel(block.type)} note block`,
     addedAt: block.createdAt,
+    excerpt: block.content,
   })
 
   if (navigate) {
-    router.push({ name: 'book-detail', params: { id: block.bookId }, hash: '#recent-note-blocks-title' })
+    void openSourceDrawer({
+      sourceType: 'RAW_CAPTURE',
+      sourceId: block.captureId,
+      bookId: block.bookId,
+      bookTitle: block.bookTitle,
+      pageStart: block.pageStart,
+      rawCaptureId: block.captureId,
+      sourceReference,
+      sourceReferenceId: sourceReference?.id ?? null,
+    })
   }
 }
 
@@ -260,6 +312,30 @@ async function convertBlock(block: RecentNoteBlock) {
   }
 }
 
+async function convertQuoteBlock(block: RecentNoteBlock) {
+  convertingQuoteCaptureId.value = block.captureId
+  try {
+    await capture.convertToQuote(block.captureId)
+    ElMessage.success('Capture converted to a source-backed quote.')
+  } catch {
+    ElMessage.error('Quote conversion failed.')
+  } finally {
+    convertingQuoteCaptureId.value = null
+  }
+}
+
+async function convertActionBlock(block: RecentNoteBlock) {
+  convertingActionCaptureId.value = block.captureId
+  try {
+    await capture.convertToActionItem(block.captureId, block.title)
+    ElMessage.success('Capture converted to a source-backed action item.')
+  } catch {
+    ElMessage.error('Action item conversion failed.')
+  } finally {
+    convertingActionCaptureId.value = null
+  }
+}
+
 async function archiveBlock(block: RecentNoteBlock) {
   archivingCaptureId.value = block.captureId
   try {
@@ -270,6 +346,30 @@ async function archiveBlock(block: RecentNoteBlock) {
   } finally {
     archivingCaptureId.value = null
   }
+}
+
+function openConceptReview(block: RecentNoteBlock) {
+  selectedConceptBlock.value = block
+  conceptDialogOpen.value = true
+}
+
+async function saveCaptureConceptReview(payload: ConceptReviewPayload) {
+  if (!selectedConceptBlock.value) return
+  savingConceptReview.value = true
+  try {
+    await reviewCaptureConcepts(selectedConceptBlock.value.captureId, payload)
+    await loadConceptOptions()
+    conceptDialogOpen.value = false
+    ElMessage.success('Concept review saved with source references.')
+  } catch {
+    ElMessage.error('Concept review failed.')
+  } finally {
+    savingConceptReview.value = false
+  }
+}
+
+async function loadConceptOptions() {
+  conceptOptions.value = await getConcepts()
 }
 
 function markerIcon(marker: CaptureMarker) {

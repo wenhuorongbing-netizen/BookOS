@@ -3,6 +3,7 @@ package com.bookos.backend.quote.dto;
 import com.bookos.backend.common.enums.Visibility;
 import com.bookos.backend.source.dto.SourceReferenceResponse;
 import java.time.Instant;
+import java.util.List;
 
 public record QuoteResponse(
         Long id,
@@ -15,6 +16,8 @@ public record QuoteResponse(
         String attribution,
         Integer pageStart,
         Integer pageEnd,
+        List<String> tags,
+        List<String> concepts,
         Visibility visibility,
         SourceReferenceResponse sourceReference,
         Instant createdAt,

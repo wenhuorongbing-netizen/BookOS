@@ -116,6 +116,41 @@ public class KnowledgeObjectService {
         knowledgeObjectRepository.save(knowledgeObject);
     }
 
+    @Transactional
+    public KnowledgeObjectResponse upsertReviewedConceptObject(
+            User user,
+            Book book,
+            SourceReference sourceReference,
+            Concept concept,
+            List<String> tags) {
+        String slug = SlugUtils.slugify(concept.getName());
+        KnowledgeObject knowledgeObject = knowledgeObjectRepository.findByUserIdAndTypeAndSlugAndArchivedFalse(
+                        user.getId(), KnowledgeObjectType.CONCEPT, slug)
+                .orElseGet(() -> {
+                    KnowledgeObject created = new KnowledgeObject();
+                    created.setUser(user);
+                    created.setType(KnowledgeObjectType.CONCEPT);
+                    created.setTitle(concept.getName());
+                    created.setSlug(slug);
+                    created.setVisibility(Visibility.PRIVATE);
+                    return created;
+                });
+
+        knowledgeObject.setTitle(concept.getName());
+        knowledgeObject.setSlug(slug);
+        if (knowledgeObject.getBook() == null) {
+            knowledgeObject.setBook(book);
+        }
+        if (knowledgeObject.getConcept() == null) {
+            knowledgeObject.setConcept(concept);
+        }
+        if (knowledgeObject.getSourceReferenceId() == null && sourceReference != null) {
+            knowledgeObject.setSourceReferenceId(sourceReference.getId());
+        }
+        knowledgeObject.setTagsJson(writeList(mergeTags(readList(knowledgeObject.getTagsJson()), cleanTags(tags))));
+        return toResponse(knowledgeObjectRepository.save(knowledgeObject));
+    }
+
     @Transactional(readOnly = true)
     public KnowledgeObject getOwnedKnowledgeObject(User user, Long id) {
         return knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(id, user.getId())
@@ -180,12 +215,14 @@ public class KnowledgeObjectService {
                 sourceReference.getBook().getId(),
                 sourceReference.getNote() != null ? sourceReference.getNote().getId() : null,
                 sourceReference.getNoteBlock() != null ? sourceReference.getNoteBlock().getId() : null,
+                sourceReference.getChapterId(),
                 sourceReference.getRawCaptureId(),
                 sourceReference.getPageStart(),
                 sourceReference.getPageEnd(),
                 sourceReference.getLocationLabel(),
                 sourceReference.getSourceText(),
-                sourceReference.getSourceConfidence());
+                sourceReference.getSourceConfidence(),
+                sourceReference.getCreatedAt());
     }
 
     private Book getLibraryBook(User user, Long bookId) {
@@ -235,6 +272,17 @@ public class KnowledgeObjectService {
             if (StringUtils.hasText(tag)) {
                 values.add(tag.trim().toLowerCase(Locale.ROOT));
             }
+        }
+        return List.copyOf(values);
+    }
+
+    private List<String> mergeTags(List<String> existing, List<String> incoming) {
+        Set<String> values = new LinkedHashSet<>();
+        if (existing != null) {
+            values.addAll(existing);
+        }
+        if (incoming != null) {
+            values.addAll(incoming);
         }
         return List.copyOf(values);
     }

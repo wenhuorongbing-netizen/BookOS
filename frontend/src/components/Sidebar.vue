@@ -97,15 +97,43 @@ const routeItems = [
     short: 'CA',
     activePaths: ['/captures'],
   },
+  {
+    label: 'Quotes',
+    to: '/quotes',
+    short: 'QU',
+    activePaths: ['/quotes'],
+  },
+  {
+    label: 'Action Items',
+    to: '/action-items',
+    short: 'AC',
+    activePaths: ['/action-items'],
+  },
+  {
+    label: 'Concepts',
+    to: '/concepts',
+    short: 'CO',
+    activePaths: ['/concepts'],
+  },
+  {
+    label: 'Knowledge',
+    to: '/knowledge',
+    short: 'KO',
+    activePaths: ['/knowledge'],
+  },
+  {
+    label: 'Forum',
+    to: '/forum',
+    short: 'FO',
+    activePaths: ['/forum'],
+  },
 ]
 
 const plannedItems = [
-  { label: 'Quotes', short: 'QU' },
   { label: 'Lenses', short: 'LE' },
   { label: 'Diagnostics', short: 'DI' },
   { label: 'Exercises', short: 'EX' },
   { label: 'Projects', short: 'PR' },
-  { label: 'Forum', short: 'FO' },
 ]
 
 const recentConcepts = ['Rules of Play', 'Designing for Emotion', 'MDA Framework', 'Flow in Games', 'Game Feel']

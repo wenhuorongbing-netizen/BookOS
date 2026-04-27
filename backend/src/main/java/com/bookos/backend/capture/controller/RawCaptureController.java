@@ -1,6 +1,8 @@
 package com.bookos.backend.capture.controller;
 
 import com.bookos.backend.capture.dto.CaptureConversionResponse;
+import com.bookos.backend.capture.dto.ConceptReviewRequest;
+import com.bookos.backend.capture.dto.ConceptReviewResponse;
 import com.bookos.backend.capture.dto.RawCaptureConvertRequest;
 import com.bookos.backend.capture.dto.RawCaptureRequest;
 import com.bookos.backend.capture.dto.RawCaptureResponse;
@@ -66,6 +68,14 @@ public class RawCaptureController {
             @Valid @RequestBody(required = false) RawCaptureConvertRequest request) {
         RawCaptureConvertRequest safeRequest = request == null ? new RawCaptureConvertRequest(null, null) : request;
         return ApiResponse.ok("Capture converted.", rawCaptureService.convertCapture(authentication.getName(), id, safeRequest));
+    }
+
+    @PostMapping("/{id}/review/concepts")
+    public ApiResponse<ConceptReviewResponse> reviewCaptureConcepts(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestBody ConceptReviewRequest request) {
+        return ApiResponse.ok("Capture concepts reviewed.", rawCaptureService.reviewCaptureConcepts(authentication.getName(), id, request));
     }
 
     @PutMapping("/{id}/archive")

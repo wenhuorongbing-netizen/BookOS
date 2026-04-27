@@ -73,6 +73,7 @@ public class ActionItemService {
         item.setBook(book);
         applyRequest(item, request);
         applySource(item, sourceReference);
+        applyManualSourceFields(item, request, sourceReference);
         return toResponse(actionItemRepository.save(item));
     }
 
@@ -89,6 +90,7 @@ public class ActionItemService {
         item.setBook(book);
         applyRequest(item, request);
         applySource(item, sourceReference);
+        applyManualSourceFields(item, request, sourceReference);
         return toResponse(actionItemRepository.save(item));
     }
 
@@ -151,6 +153,19 @@ public class ActionItemService {
         item.setRawCaptureId(sourceReference == null ? item.getRawCaptureId() : sourceReference.getRawCaptureId());
         item.setPageStart(sourceReference == null ? null : sourceReference.getPageStart());
         item.setPageEnd(sourceReference == null ? null : sourceReference.getPageEnd());
+    }
+
+    private void applyManualSourceFields(ActionItem item, ActionItemRequest request, SourceReference sourceReference) {
+        if (sourceReference != null) {
+            return;
+        }
+
+        if (request.pageStart() != null && request.pageEnd() != null && request.pageEnd() < request.pageStart()) {
+            throw new IllegalArgumentException("Page end must be greater than or equal to page start.");
+        }
+
+        item.setPageStart(request.pageStart());
+        item.setPageEnd(request.pageEnd());
     }
 
     private ActionItemResponse toResponse(ActionItem item) {
