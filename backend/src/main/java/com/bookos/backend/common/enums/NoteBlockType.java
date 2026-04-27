@@ -1,7 +1,22 @@
 package com.bookos.backend.common.enums;
 
 public enum NoteBlockType {
+    NOTE,
     QUOTE,
+    INSPIRATION,
+    KEY_ARGUMENT,
+    DISCUSSION_POINT,
+    MIND_BLOWING_IDEA,
+    ACTION_ITEM,
+    MENTAL_MODEL,
+    RELATED_CONCEPT,
+    WARNING,
+    IMPORTANT,
+    EXPERIMENT,
+    PERSONAL_REFLECTION,
+    DATA_STATISTIC,
+    LINK,
+    READING_DIRECTION,
     IDEA,
     ACTION,
     QUESTION,

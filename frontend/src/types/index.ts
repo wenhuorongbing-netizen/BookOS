@@ -17,6 +17,29 @@ export type ReadingStatus =
   | 'ANTI_LIBRARY'
 export type ReadingFormat = 'PHYSICAL' | 'EBOOK' | 'AUDIOBOOK' | 'PDF' | 'WEB' | 'OTHER'
 export type OwnershipStatus = 'OWNED' | 'BORROWED' | 'WISHLIST' | 'SUBSCRIPTION' | 'SAMPLE'
+export type NoteBlockType =
+  | 'NOTE'
+  | 'INSPIRATION'
+  | 'KEY_ARGUMENT'
+  | 'QUOTE'
+  | 'DISCUSSION_POINT'
+  | 'MIND_BLOWING_IDEA'
+  | 'ACTION_ITEM'
+  | 'QUESTION'
+  | 'MENTAL_MODEL'
+  | 'RELATED_CONCEPT'
+  | 'WARNING'
+  | 'IMPORTANT'
+  | 'EXPERIMENT'
+  | 'PERSONAL_REFLECTION'
+  | 'DATA_STATISTIC'
+  | 'LINK'
+  | 'READING_DIRECTION'
+  | 'IDEA'
+  | 'ACTION'
+  | 'SUMMARY'
+  | 'REFERENCE'
+export type SourceConfidence = 'LOW' | 'MEDIUM' | 'HIGH'
 
 export interface AuthUser {
   id: number
@@ -154,6 +177,77 @@ export interface AddToLibraryPayload {
   readingStatus?: ReadingStatus
   readingFormat?: ReadingFormat
   ownershipStatus?: OwnershipStatus
+}
+
+export interface ParserPreviewPayload {
+  rawText: string
+}
+
+export interface ParsedNoteResult {
+  type: NoteBlockType
+  pageStart: number | null
+  pageEnd: number | null
+  tags: string[]
+  concepts: string[]
+  cleanText: string
+  rawText: string
+  warnings: string[]
+}
+
+export interface SourceReferenceRecord {
+  id: number
+  sourceType: string
+  bookId: number
+  noteId: number | null
+  noteBlockId: number | null
+  rawCaptureId: number | null
+  pageStart: number | null
+  pageEnd: number | null
+  locationLabel: string | null
+  sourceText: string | null
+  sourceConfidence: SourceConfidence
+}
+
+export interface NoteBlockRecord {
+  id: number
+  noteId: number
+  bookId: number
+  blockType: NoteBlockType
+  rawText: string
+  markdown: string
+  plainText: string
+  sortOrder: number
+  pageStart: number | null
+  pageEnd: number | null
+  parserWarnings: string[]
+  sourceReferences: SourceReferenceRecord[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BookNoteRecord {
+  id: number
+  bookId: number
+  bookTitle: string
+  title: string
+  markdown: string
+  threeSentenceSummary: string | null
+  visibility: Visibility
+  archived: boolean
+  blocks: NoteBlockRecord[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BookNotePayload {
+  title: string
+  markdown: string
+  visibility: Visibility
+}
+
+export interface NoteBlockPayload {
+  rawText: string
+  sortOrder?: number | null
 }
 
 export interface BookFilterState {

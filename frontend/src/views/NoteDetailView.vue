@@ -1,0 +1,456 @@
+<template>
+  <div class="page-shell note-detail-page">
+    <AppLoadingState v-if="loading" label="Loading note" />
+
+    <AppErrorState
+      v-else-if="errorMessage"
+      title="Note could not load"
+      :description="errorMessage"
+      retry-label="Retry"
+      @retry="loadNote"
+    />
+
+    <template v-else-if="note">
+      <AppSectionHeader
+        :title="note.title"
+        eyebrow="Source-backed note"
+        :description="`Attached to ${note.bookTitle}.`"
+        :level="1"
+      >
+        <template #actions>
+          <RouterLink :to="{ name: 'book-notes', params: { bookId: note.bookId } }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">All Notes</AppButton>
+          </RouterLink>
+          <RouterLink :to="{ name: 'book-detail', params: { id: note.bookId } }" custom v-slot="{ navigate }">
+            <AppButton variant="ghost" @click="navigate">Open Book</AppButton>
+          </RouterLink>
+        </template>
+      </AppSectionHeader>
+
+      <section class="note-detail-grid" aria-label="Note editor and parsed blocks">
+        <AppCard class="note-editor" as="section">
+          <AppSectionHeader
+            title="Edit Markdown Note"
+            eyebrow="User content"
+            description="Saving updates the note summary, but existing block edits remain explicit."
+            :level="2"
+            compact
+          />
+
+          <form class="note-editor__form" @submit.prevent="handleSaveNote">
+            <label class="field">
+              <span>Title</span>
+              <el-input v-model="editForm.title" maxlength="220" show-word-limit />
+            </label>
+
+            <label class="field">
+              <span>Markdown</span>
+              <el-input v-model="editForm.markdown" type="textarea" :rows="10" maxlength="50000" />
+            </label>
+
+            <div class="note-editor__actions">
+              <AppButton variant="danger" @click="handleArchive">Archive Note</AppButton>
+              <AppButton variant="primary" native-type="submit" :loading="savingNote" :disabled="!canSaveNote">Save Note</AppButton>
+            </div>
+          </form>
+        </AppCard>
+
+        <AppCard class="block-composer" as="section">
+          <AppSectionHeader
+            title="Add Parsed Block"
+            eyebrow="Atomic block"
+            description="Blocks preserve their own parser result and source reference."
+            :level="2"
+            compact
+          />
+
+          <form class="block-composer__form" @submit.prevent="handleAddBlock">
+            <label class="field">
+              <span>Raw block</span>
+              <el-input
+                v-model="blockForm.rawText"
+                type="textarea"
+                :rows="5"
+                maxlength="5000"
+                placeholder="&#x2705; &#x7B2C;80&#x9875; Test this design method tomorrow. #todo [[Feedback Loop]]"
+              />
+            </label>
+            <AppButton variant="primary" native-type="submit" :loading="addingBlock" :disabled="!blockForm.rawText.trim()">
+              Add Block
+            </AppButton>
+          </form>
+        </AppCard>
+      </section>
+
+      <AppCard class="blocks-panel" as="section">
+        <AppSectionHeader
+          title="Parsed Note Blocks"
+          eyebrow="Source references"
+          description="Each block keeps raw text, parsed type, page data, concepts, tags, and source linkage."
+          :level="2"
+          compact
+        />
+
+        <AppEmptyState
+          v-if="!note.blocks.length"
+          title="No parsed blocks"
+          description="Add a block to create an atomic, source-backed note fragment."
+          compact
+        />
+
+        <template v-else>
+          <article
+            v-for="block in sortedBlocks"
+            :id="`block-${block.id}`"
+            :key="block.id"
+            class="block-card"
+            tabindex="0"
+            :aria-label="`${formatType(block.blockType)} block ${pageLabel(block.pageStart, block.pageEnd)}`"
+            @focus="setRailSource(block)"
+            @click="setRailSource(block)"
+          >
+            <div class="block-card__header">
+              <div class="block-card__badges">
+                <AppBadge variant="primary">{{ formatType(block.blockType) }}</AppBadge>
+                <AppBadge variant="accent">{{ pageLabel(block.pageStart, block.pageEnd) }}</AppBadge>
+                <AppBadge v-if="block.sourceReferences[0]" variant="success" size="sm">
+                  Source {{ block.sourceReferences[0].sourceConfidence }}
+                </AppBadge>
+              </div>
+              <AppButton variant="danger" :disabled="deletingBlockId === block.id" @click.stop="handleDeleteBlock(block.id)">
+                Delete
+              </AppButton>
+            </div>
+
+            <p class="block-card__text">{{ block.plainText || block.rawText }}</p>
+            <details class="block-card__details">
+              <summary>Raw and source data</summary>
+              <pre>{{ block.rawText }}</pre>
+              <dl>
+                <div v-for="source in block.sourceReferences" :key="source.id">
+                  <dt>{{ source.locationLabel ?? 'Source reference' }}</dt>
+                  <dd>{{ source.sourceText ?? 'No source text stored.' }}</dd>
+                </div>
+              </dl>
+            </details>
+
+            <form class="block-card__edit" @submit.prevent="handleUpdateBlock(block)">
+              <label class="field">
+                <span>Edit block raw text</span>
+                <el-input v-model="blockEdits[block.id]" type="textarea" :rows="3" maxlength="5000" />
+              </label>
+              <AppButton variant="secondary" native-type="submit" :loading="updatingBlockId === block.id">Update Block</AppButton>
+            </form>
+          </article>
+        </template>
+      </AppCard>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { addNoteBlock, archiveNote, deleteNoteBlock, getNote, updateNote, updateNoteBlock } from '../api/notes'
+import AppBadge from '../components/ui/AppBadge.vue'
+import AppButton from '../components/ui/AppButton.vue'
+import AppCard from '../components/ui/AppCard.vue'
+import AppEmptyState from '../components/ui/AppEmptyState.vue'
+import AppErrorState from '../components/ui/AppErrorState.vue'
+import AppLoadingState from '../components/ui/AppLoadingState.vue'
+import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import { useRightRailStore } from '../stores/rightRail'
+import type { BookNoteRecord, NoteBlockRecord, NoteBlockType, Visibility } from '../types'
+
+const route = useRoute()
+const router = useRouter()
+const rightRail = useRightRailStore()
+
+const note = ref<BookNoteRecord | null>(null)
+const loading = ref(false)
+const errorMessage = ref('')
+const savingNote = ref(false)
+const addingBlock = ref(false)
+const deletingBlockId = ref<number | null>(null)
+const updatingBlockId = ref<number | null>(null)
+const blockEdits = reactive<Record<number, string>>({})
+
+const editForm = reactive({
+  title: '',
+  markdown: '',
+  visibility: 'PRIVATE' as Visibility,
+})
+
+const blockForm = reactive({
+  rawText: '',
+})
+
+const sortedBlocks = computed(() => {
+  return [...(note.value?.blocks ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+})
+const canSaveNote = computed(() => Boolean(editForm.title.trim() && editForm.markdown.trim()))
+
+onMounted(loadNote)
+
+async function loadNote() {
+  loading.value = true
+  errorMessage.value = ''
+  try {
+    const result = await getNote(String(route.params.id))
+    note.value = result
+    editForm.title = result.title
+    editForm.markdown = result.markdown
+    editForm.visibility = result.visibility
+    result.blocks.forEach((block) => {
+      blockEdits[block.id] = block.rawText
+    })
+    if (result.blocks[0]) setRailSource(result.blocks[0])
+  } catch {
+    note.value = null
+    errorMessage.value = 'Check your connection or permissions and try again.'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleSaveNote() {
+  if (!note.value || !canSaveNote.value) return
+  savingNote.value = true
+  try {
+    note.value = await updateNote(note.value.id, {
+      title: editForm.title.trim(),
+      markdown: editForm.markdown.trim(),
+      visibility: editForm.visibility,
+    })
+    ElMessage.success('Note updated.')
+  } catch {
+    ElMessage.error('Note update failed.')
+  } finally {
+    savingNote.value = false
+  }
+}
+
+async function handleArchive() {
+  if (!note.value) return
+  try {
+    await ElMessageBox.confirm('Archive this note? It will be removed from active book notes.', 'Archive note', {
+      confirmButtonText: 'Archive',
+      cancelButtonText: 'Cancel',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+  await archiveNote(note.value.id)
+  ElMessage.success('Note archived.')
+  router.push({ name: 'book-notes', params: { bookId: note.value.bookId } })
+}
+
+async function handleAddBlock() {
+  if (!note.value || !blockForm.rawText.trim()) return
+  addingBlock.value = true
+  try {
+    const block = await addNoteBlock(note.value.id, {
+      rawText: blockForm.rawText.trim(),
+      sortOrder: note.value.blocks.length + 1,
+    })
+    note.value.blocks = [...note.value.blocks, block]
+    blockEdits[block.id] = block.rawText
+    blockForm.rawText = ''
+    setRailSource(block)
+    ElMessage.success('Parsed block added.')
+  } catch {
+    ElMessage.error('Block could not be added.')
+  } finally {
+    addingBlock.value = false
+  }
+}
+
+async function handleUpdateBlock(block: NoteBlockRecord) {
+  const rawText = blockEdits[block.id]?.trim()
+  if (!rawText || !note.value) return
+  updatingBlockId.value = block.id
+  try {
+    const updated = await updateNoteBlock(block.id, { rawText, sortOrder: block.sortOrder })
+    note.value.blocks = note.value.blocks.map((entry) => (entry.id === updated.id ? updated : entry))
+    blockEdits[updated.id] = updated.rawText
+    setRailSource(updated)
+    ElMessage.success('Block updated.')
+  } catch {
+    ElMessage.error('Block update failed.')
+  } finally {
+    updatingBlockId.value = null
+  }
+}
+
+async function handleDeleteBlock(blockId: number) {
+  if (!note.value) return
+  deletingBlockId.value = blockId
+  try {
+    await deleteNoteBlock(blockId)
+    note.value.blocks = note.value.blocks.filter((block) => block.id !== blockId)
+    delete blockEdits[blockId]
+    ElMessage.success('Block deleted.')
+  } catch {
+    ElMessage.error('Block delete failed.')
+  } finally {
+    deletingBlockId.value = null
+  }
+}
+
+function setRailSource(block: NoteBlockRecord) {
+  if (!note.value) return
+  rightRail.setSourceReference({
+    id: `note-block-${block.id}`,
+    type: 'note',
+    bookId: note.value.bookId,
+    bookTitle: note.value.bookTitle,
+    pageRange: pageLabel(block.pageStart, block.pageEnd),
+    location: block.sourceReferences[0]?.locationLabel ?? null,
+    addedAt: block.createdAt,
+  })
+}
+
+function formatType(type: NoteBlockType) {
+  return type
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function pageLabel(pageStart: number | null, pageEnd: number | null) {
+  if (pageStart && pageEnd) return `p.${pageStart}-${pageEnd}`
+  if (pageStart) return `p.${pageStart}`
+  return 'No page'
+}
+</script>
+
+<style scoped>
+.note-detail-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.note-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.62fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.note-editor,
+.block-composer,
+.blocks-panel {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.note-editor__form,
+.block-composer__form,
+.field,
+.block-card__edit {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field span {
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  font-weight: 800;
+}
+
+.note-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.block-card {
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface-muted);
+}
+
+.block-card:focus-visible {
+  outline: 2px solid var(--bookos-focus);
+  outline-offset: 3px;
+}
+
+.block-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.block-card__badges {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.block-card__text {
+  margin: 0;
+  color: var(--bookos-text-primary);
+  line-height: var(--type-body-line);
+}
+
+.block-card__details {
+  color: var(--bookos-text-secondary);
+}
+
+.block-card__details summary {
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.block-card__details pre {
+  margin: var(--space-2) 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface);
+  white-space: pre-wrap;
+}
+
+.block-card__details dl {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.block-card__details dt {
+  font-weight: 900;
+}
+
+.block-card__details dd {
+  margin: 0;
+}
+
+@media (max-width: 1080px) {
+  .note-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .note-editor,
+  .block-composer,
+  .blocks-panel {
+    padding: var(--space-4);
+  }
+
+  .note-editor__actions {
+    justify-content: stretch;
+  }
+}
+</style>

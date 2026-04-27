@@ -14,6 +14,8 @@ const BookDetailView = () => import('../views/BookDetailView.vue')
 const FiveStarBooksView = () => import('../views/FiveStarBooksView.vue')
 const CurrentlyReadingView = () => import('../views/CurrentlyReadingView.vue')
 const AntiLibraryView = () => import('../views/AntiLibraryView.vue')
+const NotesView = () => import('../views/NotesView.vue')
+const NoteDetailView = () => import('../views/NoteDetailView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
 
 const APP_TITLE = 'BookOS'
@@ -83,6 +85,24 @@ const router = createRouter({
           name: 'book-detail',
           component: BookDetailView,
           meta: { requiresAuth: true, title: 'Book Detail' },
+        },
+        {
+          path: 'notes',
+          name: 'notes',
+          component: NotesView,
+          meta: { requiresAuth: true, title: 'Notes' },
+        },
+        {
+          path: 'books/:bookId/notes',
+          name: 'book-notes',
+          component: NotesView,
+          meta: { requiresAuth: true, title: 'Book Notes' },
+        },
+        {
+          path: 'notes/:id',
+          name: 'note-detail',
+          component: NoteDetailView,
+          meta: { requiresAuth: true, title: 'Note Detail' },
         },
         {
           path: 'five-star',
