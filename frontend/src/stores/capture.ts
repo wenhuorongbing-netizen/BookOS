@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { archiveCapture, convertCapture, createCapture, getCaptureInbox } from '../api/captures'
-import type { BookRecord, NoteBlockType, RawCaptureRecord, SourceReferenceRecord } from '../types'
+import { archiveCapture, convertCapture, createCapture, getCaptureInbox, getCaptures } from '../api/captures'
+import type { BookRecord, CaptureStatus, NoteBlockType, RawCaptureRecord, SourceReferenceRecord } from '../types'
 
 export type CaptureMarker = 'text' | 'quote' | 'link' | 'emoji' | 'inspiration' | 'favorite' | 'important' | 'question' | 'idea'
 
@@ -20,6 +20,7 @@ export interface RecentNoteBlock {
   pageStart: number | null
   pageEnd: number | null
   sourceReferences: SourceReferenceRecord[]
+  parserWarnings: string[]
   createdAt: string
   bookmarked: boolean
   status: RawCaptureRecord['status']
@@ -34,6 +35,7 @@ export interface CaptureConvertibleBlock {
 export const useCaptureStore = defineStore('capture', () => {
   const captures = ref<RawCaptureRecord[]>([])
   const loading = ref(false)
+  const error = ref('')
   const bookmarkVersion = ref(0)
 
   const latestBlocks = computed(() => {
@@ -42,9 +44,21 @@ export const useCaptureStore = defineStore('capture', () => {
   })
 
   async function loadInbox(bookId?: number | string) {
+    await loadCaptures({ bookId, status: 'INBOX' })
+  }
+
+  async function loadCaptures(params?: { bookId?: number | string | null; status?: CaptureStatus | null }) {
     loading.value = true
+    error.value = ''
     try {
-      captures.value = await getCaptureInbox(bookId ? { bookId } : undefined)
+      const bookId = params?.bookId ?? undefined
+      const status = params?.status ?? undefined
+      captures.value = status === 'INBOX'
+        ? await getCaptureInbox(bookId ? { bookId } : undefined)
+        : await getCaptures({ bookId, status })
+    } catch (loadError) {
+      error.value = 'Captures could not be loaded. Check backend availability and permissions.'
+      throw loadError
     } finally {
       loading.value = false
     }
@@ -120,8 +134,10 @@ export const useCaptureStore = defineStore('capture', () => {
   return {
     captures,
     loading,
+    error,
     latestBlocks,
     loadInbox,
+    loadCaptures,
     loadBookCaptures,
     addCapture,
     convertToNote,
@@ -150,6 +166,7 @@ function toRecentBlock(capture: RawCaptureRecord): RecentNoteBlock {
     pageStart: capture.pageStart,
     pageEnd: capture.pageEnd,
     sourceReferences: capture.sourceReferences,
+    parserWarnings: capture.parserWarnings,
     createdAt: capture.createdAt,
     bookmarked: isBookmarked(capture.id),
     status: capture.status,

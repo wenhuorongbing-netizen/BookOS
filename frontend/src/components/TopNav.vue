@@ -55,7 +55,7 @@
       <RouterLink to="/books/new" custom v-slot="{ navigate }">
         <AppButton variant="primary" @click="navigate">Add Book</AppButton>
       </RouterLink>
-      <AppIconButton label="Notifications" tooltip="Notifications" variant="ghost">N</AppIconButton>
+      <AppIconButton label="Notifications are not implemented yet" tooltip="Notifications are not implemented yet" variant="ghost" disabled>N</AppIconButton>
       <div class="top-nav__profile">
         <button
           class="top-nav__avatar"

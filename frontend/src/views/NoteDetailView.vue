@@ -45,7 +45,26 @@
 
             <label class="field">
               <span>Markdown</span>
-              <el-input v-model="editForm.markdown" type="textarea" :rows="10" maxlength="50000" />
+              <div class="markdown-split">
+                <el-input v-model="editForm.markdown" type="textarea" :rows="12" maxlength="50000" />
+                <div class="markdown-preview" aria-label="Sanitized markdown preview">
+                  <div class="markdown-preview__label">Preview</div>
+                  <div v-if="editForm.markdown.trim()" v-html="renderedMarkdown" />
+                  <p v-else class="muted">Markdown preview appears as you type.</p>
+                </div>
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Three-sentence summary</span>
+              <el-input
+                v-model="editForm.threeSentenceSummary"
+                type="textarea"
+                :rows="3"
+                maxlength="1000"
+                show-word-limit
+                placeholder="Optional. Leave blank to derive from markdown."
+              />
             </label>
 
             <div class="note-editor__actions">
@@ -188,6 +207,7 @@ import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
+import { renderSafeMarkdown } from '../utils/markdown'
 import type { BookNoteRecord, ConceptRecord, ConceptReviewPayload, NoteBlockRecord, NoteBlockType, Visibility } from '../types'
 
 const route = useRoute()
@@ -211,6 +231,7 @@ const blockEdits = reactive<Record<number, string>>({})
 const editForm = reactive({
   title: '',
   markdown: '',
+  threeSentenceSummary: '',
   visibility: 'PRIVATE' as Visibility,
 })
 
@@ -223,6 +244,7 @@ const sortedBlocks = computed(() => {
 })
 const noteSourceReferences = computed(() => note.value?.blocks.flatMap((block) => block.sourceReferences) ?? [])
 const canSaveNote = computed(() => Boolean(editForm.title.trim() && editForm.markdown.trim()))
+const renderedMarkdown = computed(() => renderSafeMarkdown(editForm.markdown))
 
 onMounted(loadNote)
 
@@ -234,6 +256,7 @@ async function loadNote() {
     note.value = result
     editForm.title = result.title
     editForm.markdown = result.markdown
+    editForm.threeSentenceSummary = result.threeSentenceSummary ?? ''
     editForm.visibility = result.visibility
     result.blocks.forEach((block) => {
       blockEdits[block.id] = block.rawText
@@ -256,6 +279,7 @@ async function handleSaveNote() {
       title: editForm.title.trim(),
       markdown: editForm.markdown.trim(),
       visibility: editForm.visibility,
+      threeSentenceSummary: editForm.threeSentenceSummary.trim() || null,
     })
     ElMessage.success('Note updated.')
   } catch {
@@ -483,6 +507,49 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
   font-weight: 800;
 }
 
+.muted {
+  margin: 0;
+  color: var(--bookos-text-tertiary);
+}
+
+.markdown-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.86fr);
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.markdown-preview {
+  min-height: 280px;
+  padding: var(--space-4);
+  overflow: auto;
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.markdown-preview__label {
+  margin-bottom: var(--space-2);
+  color: var(--bookos-text-tertiary);
+  font-size: var(--type-micro);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.markdown-preview :deep(h1),
+.markdown-preview :deep(h2),
+.markdown-preview :deep(h3) {
+  margin: var(--space-3) 0 var(--space-2);
+  color: var(--bookos-text-primary);
+}
+
+.markdown-preview :deep(p) {
+  margin: 0 0 var(--space-2);
+}
+
 .note-editor__actions {
   display: flex;
   justify-content: flex-end;
@@ -566,6 +633,10 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 
 @media (max-width: 1080px) {
   .note-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .markdown-split {
     grid-template-columns: 1fr;
   }
 }

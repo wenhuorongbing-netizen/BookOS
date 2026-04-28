@@ -59,10 +59,18 @@
       </AppCard>
     </section>
 
+    <AppErrorState
+      v-else-if="dailyError"
+      title="Daily resurfacing unavailable"
+      :description="dailyError"
+      retry-label="Retry daily"
+      @retry="loadDaily"
+    />
+
     <AppSectionHeader
-      eyebrow="Next Actions"
-      title="Build the shelf before the knowledge graph"
-      description="Milestone 1 is focused on getting book ingestion and personal library workflows stable."
+      eyebrow="Cockpit Workflow"
+      title="Turn reading into source-backed design work"
+      description="Use the shelf, notes, captures, quotes, actions, concepts, and forum as one connected reading cockpit."
     >
       <template #actions>
         <RouterLink to="/books/new" custom v-slot="{ navigate }">
@@ -132,6 +140,7 @@ const daily = ref<DailyTodayRecord | null>(null)
 const loading = ref(true)
 const dailyBusy = ref(false)
 const error = ref('')
+const dailyError = ref('')
 
 onMounted(loadDashboard)
 
@@ -139,13 +148,12 @@ async function loadDashboard() {
   loading.value = true
   error.value = ''
   try {
-    const [catalog, userLibrary, current, stars, anti, today] = await Promise.all([
+    const [catalog, userLibrary, current, stars, anti] = await Promise.all([
       getBooks(),
       getUserBooks(),
       getCurrentlyReading(),
       getFiveStarBooks(),
       getAntiLibraryBooks(),
-      getDailyToday(),
     ])
 
     books.value = catalog
@@ -153,11 +161,21 @@ async function loadDashboard() {
     currentlyReading.value = current
     fiveStar.value = stars
     antiLibrary.value = anti
-    daily.value = today
+    await loadDaily()
   } catch {
     error.value = 'Check the API connection and try again.'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadDaily() {
+  dailyError.value = ''
+  try {
+    daily.value = await getDailyToday()
+  } catch {
+    daily.value = null
+    dailyError.value = 'Daily quote and prompt data could not be loaded. Check backend availability and permissions.'
   }
 }
 

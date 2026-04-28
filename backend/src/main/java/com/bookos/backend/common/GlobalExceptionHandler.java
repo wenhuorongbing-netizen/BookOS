@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -29,6 +30,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, BadCredentialsException.class})
     ResponseEntity<ApiResponse<Void>> handleBadRequest(RuntimeException exception) {
         return build(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ApiResponse<Void>> handleUnreadableRequest(HttpMessageNotReadableException exception) {
+        return build(HttpStatus.BAD_REQUEST, "Request body is invalid or contains unsupported values.");
     }
 
     @ExceptionHandler(NoSuchElementException.class)

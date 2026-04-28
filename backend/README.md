@@ -1,60 +1,88 @@
 # BookOS Backend
 
-Spring Boot 3.5, Java 21, Spring Security, Spring Data JPA, and MySQL.
+Spring Boot 3.5 backend for BookOS using Java 21, Spring Security, Spring Data JPA, Hibernate, Bean Validation, Flyway, Maven, and MySQL.
 
-Milestone 1 backend scope:
+## Implemented Domains
 
-- Authentication
-- Current user endpoint
-- Book CRUD
-- Personal library CRUD-like operations
-- Seed data
-
-## Package structure
-
-- `common`
-- `config`
-- `security`
-- `user`
-- `book`
-- `note`
-- `capture`
-- `knowledge`
-- `link`
-- `daily`
-- `project`
-- `forum`
-- `ai`
-- `media`
-- `admin`
-
-The non-library domains exist only as placeholders in Milestone 1.
+- `auth`, `user`, `security`: register, login, current user, JWT, roles.
+- `book`: catalog and personal library state.
+- `note`, `capture`, `parser`: notes, note blocks, quick capture, deterministic emoji/page/tag/concept parsing.
+- `source`, `link`: source references and entity backlinks.
+- `quote`, `action`: source-backed quotes and action items.
+- `knowledge`: concepts and minimal knowledge objects.
+- `daily`: deterministic daily sentence and design prompt resurfacing.
+- `forum`: structured categories, threads, comments, likes, bookmarks, reports, templates.
+- `search`: global search across owned/visible records.
+- `graph`: real-data graph preview endpoints.
+- `ai`: MockAIProvider draft suggestions only.
 
 ## Environment
 
-Copy [backend/.env.example](</D:/【指挥中心】/节操都市/项目/BookOS/backend/.env.example>) or the root `.env.example` values into your shell or `.env`.
+Use root `.env.example` or `backend/.env.example` as a starting point. Do not commit secrets.
+
+Seed accounts are disabled by default. Set `APP_SEED_ENABLED=true` only for local development.
+
+Flyway is enabled by default through `FLYWAY_ENABLED=true`. Keep `FLYWAY_BASELINE_ON_MIGRATE=false` for new databases. For an existing local database created before Flyway was introduced, back it up and start once with `FLYWAY_BASELINE_ON_MIGRATE=true`, then switch it back to `false`.
+
+## Database Migrations
+
+Migration files live in `src/main/resources/db/migration`.
+
+- `V1__create_bookos_schema.sql` creates the current BookOS schema.
+- `V2__seed_core_roles_and_forum_defaults.sql` inserts stable roles, forum categories, and structured post templates.
+- Normal development uses Hibernate `ddl-auto=validate`; startup fails if entity mappings and migrations diverge.
+- Tests use isolated H2 databases and run the same Flyway migrations. Test Hibernate DDL validation is disabled because H2 reports MySQL `LONGTEXT` columns as a different JDBC type.
+
+Run migrations by starting the backend:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+Reset a local development database only when data loss is intended:
+
+```powershell
+Set-Location ..
+docker compose down -v
+docker compose up -d mysql
+Set-Location backend
+.\mvnw.cmd spring-boot:run
+```
+
+Add future migrations by creating the next versioned SQL file, for example `V3__add_reading_sessions.sql`. Do not edit migration files that may already have run in another developer or production database.
 
 ## Run
 
+Windows:
+
 ```powershell
-$repo = (Resolve-Path ..).Path
-$env:JAVA_HOME = Join-Path $repo 'tools\jdk21-extracted\jdk-21.0.10+7'
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
 .\mvnw.cmd spring-boot:run
+```
+
+macOS/Linux:
+
+```bash
+./mvnw spring-boot:run
 ```
 
 ## Test
 
+Windows:
+
 ```powershell
-$repo = (Resolve-Path ..).Path
-$env:JAVA_HOME = Join-Path $repo 'tools\jdk21-extracted\jdk-21.0.10+7'
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
 .\mvnw.cmd test
 ```
 
-## Optional local seed accounts
+macOS/Linux:
 
-Seed accounts are disabled by default. Set `APP_SEED_ENABLED=true` only in a local development environment if you want demo data.
+```bash
+./mvnw test
+```
 
-- `designer@bookos.local` / `Password123!`
-- `admin@bookos.local` / `Admin123!`
+## Rules
+
+- Unknown source page numbers remain `null`.
+- Seed data must not include copyrighted book passages.
+- AI suggestions are drafts and never overwrite user content automatically.
+- MockAIProvider is local/deterministic and performs no external AI calls.
+- Private user content must remain scoped to the authenticated owner.

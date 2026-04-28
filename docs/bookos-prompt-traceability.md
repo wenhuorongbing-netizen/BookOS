@@ -250,3 +250,8 @@ Verification:
 Remaining hygiene note:
 
 - `frontend/dist/` and `backend/target/` are regenerated locally by verification commands but are ignored and not tracked.
+## Current-State Note — 2026-04-28
+
+The repository has moved beyond the early UI/UX and Milestone 1 checkpoints described below. The current `main` branch includes notes, captures, source references, quotes, action items, concepts, knowledge objects, daily resurfacing, structured forum, global search, real graph preview endpoints, and draft-only MockAIProvider suggestions.
+
+The earlier entries in this traceability document are historical checkpoints. For the current implementation status, see [current-state.md](current-state.md).

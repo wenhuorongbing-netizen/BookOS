@@ -28,7 +28,7 @@ public class AISuggestionController {
     @PostMapping("/api/ai/suggestions/note-summary")
     public ApiResponse<AISuggestionResponse> createNoteSummary(
             Authentication authentication,
-            @RequestBody(required = false) AISuggestionRequest request) {
+            @Valid @RequestBody(required = false) AISuggestionRequest request) {
         return ApiResponse.ok("Mock AI note summary draft created.",
                 suggestionService.generate(authentication.getName(), AISuggestionType.NOTE_SUMMARY, request));
     }
@@ -36,7 +36,7 @@ public class AISuggestionController {
     @PostMapping("/api/ai/suggestions/extract-actions")
     public ApiResponse<AISuggestionResponse> extractActions(
             Authentication authentication,
-            @RequestBody(required = false) AISuggestionRequest request) {
+            @Valid @RequestBody(required = false) AISuggestionRequest request) {
         return ApiResponse.ok("Mock AI action draft created.",
                 suggestionService.generate(authentication.getName(), AISuggestionType.EXTRACT_ACTIONS, request));
     }
@@ -44,7 +44,7 @@ public class AISuggestionController {
     @PostMapping("/api/ai/suggestions/extract-concepts")
     public ApiResponse<AISuggestionResponse> extractConcepts(
             Authentication authentication,
-            @RequestBody(required = false) AISuggestionRequest request) {
+            @Valid @RequestBody(required = false) AISuggestionRequest request) {
         return ApiResponse.ok("Mock AI concept draft created.",
                 suggestionService.generate(authentication.getName(), AISuggestionType.EXTRACT_CONCEPTS, request));
     }

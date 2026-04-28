@@ -57,6 +57,7 @@ public class SourceReference extends BaseEntity {
     private String locationLabel;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String sourceText;
 
     @Enumerated(EnumType.STRING)

@@ -52,6 +52,7 @@ public class KnowledgeObject extends BaseEntity {
     private String slug;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)
@@ -73,6 +74,7 @@ public class KnowledgeObject extends BaseEntity {
     private Long sourceReferenceId;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String tagsJson;
 
     @Column(nullable = false)

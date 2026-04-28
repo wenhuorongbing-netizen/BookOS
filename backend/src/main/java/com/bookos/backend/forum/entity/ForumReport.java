@@ -32,6 +32,7 @@ public class ForumReport extends BaseEntity {
     private String reason;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String details;
 
     @Column(nullable = false)

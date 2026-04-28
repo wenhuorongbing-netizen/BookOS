@@ -66,7 +66,6 @@ public class BookNoteService {
         note.setUser(user);
         note.setBook(book);
         applyRequest(note, request);
-        note.setThreeSentenceSummary(buildSummary(request.markdown()));
 
         NoteBlock block = buildBlock(user, book, note, new NoteBlockRequest(request.markdown(), 0));
         note.getBlocks().add(block);
@@ -86,7 +85,6 @@ public class BookNoteService {
         User user = userService.getByEmailRequired(email);
         BookNote note = getNoteForUser(id, user.getId());
         applyRequest(note, request);
-        note.setThreeSentenceSummary(buildSummary(request.markdown()));
         return toResponse(bookNoteRepository.save(note));
     }
 
@@ -150,6 +148,7 @@ public class BookNoteService {
     private void applyRequest(BookNote note, BookNoteRequest request) {
         note.setTitle(request.title().trim());
         note.setMarkdown(request.markdown().trim());
+        note.setThreeSentenceSummary(resolveSummary(request));
         note.setVisibility(request.visibility() == null ? Visibility.PRIVATE : request.visibility());
     }
 
@@ -225,5 +224,12 @@ public class BookNoteService {
                 .limit(3)
                 .reduce((left, right) -> left + " " + right)
                 .orElse(plain);
+    }
+
+    private String resolveSummary(BookNoteRequest request) {
+        if (StringUtils.hasText(request.threeSentenceSummary())) {
+            return request.threeSentenceSummary().trim();
+        }
+        return buildSummary(request.markdown());
     }
 }

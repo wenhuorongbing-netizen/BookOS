@@ -78,7 +78,7 @@
         <article v-for="draft in visibleDrafts" :key="draft.id" class="draft-card">
           <div class="draft-card__topline">
             <AppBadge variant="warning" size="sm">Draft</AppBadge>
-            <span>{{ formatSuggestionType(draft.suggestionType) }} · {{ formatDate(draft.updatedAt) }}</span>
+            <span>{{ draft.providerName || 'MockAIProvider' }} - {{ formatSuggestionType(draft.suggestionType) }} - {{ formatDate(draft.updatedAt) }}</span>
           </div>
 
           <label v-if="editingDraftId === draft.id" class="draft-card__editor">

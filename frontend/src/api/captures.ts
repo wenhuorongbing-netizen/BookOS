@@ -7,6 +7,7 @@ import type {
   RawCapturePayload,
   RawCaptureRecord,
   RawCaptureUpdatePayload,
+  CaptureStatus,
 } from '../types'
 
 export function createCapture(payload: RawCapturePayload) {
@@ -15,6 +16,10 @@ export function createCapture(payload: RawCapturePayload) {
 
 export function getCaptureInbox(params?: { bookId?: number | string }) {
   return unwrap<RawCaptureRecord[]>(api.get('/captures/inbox', { params }))
+}
+
+export function getCaptures(params?: { bookId?: number | string; status?: CaptureStatus }) {
+  return unwrap<RawCaptureRecord[]>(api.get('/captures', { params }))
 }
 
 export function getCapture(id: number | string) {

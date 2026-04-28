@@ -47,11 +47,11 @@ public class NoteBlock extends BaseEntity {
     private NoteBlockType blockType = NoteBlockType.NOTE;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String rawText;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String markdown;
 
     @Column(length = 5000)

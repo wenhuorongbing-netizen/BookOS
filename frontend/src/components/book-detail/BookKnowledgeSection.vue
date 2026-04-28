@@ -175,24 +175,21 @@ const conceptRows = computed(() => {
 
 const graphNodesAround = computed(() => {
   const graphNodes = props.book.knowledgeGraph?.nodes ?? []
-  if (graphNodes.length) {
-    const bookNodeId = graphNodes.find((node) => node.type === 'BOOK')?.id
-    const relatedNodes = graphNodes.filter((node) => node.id !== bookNodeId && node.type !== 'SOURCE_REFERENCE')
-    return relatedNodes.slice(0, 6).map((node) => {
-      const relatedEdge = props.book.knowledgeGraph?.edges?.find((edge) => edge.source === node.id || edge.target === node.id)
-      const matchingConcept = directConcepts.value.find((concept) => String(concept.id ?? '') === String(node.entityId) || concept.name === node.label)
-      return {
-        ...matchingConcept,
-        id: node.entityId,
-        name: node.label,
-        type: node.type,
-        edgeStrength: edgeStrengthForEdge(relatedEdge?.type),
-        relevance: matchingConcept?.relevance ?? 0,
-        mentions: matchingConcept?.mentions ?? 0,
-      }
-    })
-  }
-  return conceptRows.value.slice(0, 6)
+  const bookNodeId = graphNodes.find((node) => node.type === 'BOOK')?.id
+  const relatedNodes = graphNodes.filter((node) => node.id !== bookNodeId && node.type !== 'SOURCE_REFERENCE')
+  return relatedNodes.slice(0, 6).map((node) => {
+    const relatedEdge = props.book.knowledgeGraph?.edges?.find((edge) => edge.source === node.id || edge.target === node.id)
+    const matchingConcept = directConcepts.value.find((concept) => String(concept.id ?? '') === String(node.entityId) || concept.name === node.label)
+    return {
+      ...matchingConcept,
+      id: node.entityId,
+      name: node.label,
+      type: node.type,
+      edgeStrength: edgeStrengthForEdge(relatedEdge?.type),
+      relevance: matchingConcept?.relevance ?? 0,
+      mentions: matchingConcept?.mentions ?? 0,
+    }
+  })
 })
 
 const activeLenses = computed(() => {

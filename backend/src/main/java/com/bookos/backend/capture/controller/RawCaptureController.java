@@ -9,6 +9,7 @@ import com.bookos.backend.capture.dto.RawCaptureResponse;
 import com.bookos.backend.capture.dto.RawCaptureUpdateRequest;
 import com.bookos.backend.capture.service.RawCaptureService;
 import com.bookos.backend.common.ApiResponse;
+import com.bookos.backend.common.enums.CaptureStatus;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,14 @@ public class RawCaptureController {
             Authentication authentication,
             @RequestParam(required = false) Long bookId) {
         return ApiResponse.ok("Capture inbox loaded.", rawCaptureService.listInbox(authentication.getName(), bookId));
+    }
+
+    @GetMapping
+    public ApiResponse<List<RawCaptureResponse>> listCaptures(
+            Authentication authentication,
+            @RequestParam(required = false) Long bookId,
+            @RequestParam(required = false) CaptureStatus status) {
+        return ApiResponse.ok("Captures loaded.", rawCaptureService.listCaptures(authentication.getName(), bookId, status));
     }
 
     @GetMapping("/{id}")

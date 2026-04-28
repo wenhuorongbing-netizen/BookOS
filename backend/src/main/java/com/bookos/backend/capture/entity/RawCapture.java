@@ -29,10 +29,11 @@ public class RawCapture extends BaseEntity {
     private Book book;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String rawText;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String cleanText;
 
     @Enumerated(EnumType.STRING)
@@ -44,12 +45,15 @@ public class RawCapture extends BaseEntity {
     private Integer pageEnd;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String tagsJson;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String conceptsJson;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String parserWarningsJson;
 
     @Enumerated(EnumType.STRING)

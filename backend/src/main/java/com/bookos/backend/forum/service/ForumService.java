@@ -1,8 +1,10 @@
 package com.bookos.backend.forum.service;
 
+import com.bookos.backend.action.repository.ActionItemRepository;
 import com.bookos.backend.book.entity.Book;
 import com.bookos.backend.book.repository.BookRepository;
 import com.bookos.backend.book.repository.UserBookRepository;
+import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.SlugUtils;
 import com.bookos.backend.common.enums.ForumThreadStatus;
 import com.bookos.backend.common.enums.RoleName;
@@ -31,6 +33,10 @@ import com.bookos.backend.forum.repository.ForumThreadRepository;
 import com.bookos.backend.forum.repository.StructuredPostTemplateRepository;
 import com.bookos.backend.knowledge.entity.Concept;
 import com.bookos.backend.knowledge.repository.ConceptRepository;
+import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
+import com.bookos.backend.note.repository.BookNoteRepository;
+import com.bookos.backend.note.repository.NoteBlockRepository;
+import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.dto.SourceReferenceResponse;
 import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
@@ -69,7 +75,13 @@ public class ForumService {
     private final StructuredPostTemplateRepository templateRepository;
     private final BookRepository bookRepository;
     private final UserBookRepository userBookRepository;
+    private final BookNoteRepository bookNoteRepository;
+    private final NoteBlockRepository noteBlockRepository;
+    private final RawCaptureRepository rawCaptureRepository;
+    private final QuoteRepository quoteRepository;
+    private final ActionItemRepository actionItemRepository;
     private final ConceptRepository conceptRepository;
+    private final KnowledgeObjectRepository knowledgeObjectRepository;
     private final SourceReferenceRepository sourceReferenceRepository;
     private final SourceReferenceService sourceReferenceService;
     private final UserService userService;
@@ -216,7 +228,7 @@ public class ForumService {
         comment.setAuthor(author);
         comment.setThread(thread);
         comment.setBodyMarkdown(sanitizeMarkdown(request.bodyMarkdown()));
-        comment.setParentCommentId(request.parentCommentId());
+        comment.setParentCommentId(validatedParentCommentId(thread, request.parentCommentId()));
         return toCommentResponse(author, commentRepository.save(comment));
     }
 
@@ -330,6 +342,9 @@ public class ForumService {
         SourceReference sourceReference = request.sourceReferenceId() == null ? null : getOwnedSourceReference(author, request.sourceReferenceId());
         Book book = request.relatedBookId() == null ? null : getReadableBook(author, request.relatedBookId());
         Concept concept = request.relatedConceptId() == null ? null : getOwnedConcept(author, request.relatedConceptId());
+        String relatedEntityType = normalizeEntityType(request.relatedEntityType());
+        Long relatedEntityId = request.relatedEntityId();
+        validateRelatedEntity(author, relatedEntityType, relatedEntityId);
 
         if (sourceReference != null) {
             book = sourceReference.getBook();
@@ -341,12 +356,36 @@ public class ForumService {
         thread.setCategory(category);
         thread.setTitle(request.title().trim());
         thread.setBodyMarkdown(sanitizeMarkdown(request.bodyMarkdown()));
-        thread.setRelatedEntityType(normalizeEntityType(request.relatedEntityType()));
-        thread.setRelatedEntityId(request.relatedEntityId());
+        thread.setRelatedEntityType(relatedEntityType);
+        thread.setRelatedEntityId(relatedEntityId);
         thread.setRelatedBook(book);
         thread.setRelatedConcept(concept);
         thread.setSourceReferenceId(sourceReference == null ? null : sourceReference.getId());
         thread.setVisibility(request.visibility() == null ? Visibility.SHARED : request.visibility());
+    }
+
+    private Long validatedParentCommentId(ForumThread thread, Long parentCommentId) {
+        if (parentCommentId == null) {
+            return null;
+        }
+        ForumComment parent = commentRepository.findByIdAndArchivedFalse(parentCommentId)
+                .orElseThrow(() -> new NoSuchElementException("Parent comment not found."));
+        if (!Objects.equals(parent.getThread().getId(), thread.getId())) {
+            throw new IllegalArgumentException("Parent comment belongs to a different thread.");
+        }
+        return parent.getId();
+    }
+
+    private void validateRelatedEntity(User user, String type, Long id) {
+        if (!StringUtils.hasText(type) && id == null) {
+            return;
+        }
+        if (!StringUtils.hasText(type) || id == null) {
+            throw new IllegalArgumentException("Related entity type and id must be supplied together.");
+        }
+        if (!canReadRelatedEntity(user, type, id)) {
+            throw new NoSuchElementException("Related entity not found.");
+        }
     }
 
     private SourceReference getOwnedSourceReference(User user, Long sourceReferenceId) {
@@ -376,13 +415,31 @@ public class ForumService {
     }
 
     private boolean canReadBook(User viewer, Book book) {
-        if (book.getVisibility() == Visibility.PUBLIC) {
+        if (book.getVisibility() == Visibility.PUBLIC || book.getVisibility() == Visibility.SHARED) {
             return true;
         }
         if (book.getOwner() != null && Objects.equals(book.getOwner().getId(), viewer.getId())) {
             return true;
         }
         return userBookRepository.findByUserIdAndBookId(viewer.getId(), book.getId()).isPresent();
+    }
+
+    private boolean canReadRelatedEntity(User viewer, String type, Long id) {
+        if (!StringUtils.hasText(type) || id == null) {
+            return false;
+        }
+        return switch (type) {
+            case "BOOK" -> bookRepository.findById(id).filter(book -> canReadBook(viewer, book)).isPresent();
+            case "NOTE" -> bookNoteRepository.findByIdAndUserId(id, viewer.getId()).isPresent();
+            case "NOTE_BLOCK" -> noteBlockRepository.findByIdAndUserId(id, viewer.getId()).isPresent();
+            case "RAW_CAPTURE", "CAPTURE" -> rawCaptureRepository.findByIdAndUserId(id, viewer.getId()).isPresent();
+            case "QUOTE" -> quoteRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
+            case "ACTION_ITEM" -> actionItemRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
+            case "CONCEPT" -> conceptRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
+            case "KNOWLEDGE_OBJECT" -> knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
+            case "SOURCE_REFERENCE" -> sourceReferenceRepository.findByIdAndUserId(id, viewer.getId()).isPresent();
+            default -> false;
+        };
     }
 
     private void requireCanEdit(User user, ForumThread thread) {
@@ -435,6 +492,9 @@ public class ForumService {
                 && Objects.equals(thread.getRelatedConcept().getUser().getId(), viewer.getId())
                 ? thread.getRelatedConcept()
                 : null;
+        boolean canSeeRelatedEntity = thread.getRelatedEntityType() != null
+                && thread.getRelatedEntityId() != null
+                && canReadRelatedEntity(viewer, thread.getRelatedEntityType(), thread.getRelatedEntityId());
 
         return new ForumThreadResponse(
                 thread.getId(),
@@ -445,8 +505,8 @@ public class ForumService {
                 displayName(thread.getAuthor()),
                 thread.getTitle(),
                 thread.getBodyMarkdown(),
-                thread.getRelatedEntityType(),
-                thread.getRelatedEntityId(),
+                canSeeRelatedEntity ? thread.getRelatedEntityType() : null,
+                canSeeRelatedEntity ? thread.getRelatedEntityId() : null,
                 visibleBook == null ? null : visibleBook.getId(),
                 visibleBook == null ? null : visibleBook.getTitle(),
                 visibleConcept == null ? null : visibleConcept.getId(),

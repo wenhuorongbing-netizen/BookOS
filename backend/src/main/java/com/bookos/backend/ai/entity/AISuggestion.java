@@ -52,11 +52,11 @@ public class AISuggestion extends BaseEntity {
     private Long sourceReferenceId;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String draftText;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String draftJson;
 
     private Instant acceptedAt;

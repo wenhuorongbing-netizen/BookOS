@@ -97,6 +97,27 @@ public class RawCaptureService {
     }
 
     @Transactional(readOnly = true)
+    public List<RawCaptureResponse> listCaptures(String email, Long bookId, CaptureStatus status) {
+        User user = userService.getByEmailRequired(email);
+        if (bookId != null) {
+            assertBookInLibrary(user, bookId);
+            return (status == null
+                            ? rawCaptureRepository.findByUserIdAndBookIdOrderByCreatedAtDesc(user.getId(), bookId)
+                            : rawCaptureRepository.findByUserIdAndBookIdAndStatusOrderByCreatedAtDesc(user.getId(), bookId, status))
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        return (status == null
+                        ? rawCaptureRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
+                        : rawCaptureRepository.findByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), status))
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public RawCaptureResponse getCapture(String email, Long id) {
         User user = userService.getByEmailRequired(email);
         return toResponse(getOwnedCapture(id, user));
@@ -133,7 +154,7 @@ public class RawCaptureService {
             var note = bookNoteService.createNote(
                     email,
                     capture.getBook().getId(),
-                    new BookNoteRequest(resolveTitle(request.title(), capture), capture.getRawText(), Visibility.PRIVATE));
+                    new BookNoteRequest(resolveTitle(request.title(), capture), capture.getRawText(), Visibility.PRIVATE, null));
             convertedEntityType = "NOTE";
             convertedEntityId = note.id();
         } else if (target == CaptureConversionTarget.QUOTE) {

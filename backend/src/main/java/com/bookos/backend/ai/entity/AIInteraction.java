@@ -42,5 +42,6 @@ public class AIInteraction extends BaseEntity {
     private Long sourceReferenceId;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String inputJson;
 }

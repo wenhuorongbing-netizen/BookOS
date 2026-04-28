@@ -41,27 +41,37 @@
       <div class="insight-card__heading">
         <div>
           <div class="eyebrow">Daily Design Prompt</div>
-          <h2>
+          <h2 v-if="prompt">
             Think
             <AppBadge v-if="prompt.templatePrompt" variant="warning" size="sm">Template Prompt</AppBadge>
             <AppBadge v-else variant="success" size="sm">Source-backed</AppBadge>
           </h2>
+          <h2 v-else>Think</h2>
         </div>
         <span class="insight-card__icon" aria-hidden="true">DP</span>
       </div>
 
-      <p class="insight-card__prompt">{{ prompt.question }}</p>
-      <div class="insight-card__source">
-        <AppBadge variant="primary" size="sm">{{ prompt.sourceTitle ?? prompt.linkedConcept ?? prompt.linkedLens ?? 'Design prompt' }}</AppBadge>
-      </div>
-      <div class="insight-card__actions">
-        <AppButton variant="primary" @click="promptOpen = true">Save Reflection</AppButton>
-        <AppButton variant="accent" :loading="dailyActionLoading" @click="$emit('create-prototype-task', prompt.id ?? null)">
-          Create Prototype Task
-        </AppButton>
-        <AppButton variant="ghost" :loading="dailyActionLoading" @click="$emit('regenerate-daily', 'PROMPT')">Regenerate</AppButton>
-        <AppButton variant="text" :loading="dailyActionLoading" @click="$emit('skip-daily', 'PROMPT')">Skip</AppButton>
-      </div>
+      <template v-if="prompt">
+        <p class="insight-card__prompt">{{ prompt.question }}</p>
+        <div class="insight-card__source">
+          <AppBadge variant="primary" size="sm">{{ prompt.sourceTitle ?? prompt.linkedConcept ?? prompt.linkedLens ?? 'Design prompt' }}</AppBadge>
+        </div>
+        <div class="insight-card__actions">
+          <AppButton variant="primary" @click="promptOpen = true">Save Reflection</AppButton>
+          <AppButton variant="accent" :loading="dailyActionLoading" @click="$emit('create-prototype-task', prompt.id ?? null)">
+            Create Prototype Task
+          </AppButton>
+          <AppButton variant="ghost" :loading="dailyActionLoading" @click="$emit('regenerate-daily', 'PROMPT')">Regenerate</AppButton>
+          <AppButton variant="text" :loading="dailyActionLoading" @click="$emit('skip-daily', 'PROMPT')">Skip</AppButton>
+        </div>
+      </template>
+
+      <AppEmptyState
+        v-else
+        title="Daily prompt unavailable"
+        description="The daily API did not return a design prompt. No local prompt is shown as real daily data."
+        compact
+      />
     </AppCard>
 
     <AppCard as="article" class="insight-card insight-card--ontology" variant="default">
@@ -73,21 +83,30 @@
         <span class="insight-card__icon" aria-hidden="true">OG</span>
       </div>
 
-      <p class="insight-card__prompt">
-        This book connects to {{ conceptCount }} {{ conceptCount === 1 ? 'concept' : 'concepts' }} captured from your notes and source references.
-      </p>
-      <div class="mini-graph" role="img" :aria-label="graphDescription">
-        <span class="mini-graph__node mini-graph__node--book">{{ book.title }}</span>
-        <span
-          v-for="(concept, index) in visibleConcepts"
-          :key="concept.name"
-          class="mini-graph__node"
-          :class="`mini-graph__node--${index + 1}`"
-        >
-          {{ concept.name }}
-        </span>
-      </div>
-      <AppButton variant="secondary" @click="$emit('open-graph')">Open Graph</AppButton>
+      <template v-if="conceptCount > 0">
+        <p class="insight-card__prompt">
+          This book connects to {{ conceptCount }} {{ conceptCount === 1 ? 'concept' : 'concepts' }} captured from your notes and source references.
+        </p>
+        <div class="mini-graph" role="img" :aria-label="graphDescription">
+          <span class="mini-graph__node mini-graph__node--book">{{ book.title }}</span>
+          <span
+            v-for="(concept, index) in visibleConcepts"
+            :key="concept.name"
+            class="mini-graph__node"
+            :class="`mini-graph__node--${index + 1}`"
+          >
+            {{ concept.name }}
+          </span>
+        </div>
+        <AppButton variant="secondary" @click="$emit('open-graph')">Open Graph</AppButton>
+      </template>
+
+      <AppEmptyState
+        v-else
+        title="No ontology links yet"
+        description="Review parsed [[Concept]] items or create knowledge objects to build a source-backed ontology preview."
+        compact
+      />
     </AppCard>
 
     <div
@@ -106,7 +125,7 @@
           </div>
           <AppIconButton label="Close prompt reflection" variant="ghost" @click="promptOpen = false">X</AppIconButton>
         </div>
-        <p>{{ prompt.question }}</p>
+        <p>{{ prompt?.question }}</p>
         <label class="prompt-modal__field">
           <span>Your reflection draft</span>
           <el-input
@@ -167,9 +186,7 @@ const quote = computed<(BookQuotePreview & { sourceBacked?: boolean; hasSource?:
       hasSource: Boolean(props.daily.sentence.sourceReference || props.daily.sentence.bookId),
     }
   }
-
-  const fallback = props.book.dailyQuote ?? props.book.latestQuote ?? null
-  return fallback ? { ...fallback, sourceBacked: Boolean(fallback.sourceLabel), hasSource: Boolean(fallback.id) } : null
+  return null
 })
 
 const directConcepts = computed<BookConceptPreview[]>(() => {
@@ -181,13 +198,11 @@ const directConcepts = computed<BookConceptPreview[]>(() => {
 })
 
 const visibleConcepts = computed(() => {
-  const values = directConcepts.value.slice(0, 3)
-  if (values.length) return values
-  return [{ name: 'No concepts yet', type: 'Empty state' }]
+  return directConcepts.value.slice(0, 3)
 })
 
 const conceptCount = computed(() => props.book.ontologyConceptCount ?? directConcepts.value.length)
-const prompt = computed<BookDesignPromptPreview>(() => {
+const prompt = computed<BookDesignPromptPreview | null>(() => {
   if (props.daily?.prompt) {
     return {
       id: props.daily.prompt.id,
@@ -198,15 +213,7 @@ const prompt = computed<BookDesignPromptPreview>(() => {
     }
   }
 
-  if (props.book.dailyDesignPrompt) return props.book.dailyDesignPrompt
-
-  const anchor = directConcepts.value[0]?.name ?? props.book.category ?? 'player experience'
-  return {
-    question: `What one design decision in ${props.book.title} could you test with a smaller prototype today?`,
-    linkedConcept: anchor,
-    sourceTitle: 'Template Prompt',
-    templatePrompt: true,
-  }
+  return props.book.dailyDesignPrompt ?? null
 })
 
 const graphDescription = computed(() => {
@@ -221,6 +228,7 @@ watch(promptOpen, async (open) => {
 })
 
 function saveDraft() {
+  if (!prompt.value) return
   if (!reflectionDraft.value.trim()) {
     ElMessage.warning('Write a short reflection before saving.')
     return

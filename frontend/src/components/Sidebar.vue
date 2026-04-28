@@ -46,23 +46,26 @@
           <span class="sidebar__item-kicker" aria-hidden="true">{{ item.short }}</span>
           <span>{{ item.label }}</span>
         </button>
+
+        <button class="sidebar__nav-link" type="button" @click="openSearch">
+          <span class="sidebar__item-kicker" aria-hidden="true">SE</span>
+          <span>Search</span>
+        </button>
       </nav>
 
       <AppCard class="sidebar__project" variant="rail" as="section">
         <div class="eyebrow">Current Project</div>
-        <strong>No active project selected</strong>
-        <AppProgressBar :value="0" label="Current project progress" size="sm" tone="accent" />
+        <strong>Project mode is not implemented yet</strong>
+        <p>Game project application workflows will appear here after the project module is built.</p>
       </AppCard>
 
       <AppCard class="sidebar__concepts" variant="rail" as="section">
         <div class="eyebrow">Recently Viewed</div>
-        <ul class="sidebar__recent-list">
-          <li v-for="concept in recentConcepts" :key="concept">{{ concept }}</li>
-        </ul>
+        <p>Recent concept history is not implemented yet. No sample concepts are shown as real activity.</p>
       </AppCard>
 
       <button class="sidebar__settings" type="button" disabled aria-disabled="true">
-        <span class="sidebar__item-kicker" aria-hidden="true">SE</span>
+        <span class="sidebar__item-kicker" aria-hidden="true">ST</span>
         <span>Settings</span>
       </button>
     </div>
@@ -73,7 +76,6 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import AppCard from './ui/AppCard.vue'
-import AppProgressBar from './ui/AppProgressBar.vue'
 
 const route = useRoute()
 const navOpen = ref(false)
@@ -122,6 +124,12 @@ const routeItems = [
     activePaths: ['/knowledge'],
   },
   {
+    label: 'Daily',
+    to: '/daily',
+    short: 'DA',
+    activePaths: ['/daily'],
+  },
+  {
     label: 'Forum',
     to: '/forum',
     short: 'FO',
@@ -135,8 +143,6 @@ const plannedItems = [
   { label: 'Exercises', short: 'EX' },
   { label: 'Projects', short: 'PR' },
 ]
-
-const recentConcepts = ['Rules of Play', 'Designing for Emotion', 'MDA Framework', 'Flow in Games', 'Game Feel']
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalEscape)
@@ -168,6 +174,11 @@ function handleGlobalEscape(event: KeyboardEvent) {
 function handleNavigate(navigate: () => void) {
   closeNav()
   navigate()
+}
+
+function openSearch() {
+  closeNav()
+  window.dispatchEvent(new CustomEvent('bookos:open-search'))
 }
 </script>
 
@@ -298,14 +309,12 @@ function handleNavigate(navigate: () => void) {
   color: rgba(255, 253, 248, 0.94);
 }
 
-.sidebar__recent-list {
+.sidebar__project p,
+.sidebar__concepts p {
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-2);
-  list-style: none;
   color: rgba(255, 253, 248, 0.76);
   font-size: var(--type-metadata);
+  line-height: 1.45;
 }
 
 .sidebar :deep(.app-progress__value) {

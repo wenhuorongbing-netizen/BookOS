@@ -73,7 +73,7 @@ public class BookController {
     public ResponseEntity<ApiResponse<UserBookResponse>> addToLibrary(
             Authentication authentication,
             @PathVariable Long id,
-            @RequestBody(required = false) AddToLibraryRequest request) {
+            @Valid @RequestBody(required = false) AddToLibraryRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Book added to personal library.", userLibraryService.addToLibrary(authentication.getName(), id, request)));
     }

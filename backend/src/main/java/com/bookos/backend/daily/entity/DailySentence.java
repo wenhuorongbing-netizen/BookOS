@@ -47,7 +47,7 @@ public class DailySentence extends BaseEntity {
     private Long sourceReferenceId;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String text;
 
     @Column(length = 220)

@@ -42,25 +42,14 @@ public class DemoDataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        Role adminRole = ensureRole(RoleName.ADMIN);
+        Role userRole = ensureRole(RoleName.USER);
+        ensureRole(RoleName.MODERATOR);
+        forumService.ensureDefaults();
+
         if (!seedProperties.isEnabled()) {
             return;
         }
-
-        Role adminRole = roleRepository.findByName(RoleName.ADMIN).orElseGet(() -> {
-            Role role = new Role();
-            role.setName(RoleName.ADMIN);
-            return roleRepository.save(role);
-        });
-        Role userRole = roleRepository.findByName(RoleName.USER).orElseGet(() -> {
-            Role role = new Role();
-            role.setName(RoleName.USER);
-            return roleRepository.save(role);
-        });
-        roleRepository.findByName(RoleName.MODERATOR).orElseGet(() -> {
-            Role role = new Role();
-            role.setName(RoleName.MODERATOR);
-            return roleRepository.save(role);
-        });
 
         User admin = userRepository.findByEmailIgnoreCase("admin@bookos.local").orElseGet(() -> createUser(
                 "admin@bookos.local",
@@ -81,8 +70,14 @@ public class DemoDataInitializer implements CommandLineRunner {
         if (userBookRepository.count() == 0) {
             seedLibrary(designer.getEmail());
         }
+    }
 
-        forumService.ensureDefaults();
+    private Role ensureRole(RoleName roleName) {
+        return roleRepository.findByName(roleName).orElseGet(() -> {
+            Role role = new Role();
+            role.setName(roleName);
+            return roleRepository.save(role);
+        });
     }
 
     private User createUser(String email, String password, String displayName, Role role) {

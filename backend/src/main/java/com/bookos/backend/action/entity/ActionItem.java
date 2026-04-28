@@ -58,6 +58,7 @@ public class ActionItem extends BaseEntity {
     private String title;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)

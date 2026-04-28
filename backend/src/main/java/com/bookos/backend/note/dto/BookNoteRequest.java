@@ -13,4 +13,7 @@ public record BookNoteRequest(
         @Size(max = 50000, message = "Markdown content must be at most 50000 characters.")
         String markdown,
 
-        Visibility visibility) {}
+        Visibility visibility,
+
+        @Size(max = 1000, message = "Three-sentence summary must be at most 1000 characters.")
+        String threeSentenceSummary) {}

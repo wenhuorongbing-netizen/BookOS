@@ -3,6 +3,8 @@ package com.bookos.backend.search.service;
 import com.bookos.backend.action.entity.ActionItem;
 import com.bookos.backend.action.repository.ActionItemRepository;
 import com.bookos.backend.book.dto.BookResponse;
+import com.bookos.backend.book.entity.Book;
+import com.bookos.backend.book.repository.UserBookRepository;
 import com.bookos.backend.book.service.BookService;
 import com.bookos.backend.capture.entity.RawCapture;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
@@ -51,6 +53,7 @@ public class SearchService {
     private final ForumThreadRepository forumThreadRepository;
     private final SourceReferenceRepository sourceReferenceRepository;
     private final UserService userService;
+    private final UserBookRepository userBookRepository;
 
     @Transactional(readOnly = true)
     public List<SearchResultResponse> search(String email, String query, String type, Long bookId) {
@@ -185,17 +188,22 @@ public class SearchService {
         if (matchesType(wantedType, "FORUM_THREAD")) {
             forumThreadRepository.findByStatusNotOrderByUpdatedAtDesc(ForumThreadStatus.ARCHIVED).stream()
                     .filter(thread -> canSeeThread(user, thread))
-                    .filter(thread -> bookId == null || thread.getRelatedBook() != null && Objects.equals(thread.getRelatedBook().getId(), bookId))
+                    .filter(thread -> bookId == null
+                            || visibleForumBook(user, thread) != null
+                                    && Objects.equals(visibleForumBook(user, thread).getId(), bookId))
                     .filter(thread -> matches(q, thread.getTitle(), thread.getBodyMarkdown(), thread.getCategory().getName()))
-                    .map(thread -> new SearchResultResponse(
-                            "FORUM_THREAD",
-                            thread.getId(),
-                            thread.getTitle(),
-                            excerpt(thread.getBodyMarkdown()),
-                            thread.getRelatedBook() == null ? null : thread.getRelatedBook().getId(),
-                            thread.getRelatedBook() == null ? null : thread.getRelatedBook().getTitle(),
-                            thread.getSourceReferenceId(),
-                            thread.getUpdatedAt()))
+                    .map(thread -> {
+                        Book visibleBook = visibleForumBook(user, thread);
+                        return new SearchResultResponse(
+                                "FORUM_THREAD",
+                                thread.getId(),
+                                thread.getTitle(),
+                                excerpt(thread.getBodyMarkdown()),
+                                visibleBook == null ? null : visibleBook.getId(),
+                                visibleBook == null ? null : visibleBook.getTitle(),
+                                visibleSourceReferenceId(user, thread.getSourceReferenceId()),
+                                thread.getUpdatedAt());
+                    })
                     .forEach(results::add);
         }
 
@@ -209,6 +217,30 @@ public class SearchService {
         return thread.getVisibility() == Visibility.PUBLIC
                 || thread.getVisibility() == Visibility.SHARED
                 || Objects.equals(thread.getAuthor().getId(), user.getId());
+    }
+
+    private Book visibleForumBook(User user, ForumThread thread) {
+        Book book = thread.getRelatedBook();
+        if (book == null) {
+            return null;
+        }
+        return canReadBook(user, book) ? book : null;
+    }
+
+    private boolean canReadBook(User viewer, Book book) {
+        return book.getVisibility() == Visibility.PUBLIC
+                || book.getVisibility() == Visibility.SHARED
+                || book.getOwner() != null && Objects.equals(book.getOwner().getId(), viewer.getId())
+                || userBookRepository.findByUserIdAndBookId(viewer.getId(), book.getId()).isPresent();
+    }
+
+    private Long visibleSourceReferenceId(User user, Long sourceReferenceId) {
+        if (sourceReferenceId == null) {
+            return null;
+        }
+        return sourceReferenceRepository.findByIdAndUserId(sourceReferenceId, user.getId())
+                .map(SourceReference::getId)
+                .orElse(null);
     }
 
     private Long firstSourceReferenceIdForNote(User user, Long noteId) {

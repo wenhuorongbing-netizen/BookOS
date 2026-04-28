@@ -45,7 +45,7 @@ public class ForumThread extends BaseEntity {
     private String title;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String bodyMarkdown;
 
     @Column(length = 64)

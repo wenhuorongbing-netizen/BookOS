@@ -2,6 +2,7 @@ package com.bookos.backend.link.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record EntityLinkRequest(
@@ -10,6 +11,7 @@ public record EntityLinkRequest(
         String sourceType,
 
         @NotNull(message = "Source id is required.")
+        @Positive(message = "Source id must be positive.")
         Long sourceId,
 
         @NotBlank(message = "Target type is required.")
@@ -17,10 +19,12 @@ public record EntityLinkRequest(
         String targetType,
 
         @NotNull(message = "Target id is required.")
+        @Positive(message = "Target id must be positive.")
         Long targetId,
 
         @NotBlank(message = "Relation type is required.")
         @Size(max = 80, message = "Relation type must be at most 80 characters.")
         String relationType,
 
+        @Positive(message = "Source reference id must be positive.")
         Long sourceReferenceId) {}

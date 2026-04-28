@@ -14,6 +14,7 @@ import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.enums.AISuggestionStatus;
 import com.bookos.backend.common.enums.AISuggestionType;
 import com.bookos.backend.common.enums.CaptureStatus;
+import com.bookos.backend.note.entity.BookNote;
 import com.bookos.backend.note.repository.BookNoteRepository;
 import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.entity.SourceReference;
@@ -146,6 +147,33 @@ public class AISuggestionService {
         }
 
         Book requestedBook = request.bookId() == null ? null : bookService.getAccessibleBookEntity(user.getEmail(), request.bookId());
+
+        if (request.noteId() != null) {
+            BookNote note = bookNoteRepository.findByIdAndUserId(request.noteId(), user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Note not found."));
+            if (requestedBook != null && !requestedBook.getId().equals(note.getBook().getId())) {
+                throw new IllegalArgumentException("Note belongs to a different book.");
+            }
+            return new SourceMaterial(
+                    note.getBook(),
+                    null,
+                    firstText(note.getThreeSentenceSummary(), note.getMarkdown()),
+                    note.getTitle());
+        }
+
+        if (request.rawCaptureId() != null) {
+            var capture = rawCaptureRepository.findByIdAndUserId(request.rawCaptureId(), user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Capture not found."));
+            if (requestedBook != null && !requestedBook.getId().equals(capture.getBook().getId())) {
+                throw new IllegalArgumentException("Capture belongs to a different book.");
+            }
+            return new SourceMaterial(
+                    capture.getBook(),
+                    null,
+                    firstText(capture.getCleanText(), capture.getRawText()),
+                    capture.getBook().getTitle());
+        }
+
         String requestText = StringUtils.hasText(request.text()) ? request.text().trim() : null;
         if (requestText != null) {
             return new SourceMaterial(requestedBook, null, requestText, requestedBook == null ? "User selected text" : requestedBook.getTitle());

@@ -5,10 +5,12 @@ import com.bookos.backend.common.enums.Visibility;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record ActionItemRequest(
         @NotNull(message = "Book id is required.")
+        @Positive(message = "Book id must be positive.")
         Long bookId,
 
         @NotBlank(message = "Action item title is required.")
@@ -20,6 +22,7 @@ public record ActionItemRequest(
 
         ActionPriority priority,
 
+        @Positive(message = "Source reference id must be positive.")
         Long sourceReferenceId,
 
         @Min(value = 1, message = "Page start must be at least 1.")

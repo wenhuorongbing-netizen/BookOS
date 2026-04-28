@@ -57,13 +57,32 @@
 
           <label class="field">
             <span>Markdown content</span>
+            <div class="markdown-split">
+              <el-input
+                v-model="noteForm.markdown"
+                type="textarea"
+                :rows="9"
+                maxlength="50000"
+                placeholder="&#x1F4AC; p.42 Capture a quote or idea... #quote [[Meaningful Choice]]"
+                aria-describedby="notes-parser-help"
+              />
+              <div class="markdown-preview" aria-label="Sanitized markdown preview">
+                <div class="markdown-preview__label">Preview</div>
+                <div v-if="noteForm.markdown.trim()" v-html="renderedDraft" />
+                <p v-else class="muted">Markdown preview appears as you type.</p>
+              </div>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Three-sentence summary</span>
             <el-input
-              v-model="noteForm.markdown"
+              v-model="noteForm.threeSentenceSummary"
               type="textarea"
-              :rows="7"
-              maxlength="50000"
-              placeholder="&#x1F4AC; p.42 Capture a quote or idea... #quote [[Meaningful Choice]]"
-              aria-describedby="notes-parser-help"
+              :rows="3"
+              maxlength="1000"
+              show-word-limit
+              placeholder="Optional. Leave blank to let BookOS derive a concise summary from the note."
             />
           </label>
 
@@ -171,6 +190,7 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import { useRightRailStore } from '../stores/rightRail'
+import { renderSafeMarkdown } from '../utils/markdown'
 import type { BookNoteRecord, BookRecord, NoteBlockType, ParsedNoteResult, Visibility } from '../types'
 
 const route = useRoute()
@@ -188,6 +208,7 @@ const errorMessage = ref('')
 const noteForm = reactive({
   title: '',
   markdown: '',
+  threeSentenceSummary: '',
   visibility: 'PRIVATE' as Visibility,
 })
 
@@ -196,6 +217,7 @@ const bookId = computed(() => {
   return value ? Number(value) : null
 })
 const canCreateNote = computed(() => Boolean(noteForm.title.trim() && noteForm.markdown.trim()))
+const renderedDraft = computed(() => renderSafeMarkdown(noteForm.markdown))
 
 onMounted(loadPage)
 onUnmounted(() => {
@@ -254,10 +276,12 @@ async function handleCreateNote() {
       title: noteForm.title.trim(),
       markdown: noteForm.markdown.trim(),
       visibility: noteForm.visibility,
+      threeSentenceSummary: noteForm.threeSentenceSummary.trim() || null,
     })
     notes.value = [created, ...notes.value]
     noteForm.title = ''
     noteForm.markdown = ''
+    noteForm.threeSentenceSummary = ''
     parsedPreview.value = null
     ElMessage.success('Note saved with parsed source reference.')
   } catch {
@@ -304,6 +328,44 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 .field {
   display: grid;
   gap: var(--space-2);
+}
+
+.markdown-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.86fr);
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.markdown-preview {
+  min-height: 220px;
+  padding: var(--space-4);
+  overflow: auto;
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.markdown-preview__label {
+  margin-bottom: var(--space-2);
+  color: var(--bookos-text-tertiary);
+  font-size: var(--type-micro);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.markdown-preview :deep(h1),
+.markdown-preview :deep(h2),
+.markdown-preview :deep(h3) {
+  margin: var(--space-3) 0 var(--space-2);
+  color: var(--bookos-text-primary);
+}
+
+.markdown-preview :deep(p) {
+  margin: 0 0 var(--space-2);
 }
 
 .field span {
@@ -422,6 +484,10 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 
 @media (max-width: 980px) {
   .notes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .markdown-split {
     grid-template-columns: 1fr;
   }
 }

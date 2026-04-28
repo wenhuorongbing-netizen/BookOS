@@ -44,6 +44,7 @@ public class Concept extends BaseEntity {
     private String slug;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)

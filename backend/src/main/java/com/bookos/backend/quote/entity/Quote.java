@@ -53,7 +53,7 @@ public class Quote extends BaseEntity {
     private Long sourceReferenceId;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String text;
 
     @Column(length = 220)
@@ -64,9 +64,11 @@ public class Quote extends BaseEntity {
     private Integer pageEnd;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String tagsJson;
 
     @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String conceptsJson;
 
     @Enumerated(EnumType.STRING)

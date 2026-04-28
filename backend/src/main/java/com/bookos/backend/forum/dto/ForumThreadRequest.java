@@ -3,10 +3,12 @@ package com.bookos.backend.forum.dto;
 import com.bookos.backend.common.enums.Visibility;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record ForumThreadRequest(
         @NotNull(message = "Category is required.")
+        @Positive(message = "Category id must be positive.")
         Long categoryId,
 
         @NotBlank(message = "Thread title is required.")
@@ -20,12 +22,16 @@ public record ForumThreadRequest(
         @Size(max = 64, message = "Related entity type must be at most 64 characters.")
         String relatedEntityType,
 
+        @Positive(message = "Related entity id must be positive.")
         Long relatedEntityId,
 
+        @Positive(message = "Related book id must be positive.")
         Long relatedBookId,
 
+        @Positive(message = "Related concept id must be positive.")
         Long relatedConceptId,
 
+        @Positive(message = "Source reference id must be positive.")
         Long sourceReferenceId,
 
         Visibility visibility) {}

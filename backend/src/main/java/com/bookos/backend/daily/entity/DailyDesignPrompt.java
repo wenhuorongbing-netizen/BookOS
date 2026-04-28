@@ -52,7 +52,7 @@ public class DailyDesignPrompt extends BaseEntity {
     private Long sourceReferenceId;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String question;
 
     @Column(length = 220)

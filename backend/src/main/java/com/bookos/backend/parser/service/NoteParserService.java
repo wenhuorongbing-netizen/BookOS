@@ -32,6 +32,7 @@ public class NoteParserService {
         PageRange pageRange = detectPageRange(raw, warnings);
         List<String> tags = detectTags(raw);
         List<String> concepts = detectConcepts(raw);
+        detectMalformedConceptLinks(raw, warnings);
         String cleanText = cleanText(raw);
 
         return new ParsedNoteResponse(
@@ -47,18 +48,21 @@ public class NoteParserService {
 
     private NoteBlockType detectType(String raw, List<String> warnings) {
         NoteBlockType found = NoteBlockType.NOTE;
+        int firstIndex = Integer.MAX_VALUE;
         int foundCount = 0;
         for (Map.Entry<String, NoteBlockType> entry : MARKERS.entrySet()) {
-            if (raw.contains(entry.getKey())) {
+            int index = raw.indexOf(entry.getKey());
+            if (index >= 0) {
                 foundCount++;
-                if (found == NoteBlockType.NOTE) {
+                if (index < firstIndex) {
+                    firstIndex = index;
                     found = entry.getValue();
                 }
             }
         }
 
         if (foundCount > 1) {
-            warnings.add("Multiple emoji markers found; first configured marker was used as primary type.");
+            warnings.add("Multiple emoji markers found; first marker in text was used as primary type.");
         }
         return found;
     }
@@ -112,6 +116,25 @@ public class NoteParserService {
             }
         }
         return List.copyOf(values.values());
+    }
+
+    private void detectMalformedConceptLinks(String raw, List<String> warnings) {
+        int openings = countOccurrences(raw, "[[");
+        int closings = countOccurrences(raw, "]]");
+        boolean emptyConcept = Pattern.compile("\\[\\[\\s*\\]\\]").matcher(raw).find();
+        if (openings != closings || emptyConcept) {
+            warnings.add("Malformed concept link found; use [[Concept Name]] syntax.");
+        }
+    }
+
+    private int countOccurrences(String raw, String token) {
+        int count = 0;
+        int index = 0;
+        while ((index = raw.indexOf(token, index)) >= 0) {
+            count++;
+            index += token.length();
+        }
+        return count;
     }
 
     private String cleanText(String raw) {

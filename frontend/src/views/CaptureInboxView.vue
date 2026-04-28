@@ -3,15 +3,48 @@
     <AppSectionHeader
       title="Capture Inbox"
       eyebrow="Quick Capture"
-      :description="bookId ? 'Inbox captures filtered to the selected book.' : 'All unconverted quick captures that need processing.'"
+      :description="bookId ? 'Captures filtered to the selected book.' : 'Review, convert, or archive source-backed quick captures.'"
       :level="1"
     >
       <template #actions>
+        <AppButton
+          v-if="selectedCaptureIds.length"
+          variant="ghost"
+          :loading="bulkArchiving"
+          @click="archiveSelected"
+        >
+          Archive selected
+        </AppButton>
         <RouterLink to="/my-library" custom v-slot="{ navigate }">
           <AppButton variant="secondary" @click="navigate">Open Library</AppButton>
         </RouterLink>
       </template>
     </AppSectionHeader>
+
+    <AppCard class="capture-filters" as="section" aria-label="Capture inbox filters">
+      <label>
+        <span>Status</span>
+        <el-select v-model="statusFilter" aria-label="Filter captures by status" @change="loadInbox">
+          <el-option label="Unconverted" value="INBOX" />
+          <el-option label="Converted" value="CONVERTED" />
+          <el-option label="Archived" value="ARCHIVED" />
+          <el-option label="All captures" value="ALL" />
+        </el-select>
+      </label>
+      <label>
+        <span>Parsed type</span>
+        <el-select v-model="typeFilter" aria-label="Filter captures by parsed type">
+          <el-option label="All types" value="ALL" />
+          <el-option label="Quote" value="QUOTE" />
+          <el-option label="Action item" value="ACTION_ITEM" />
+          <el-option label="Question" value="QUESTION" />
+          <el-option label="Inspiration" value="INSPIRATION" />
+          <el-option label="Related concept" value="RELATED_CONCEPT" />
+          <el-option label="Note" value="NOTE" />
+        </el-select>
+      </label>
+      <AppButton variant="secondary" :loading="capture.loading" @click="loadInbox">Refresh</AppButton>
+    </AppCard>
 
     <AppLoadingState v-if="capture.loading" label="Loading capture inbox" />
 
@@ -24,21 +57,33 @@
     />
 
     <AppEmptyState
-      v-else-if="!capture.latestBlocks.length"
-      title="No inbox captures"
-      description="Use Quick Capture on a book detail page to save source-backed reading thoughts."
-      eyebrow="Inbox clear"
+      v-else-if="!displayBlocks.length"
+      :title="capture.latestBlocks.length ? 'No captures match this filter' : 'No captures found'"
+      :description="capture.latestBlocks.length ? 'Adjust the status or parsed type filters to review other captures.' : 'Use Quick Capture on a book detail page to save source-backed reading thoughts.'"
+      eyebrow="Capture queue"
     />
 
     <section v-else class="capture-grid" aria-label="Capture inbox items">
-      <AppCard v-for="block in capture.latestBlocks" :key="block.captureId" class="capture-card" as="article">
+      <AppCard v-for="block in displayBlocks" :key="block.captureId" class="capture-card" as="article">
         <div class="capture-card__header">
+          <label class="capture-card__select">
+            <input
+              type="checkbox"
+              :checked="selectedCaptureIds.includes(block.captureId)"
+              :disabled="!canArchive(block)"
+              :aria-label="`Select ${block.title} for bulk archive`"
+              @change="toggleSelected(block.captureId)"
+            />
+          </label>
           <div>
             <div class="capture-card__book-label">Source book</div>
             <div class="eyebrow">{{ block.bookTitle }}</div>
             <h2>{{ block.title }}</h2>
           </div>
-          <AppBadge variant="primary">{{ formatType(block.parsedType) }}</AppBadge>
+          <div class="capture-card__badges">
+            <AppBadge variant="primary">{{ formatType(block.parsedType) }}</AppBadge>
+            <AppBadge variant="neutral" size="sm">{{ block.status }}</AppBadge>
+          </div>
         </div>
 
         <p class="capture-card__content">{{ block.content }}</p>
@@ -51,19 +96,26 @@
           <AppBadge v-for="tag in displayTags(block)" :key="`tag-${tag}`" variant="neutral" size="sm">#{{ tag }}</AppBadge>
           <AppBadge v-for="concept in block.concepts" :key="`concept-${concept}`" variant="info" size="sm">[[{{ concept }}]]</AppBadge>
         </div>
+        <div class="capture-card__source">
+          <strong>Source reference</strong>
+          <span>{{ sourceSummary(block) }}</span>
+        </div>
+        <ul v-if="block.parserWarnings.length" class="capture-card__warnings" aria-label="Parser warnings">
+          <li v-for="warning in block.parserWarnings" :key="warning">{{ warning }}</li>
+        </ul>
 
         <div class="capture-card__actions">
           <AppButton
             variant="primary"
             :loading="isConverting(block.captureId)"
-            :disabled="archivingCaptureId === block.captureId"
+            :disabled="archivingCaptureId === block.captureId || block.status !== 'INBOX'"
             @click="convertDefaultBlock(block)"
           >
             {{ primaryConversionLabel(block) }}
           </AppButton>
 
-          <el-dropdown trigger="click" :disabled="isConverting(block.captureId)" @command="handleSecondaryConversion(block, $event)">
-            <AppButton variant="secondary" :disabled="isConverting(block.captureId)" aria-label="Open conversion options">
+          <el-dropdown trigger="click" :disabled="isConverting(block.captureId) || block.status !== 'INBOX'" @command="handleSecondaryConversion(block, $event)">
+            <AppButton variant="secondary" :disabled="isConverting(block.captureId) || block.status !== 'INBOX'" aria-label="Open conversion options">
               Convert as
             </AppButton>
             <template #dropdown>
@@ -75,7 +127,7 @@
             </template>
           </el-dropdown>
 
-          <AppButton variant="ghost" :disabled="isConverting(block.captureId) || archivingCaptureId === block.captureId" @click="archiveBlock(block)">
+          <AppButton variant="ghost" :disabled="!canArchive(block) || isConverting(block.captureId) || archivingCaptureId === block.captureId" @click="archiveBlock(block)">
             Archive
           </AppButton>
           <RouterLink :to="{ name: 'book-detail', params: { id: block.bookId } }" custom v-slot="{ navigate }">
@@ -116,9 +168,11 @@ import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useCaptureStore, type RecentNoteBlock } from '../stores/capture'
-import type { ConceptRecord, ConceptReviewPayload, NoteBlockType, RawCaptureConversionRecord } from '../types'
+import type { CaptureStatus, ConceptRecord, ConceptReviewPayload, NoteBlockType, RawCaptureConversionRecord } from '../types'
 
 type ConversionKind = 'NOTE' | 'QUOTE' | 'ACTION_ITEM'
+type StatusFilter = CaptureStatus | 'ALL'
+type TypeFilter = NoteBlockType | 'ALL'
 
 const route = useRoute()
 const router = useRouter()
@@ -133,10 +187,17 @@ const conceptDialogOpen = ref(false)
 const selectedConceptBlock = ref<RecentNoteBlock | null>(null)
 const conceptOptions = ref<ConceptRecord[]>([])
 const savingConceptReview = ref(false)
+const statusFilter = ref<StatusFilter>('INBOX')
+const typeFilter = ref<TypeFilter>('ALL')
+const selectedCaptureIds = ref<number[]>([])
+const bulkArchiving = ref(false)
 
 const bookId = computed(() => {
   const value = route.query.bookId
   return typeof value === 'string' && value ? value : null
+})
+const displayBlocks = computed(() => {
+  return capture.latestBlocks.filter((block) => typeFilter.value === 'ALL' || block.parsedType === typeFilter.value)
 })
 
 onMounted(loadInbox)
@@ -150,8 +211,15 @@ watch(
 
 async function loadInbox() {
   errorMessage.value = ''
+  selectedCaptureIds.value = []
   try {
-    await Promise.all([capture.loadInbox(bookId.value ?? undefined), loadConceptOptions()])
+    await Promise.all([
+      capture.loadCaptures({
+        bookId: bookId.value ?? undefined,
+        status: statusFilter.value === 'ALL' ? null : statusFilter.value,
+      }),
+      loadConceptOptions(),
+    ])
   } catch {
     errorMessage.value = 'Check your connection and permissions, then try loading the capture inbox again.'
   }
@@ -223,6 +291,24 @@ async function archiveBlock(block: RecentNoteBlock) {
   }
 }
 
+async function archiveSelected() {
+  const ids = [...selectedCaptureIds.value]
+  if (!ids.length) return
+
+  bulkArchiving.value = true
+  try {
+    for (const captureId of ids) {
+      await capture.archive(captureId)
+    }
+    selectedCaptureIds.value = []
+    ElMessage.success('Selected captures archived.')
+  } catch {
+    ElMessage.error('Bulk archive stopped because one capture could not be archived.')
+  } finally {
+    bulkArchiving.value = false
+  }
+}
+
 function openCaptureSource(block: RecentNoteBlock) {
   const sourceReference = block.sourceReferences[0] ?? null
   void openSource({
@@ -271,6 +357,33 @@ function formatDate(value: string) {
 
 function displayTags(block: RecentNoteBlock) {
   return block.tags.filter((tag) => !block.concepts.includes(tag))
+}
+
+function canArchive(block: RecentNoteBlock) {
+  return block.status !== 'CONVERTED' && block.status !== 'ARCHIVED'
+}
+
+function toggleSelected(captureId: number) {
+  selectedCaptureIds.value = selectedCaptureIds.value.includes(captureId)
+    ? selectedCaptureIds.value.filter((id) => id !== captureId)
+    : [...selectedCaptureIds.value, captureId]
+}
+
+function sourceSummary(block: RecentNoteBlock) {
+  const source = block.sourceReferences[0] ?? null
+  if (!source) {
+    return block.page ? `Current book, p.${block.page}` : 'Current book; page unknown.'
+  }
+  const page = pageLabel(source.pageStart, source.pageEnd)
+  return [source.locationLabel, page, source.sourceConfidence ? `confidence ${source.sourceConfidence}` : null]
+    .filter(Boolean)
+    .join(' | ') || 'Source reference saved.'
+}
+
+function pageLabel(pageStart: number | null, pageEnd: number | null) {
+  if (pageStart && pageEnd) return `p.${pageStart}-${pageEnd}`
+  if (pageStart) return `p.${pageStart}`
+  return null
 }
 
 function defaultConversionKind(block: RecentNoteBlock): ConversionKind {
@@ -392,6 +505,26 @@ function conversionErrorMessage(error: unknown, kind: ConversionKind) {
   gap: var(--space-4);
 }
 
+.capture-filters {
+  padding: var(--space-4);
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.capture-filters label {
+  min-width: min(220px, 100%);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.capture-filters span {
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  font-weight: 800;
+}
+
 .capture-card {
   padding: var(--space-5);
   display: grid;
@@ -403,6 +536,26 @@ function conversionErrorMessage(error: unknown, kind: ConversionKind) {
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-3);
+}
+
+.capture-card__select {
+  min-height: var(--touch-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+.capture-card__select input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--bookos-primary);
+}
+
+.capture-card__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .capture-card h2 {
@@ -446,7 +599,39 @@ function conversionErrorMessage(error: unknown, kind: ConversionKind) {
   align-items: flex-start;
 }
 
+.capture-card__source {
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface-muted);
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
+.capture-card__source strong {
+  color: var(--bookos-text-primary);
+}
+
+.capture-card__warnings {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--bookos-warning);
+  font-size: var(--type-metadata);
+  line-height: var(--type-body-line);
+}
+
 @media (max-width: 640px) {
+  .capture-filters {
+    align-items: stretch;
+  }
+
+  .capture-filters label,
+  .capture-filters :deep(.el-button) {
+    width: 100%;
+  }
+
   .capture-card {
     padding: var(--space-4);
   }

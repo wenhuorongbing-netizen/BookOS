@@ -25,6 +25,7 @@ const ConceptsView = () => import('../views/ConceptsView.vue')
 const ConceptDetailView = () => import('../views/ConceptDetailView.vue')
 const KnowledgeObjectsView = () => import('../views/KnowledgeObjectsView.vue')
 const KnowledgeObjectDetailView = () => import('../views/KnowledgeObjectDetailView.vue')
+const DailyView = () => import('../views/DailyView.vue')
 const ForumView = () => import('../views/ForumView.vue')
 const ForumNewThreadView = () => import('../views/ForumNewThreadView.vue')
 const ForumThreadView = () => import('../views/ForumThreadView.vue')
@@ -169,6 +170,12 @@ const router = createRouter({
           name: 'knowledge-detail',
           component: KnowledgeObjectDetailView,
           meta: { requiresAuth: true, title: 'Knowledge Object Detail' },
+        },
+        {
+          path: 'daily',
+          name: 'daily',
+          component: DailyView,
+          meta: { requiresAuth: true, title: 'Daily' },
         },
         {
           path: 'forum',

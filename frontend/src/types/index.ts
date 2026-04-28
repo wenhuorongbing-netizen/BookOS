@@ -353,6 +353,7 @@ export interface BookNotePayload {
   title: string
   markdown: string
   visibility: Visibility
+  threeSentenceSummary?: string | null
 }
 
 export interface NoteBlockPayload {

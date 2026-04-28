@@ -323,7 +323,7 @@ public class DailyService {
         List<SentenceCandidate> candidates = new ArrayList<>();
 
         for (Quote quote : quoteRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId())) {
-            SourceReference source = findSource(quote.getSourceReferenceId());
+            SourceReference source = findSource(user, quote.getSourceReferenceId());
             String text = trimToNull(quote.getText());
             if (text == null) {
                 continue;
@@ -402,7 +402,7 @@ public class DailyService {
             if (!PROMPT_TYPES.contains(knowledgeObject.getType())) {
                 continue;
             }
-            SourceReference source = findSource(knowledgeObject.getSourceReferenceId());
+            SourceReference source = findSource(user, knowledgeObject.getSourceReferenceId());
             String question = promptQuestion(knowledgeObject);
             candidates.add(new PromptCandidate(
                     key("KNOWLEDGE_OBJECT", knowledgeObject.getId()),
@@ -516,11 +516,11 @@ public class DailyService {
         return state;
     }
 
-    private SourceReference findSource(Long sourceReferenceId) {
+    private SourceReference findSource(User user, Long sourceReferenceId) {
         if (sourceReferenceId == null) {
             return null;
         }
-        return sourceReferenceRepository.findById(sourceReferenceId).orElse(null);
+        return sourceReferenceRepository.findByIdAndUserId(sourceReferenceId, user.getId()).orElse(null);
     }
 
     private String promptQuestion(KnowledgeObject object) {

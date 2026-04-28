@@ -4,6 +4,7 @@
   --bookos-bg: #f6f0e4;
   --bookos-bg-paper: #fbf7ee;
   --bookos-surface: #fffdf8;
+  --bookos-surface-elevated: #ffffff;
   --bookos-surface-strong: #ffffff;
   --bookos-surface-muted: #f0e8da;
   --bookos-border: #ded2c0;
@@ -90,6 +91,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   --surface: color-mix(in srgb, var(--bookos-surface) 88%, transparent);
+  --surface-elevated: color-mix(in srgb, var(--bookos-surface-elevated) 96%, transparent);
   --surface-strong: color-mix(in srgb, var(--bookos-surface-strong) 94%, transparent);
   --surface-muted: color-mix(in srgb, var(--bookos-surface-muted) 90%, transparent);
   --border: color-mix(in srgb, var(--bookos-border) 72%, transparent);

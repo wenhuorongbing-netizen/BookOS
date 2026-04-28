@@ -26,7 +26,7 @@ public class StructuredPostTemplate extends BaseEntity {
     private String description;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String bodyMarkdownTemplate;
 
     @Column(length = 64)

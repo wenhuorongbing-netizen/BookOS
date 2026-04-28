@@ -4,11 +4,13 @@ import com.bookos.backend.common.enums.Visibility;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record QuoteRequest(
         @NotNull(message = "Book id is required.")
+        @Positive(message = "Book id must be positive.")
         Long bookId,
 
         @NotBlank(message = "Quote text is required.")
@@ -18,6 +20,7 @@ public record QuoteRequest(
         @Size(max = 220, message = "Attribution must be at most 220 characters.")
         String attribution,
 
+        @Positive(message = "Source reference id must be positive.")
         Long sourceReferenceId,
 
         @Min(value = 1, message = "Page start must be positive.")

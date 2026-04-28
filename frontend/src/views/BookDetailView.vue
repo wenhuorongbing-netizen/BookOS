@@ -294,23 +294,21 @@ async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
   ])
 
   const conceptPreviews = concepts.map(toConceptPreview)
-  const quotePreview = dailyData?.sentence
-    ? dailySentencePreview(dailyData)
-    : latestQuote.value
-    ? {
-        id: latestQuote.value.id,
-        text: latestQuote.value.text,
-        author: latestQuote.value.attribution,
-        page: latestQuote.value.pageStart,
-        sourceLabel: latestQuote.value.sourceReference?.locationLabel,
-      }
-    : null
+  const quotePreview = dailyData?.sentence ? dailySentencePreview(dailyData) : null
 
   return {
     ...base,
-    latestQuote: quotePreview,
+    latestQuote: latestQuote.value
+      ? {
+          id: latestQuote.value.id,
+          text: latestQuote.value.text,
+          author: latestQuote.value.attribution,
+          page: latestQuote.value.pageStart,
+          sourceLabel: latestQuote.value.sourceReference?.locationLabel,
+        }
+      : null,
     dailyQuote: quotePreview,
-    dailyDesignPrompt: dailyData?.prompt ? dailyPromptPreview(dailyData) : base.dailyDesignPrompt,
+    dailyDesignPrompt: dailyData?.prompt ? dailyPromptPreview(dailyData) : null,
     notesCount: notes.length,
     quotesCount: quotes.length,
     actionItemsCount: actionItems.length,
@@ -355,7 +353,7 @@ function applyDailyState(dailyData: DailyTodayRecord) {
   book.value = {
     ...book.value,
     dailyQuote: dailySentencePreview(dailyData),
-    dailyDesignPrompt: dailyPromptPreview(dailyData),
+    dailyDesignPrompt: dailyData.prompt ? dailyPromptPreview(dailyData) : null,
   }
 }
 

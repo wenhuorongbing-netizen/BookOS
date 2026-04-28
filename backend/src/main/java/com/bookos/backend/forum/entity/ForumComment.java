@@ -32,7 +32,7 @@ public class ForumComment extends BaseEntity {
     private User author;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String bodyMarkdown;
 
     private Long parentCommentId;

@@ -41,7 +41,7 @@ public class BookNote extends BaseEntity {
     private String title;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String markdown;
 
     @Column(length = 1000)
