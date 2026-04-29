@@ -15,6 +15,7 @@ Spring Boot 3.5 backend for BookOS using Java 21, Spring Security, Spring Data J
 - `search`: global search across owned/visible records.
 - `graph`: real-data graph preview endpoints.
 - `ai`: MockAIProvider draft suggestions only.
+- `admin`: local/dev ontology seed import and dry-run review.
 
 ## Environment
 
@@ -30,6 +31,8 @@ Migration files live in `src/main/resources/db/migration`.
 
 - `V1__create_bookos_schema.sql` creates the current BookOS schema.
 - `V2__seed_core_roles_and_forum_defaults.sql` inserts stable roles, forum categories, and structured post templates.
+- `V3__add_ontology_seed_metadata.sql` adds ontology layer, source confidence, creator, and concept tag metadata.
+- `V4__forum_structured_moderation.sql` adds structured forum moderation and report status fields.
 - Normal development uses Hibernate `ddl-auto=validate`; startup fails if entity mappings and migrations diverge.
 - Tests use isolated H2 databases and run the same Flyway migrations. Test Hibernate DDL validation is disabled because H2 reports MySQL `LONGTEXT` columns as a different JDBC type.
 
@@ -86,3 +89,26 @@ macOS/Linux:
 - AI suggestions are drafts and never overwrite user content automatically.
 - MockAIProvider is local/deterministic and performs no external AI calls.
 - Private user content must remain scoped to the authenticated owner.
+
+## Health And Logs
+
+Health endpoints:
+
+- `GET /api/health`
+- `GET /actuator/health`
+
+Only health/info Actuator endpoints are exposed. Console logs use a simple key-value pattern suitable for local and container log collection.
+
+## Docker
+
+Build the backend image from the repository root:
+
+```powershell
+docker build -t bookos-backend .\backend
+```
+
+Run as part of the full local stack:
+
+```powershell
+docker compose -f ..\docker-compose.full.yml up --build backend
+```

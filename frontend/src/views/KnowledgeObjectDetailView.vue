@@ -15,6 +15,12 @@
             <AppButton variant="secondary" @click="navigate">All Knowledge</AppButton>
           </RouterLink>
           <AppButton variant="ghost" :disabled="!object.sourceReference" @click="openObjectSource">Open Source</AppButton>
+          <RouterLink :to="graphContextLink" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+          </RouterLink>
+          <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
+          </RouterLink>
         </template>
       </AppSectionHeader>
 
@@ -22,6 +28,9 @@
         <div class="knowledge-main__badges">
           <AppBadge variant="info">{{ object.type }}</AppBadge>
           <AppBadge variant="primary">{{ object.visibility }}</AppBadge>
+          <AppBadge v-if="object.ontologyLayer" variant="accent">{{ object.ontologyLayer }}</AppBadge>
+          <AppBadge v-if="object.createdBy === 'SYSTEM'" variant="info">Seeded</AppBadge>
+          <AppBadge v-if="object.sourceConfidence" variant="warning">{{ object.sourceConfidence }} confidence</AppBadge>
         </div>
         <p>{{ object.description ?? 'No description yet.' }}</p>
         <dl class="knowledge-meta">
@@ -58,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { getKnowledgeObject } from '../api/knowledge'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
@@ -76,6 +85,26 @@ const { openSource } = useOpenSource()
 const object = ref<KnowledgeObjectRecord | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
+
+const graphContextLink = computed(() => {
+  if (object.value?.conceptId) return { name: 'graph-concept', params: { conceptId: object.value.conceptId } }
+  if (object.value?.bookId) return { name: 'graph-book', params: { bookId: object.value.bookId } }
+  return { name: 'graph' }
+})
+const forumThreadLink = computed(() => {
+  if (!object.value) return { name: 'forum-new' }
+  return {
+    name: 'forum-new',
+    query: {
+      relatedEntityType: 'KNOWLEDGE_OBJECT',
+      relatedEntityId: String(object.value.id),
+      bookId: object.value.bookId ? String(object.value.bookId) : undefined,
+      conceptId: object.value.conceptId ? String(object.value.conceptId) : undefined,
+      sourceReferenceId: object.value.sourceReference ? String(object.value.sourceReference.id) : undefined,
+      title: `Discuss ${object.value.title}`,
+    },
+  }
+})
 
 onMounted(loadObject)
 

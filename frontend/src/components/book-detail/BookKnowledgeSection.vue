@@ -233,8 +233,8 @@ function edgeStrengthForIndex(index: number): KnowledgeEdgeStrength {
 
 function edgeStrengthForEdge(type: string | null | undefined): KnowledgeEdgeStrength {
   if (!type) return 'weak'
-  if (type === 'MENTIONS' || type === 'HAS_KNOWLEDGE') return 'strong'
-  if (type === 'HAS_QUOTE' || type === 'HAS_ACTION' || type === 'HAS_NOTE') return 'medium'
+  if (type === 'MENTIONS' || type === 'RELATED_TO' || type === 'APPLIES_TO') return 'strong'
+  if (type === 'SOURCE_OF' || type === 'DERIVED_FROM' || type === 'DISCUSSES') return 'medium'
   return 'weak'
 }
 

@@ -15,6 +15,9 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @EntityGraph(attributePaths = {"owner", "owner.role", "bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
     List<Book> findAllByOrderByTitleAsc();
 
+    @EntityGraph(attributePaths = {"owner", "owner.role", "bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
+    Optional<Book> findByTitleIgnoreCase(String title);
+
     @Override
     @EntityGraph(attributePaths = {"owner", "owner.role", "bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
     Optional<Book> findById(Long id);

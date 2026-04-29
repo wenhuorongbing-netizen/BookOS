@@ -18,6 +18,12 @@
           <el-option v-for="book in books" :key="book.id" :label="book.title" :value="book.id" />
         </el-select>
       </label>
+      <label class="field">
+        <span>Layer</span>
+        <el-select v-model="layerFilter" clearable placeholder="All layers" @change="loadConcepts">
+          <el-option v-for="layer in ontologyLayers" :key="layer" :label="layer" :value="layer" />
+        </el-select>
+      </label>
     </AppCard>
 
     <AppErrorState v-if="errorMessage" title="Concepts could not load" :description="errorMessage" retry-label="Retry" @retry="loadPage" />
@@ -33,12 +39,23 @@
       <AppCard v-for="concept in filteredConcepts" :key="concept.id" class="concept-card" as="article">
         <div class="concept-card__topline">
           <AppBadge variant="primary" size="sm">{{ concept.visibility }}</AppBadge>
+          <AppBadge v-if="concept.ontologyLayer" variant="accent" size="sm">{{ concept.ontologyLayer }}</AppBadge>
+          <AppBadge v-if="concept.createdBy === 'SYSTEM'" variant="info" size="sm">Seeded</AppBadge>
+          <AppBadge v-if="concept.sourceConfidence" :variant="confidenceVariant(concept.sourceConfidence)" size="sm">
+            {{ concept.sourceConfidence }} confidence
+          </AppBadge>
           <AppBadge variant="info" size="sm">{{ concept.sourceReferences.length }} sources</AppBadge>
         </div>
         <RouterLink :to="{ name: 'concept-detail', params: { id: concept.id } }" class="concept-card__link">
           <h2>{{ concept.name }}</h2>
         </RouterLink>
         <p>{{ concept.description ?? 'No description yet.' }}</p>
+        <div v-if="concept.tags.length" class="concept-card__tags">
+          <AppBadge v-for="tag in concept.tags" :key="`${concept.id}-${tag}`" variant="neutral" size="sm">#{{ tag }}</AppBadge>
+        </div>
+        <p v-if="concept.sourceConfidence === 'LOW'" class="concept-card__warning">
+          Low-confidence seed: source exists only at metadata or original-summary level. No page number is implied.
+        </p>
         <dl class="concept-meta">
           <div>
             <dt>Related book</dt>
@@ -51,6 +68,9 @@
         </dl>
         <div class="concept-card__actions">
           <AppButton variant="secondary" @click="openConceptSource(concept)">Open Source</AppButton>
+          <AppButton variant="secondary" :loading="creatingPrototypeId === concept.id" @click="createPrototypeFromConcept(concept)">
+            Create Prototype Task
+          </AppButton>
           <RouterLink :to="{ name: 'concept-detail', params: { id: concept.id } }" custom v-slot="{ navigate }">
             <AppButton variant="ghost" @click="navigate">Details</AppButton>
           </RouterLink>
@@ -62,9 +82,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { RouterLink } from 'vue-router'
 import { getBooks } from '../api/books'
-import { getConcepts } from '../api/knowledge'
+import { createKnowledgeObject, getConcepts } from '../api/knowledge'
 import { useOpenSource } from '../composables/useOpenSource'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -73,15 +94,27 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
-import type { BookRecord, ConceptRecord } from '../types'
+import type { BookRecord, ConceptRecord, SourceConfidence } from '../types'
 
 const { openSource } = useOpenSource()
+const ontologyLayers = [
+  'Play & Fun',
+  'Player Experience',
+  'Design Lenses',
+  'Systems & Loops',
+  'Game Feel',
+  'Practice & Exercises',
+  'Topics & Reader',
+  'Projects & Application',
+]
 const books = ref<BookRecord[]>([])
 const concepts = ref<ConceptRecord[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 const searchText = ref('')
 const bookFilter = ref<number | null>(null)
+const layerFilter = ref('')
+const creatingPrototypeId = ref<number | null>(null)
 
 const filteredConcepts = computed(() => {
   const query = searchText.value.trim().toLowerCase()
@@ -113,7 +146,10 @@ async function loadPage() {
 }
 
 async function loadConcepts() {
-  concepts.value = await getConcepts(bookFilter.value ? { bookId: bookFilter.value } : undefined)
+  concepts.value = await getConcepts({
+    bookId: bookFilter.value || undefined,
+    layer: layerFilter.value || undefined,
+  })
 }
 
 function openConceptSource(concept: ConceptRecord) {
@@ -130,8 +166,34 @@ function openConceptSource(concept: ConceptRecord) {
   })
 }
 
+async function createPrototypeFromConcept(concept: ConceptRecord) {
+  creatingPrototypeId.value = concept.id
+  try {
+    await createKnowledgeObject({
+      type: 'PROTOTYPE_TASK',
+      title: `Prototype: ${concept.name}`,
+      description: `Create a small playable prototype that tests the concept "${concept.name}" in one focused design question.`,
+      visibility: 'PRIVATE',
+      conceptId: concept.id,
+      ontologyLayer: concept.ontologyLayer ?? 'Projects & Application',
+      tags: ['prototype', 'concept'],
+    })
+    ElMessage.success('Prototype task created from concept.')
+  } catch {
+    ElMessage.error('Prototype task could not be created. It may already exist.')
+  } finally {
+    creatingPrototypeId.value = null
+  }
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function confidenceVariant(confidence: SourceConfidence) {
+  if (confidence === 'HIGH') return 'success'
+  if (confidence === 'MEDIUM') return 'warning'
+  return 'danger'
 }
 </script>
 
@@ -144,7 +206,7 @@ function formatDate(value: string) {
 .concepts-filter {
   padding: var(--space-4);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.36fr);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.32fr) minmax(220px, 0.32fr);
   gap: var(--space-3);
 }
 
@@ -169,6 +231,7 @@ function formatDate(value: string) {
 }
 
 .concept-card__topline,
+.concept-card__tags,
 .concept-card__actions {
   display: flex;
   gap: var(--space-2);
@@ -191,6 +254,14 @@ function formatDate(value: string) {
   margin: 0;
   color: var(--bookos-text-secondary);
   line-height: var(--type-body-line);
+}
+
+.concept-card__warning {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--bookos-warning) 32%, var(--bookos-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bookos-warning-soft) 52%, var(--bookos-surface));
+  font-size: var(--type-metadata);
 }
 
 .concept-meta {

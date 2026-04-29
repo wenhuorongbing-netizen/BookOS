@@ -65,7 +65,7 @@ public class ForumThread extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    private ForumThreadStatus status = ForumThreadStatus.ACTIVE;
+    private ForumThreadStatus status = ForumThreadStatus.OPEN;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)

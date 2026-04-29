@@ -7,8 +7,8 @@ This document records the implementation state of the current `main` branch. Old
 ## Repository State
 
 - Current verified branch: `main`.
-- Current verified SHA: `ba9f33d40b0cfa7eac8ca0fff9103e0cf47f77c7`.
-- Local `main` matches `origin/main` at the time of this review.
+- Current verified base SHA: `6cf5fa9e6b7d7810b1c3cc0917c245578408a24c`.
+- Local worktree includes uncommitted MVP release-candidate changes after this SHA.
 
 ## Implemented Backend Modules
 
@@ -40,8 +40,15 @@ This document records the implementation state of the current `main` branch. Old
 - Graph preview is intentionally lightweight and is not an advanced graph editor.
 - MockAIProvider does not call external AI providers and does not produce production-grade semantic extraction.
 - Accepting a Mock AI suggestion only records the draft decision; it does not overwrite or create user content automatically.
-- Forum moderation UI and realtime notifications are not complete.
+- Forum moderation is basic: lock, hide, reopen, report, and resolve are implemented; realtime notifications are not implemented.
 - Project mode remains future work.
+
+## Release Infrastructure
+
+- GitHub Actions workflow exists at `.github/workflows/ci.yml`.
+- Backend and frontend Dockerfiles exist.
+- Local full-stack compose file exists at `docker-compose.full.yml`.
+- Deployment guide, endpoint inventory, data model overview, and MVP release candidate checklist are in `docs/`.
 
 ## Source And AI Rules
 

@@ -67,6 +67,9 @@
             >
               Open source
             </AppButton>
+            <AppButton v-if="canOpenGraph(result)" variant="text" @click.stop="openResultGraph(result)">
+              Open graph
+            </AppButton>
           </div>
         </article>
       </div>
@@ -198,6 +201,27 @@ function openResultSource(result: SearchResultRecord) {
     sourceReferenceId: result.sourceReferenceId,
     sourceText: result.excerpt,
   })
+}
+
+function openResultGraph(result: SearchResultRecord) {
+  open.value = false
+  if (result.type === 'CONCEPT') {
+    void router.push({ name: 'graph-concept', params: { conceptId: result.id } })
+    return
+  }
+  if (result.type === 'BOOK') {
+    void router.push({ name: 'graph-book', params: { bookId: result.id } })
+    return
+  }
+  if (result.bookId) {
+    void router.push({ name: 'graph-book', params: { bookId: result.bookId } })
+    return
+  }
+  void router.push({ name: 'graph', query: { entityType: result.type, entityId: String(result.id) } })
+}
+
+function canOpenGraph(result: SearchResultRecord) {
+  return result.type === 'BOOK' || result.type === 'CONCEPT' || Boolean(result.bookId)
 }
 
 function routeTarget(result: SearchResultRecord) {

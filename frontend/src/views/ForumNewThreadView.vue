@@ -17,6 +17,14 @@
 
     <AppCard v-else class="thread-form-card" as="section">
       <form class="thread-form" @submit.prevent="submitThread">
+        <section v-if="sourceContextSummary.length" class="context-card" aria-label="Prefilled source context">
+          <div>
+            <strong>Source context attached</strong>
+            <p>This thread will carry the selected entity/book/source IDs. The backend will hide private context from unauthorized users.</p>
+          </div>
+          <AppBadge v-for="item in sourceContextSummary" :key="item" variant="primary" size="sm">{{ item }}</AppBadge>
+        </section>
+
         <div class="form-grid">
         <label class="form-field">
           <span>Template</span>
@@ -96,10 +104,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { createForumThread, getForumCategories, getForumTemplates } from '../api/forum'
+import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
@@ -114,7 +123,7 @@ const selectedTemplateSlug = ref('')
 const saving = ref(false)
 const errorMessage = ref('')
 
-const relatedEntityTypes = ['BOOK', 'NOTE', 'QUOTE', 'CONCEPT', 'DESIGN_LENS', 'EXERCISE', 'PROTOTYPE_TASK', 'ACTION_ITEM', 'GAME_PROJECT', 'GENERAL']
+const relatedEntityTypes = ['BOOK', 'NOTE', 'QUOTE', 'CONCEPT', 'KNOWLEDGE_OBJECT', 'SOURCE_REFERENCE', 'DESIGN_LENS', 'EXERCISE', 'PROTOTYPE_TASK', 'ACTION_ITEM', 'GAME_PROJECT', 'GENERAL']
 const form = reactive<ForumThreadPayload>({
   categoryId: 0,
   title: '',
@@ -125,6 +134,14 @@ const form = reactive<ForumThreadPayload>({
   relatedConceptId: null,
   sourceReferenceId: null,
   visibility: 'SHARED',
+})
+const sourceContextSummary = computed(() => {
+  const items: string[] = []
+  if (form.relatedEntityType && form.relatedEntityId) items.push(`${form.relatedEntityType} #${form.relatedEntityId}`)
+  if (form.relatedBookId) items.push(`Book #${form.relatedBookId}`)
+  if (form.relatedConceptId) items.push(`Concept #${form.relatedConceptId}`)
+  if (form.sourceReferenceId) items.push(`Source #${form.sourceReferenceId}`)
+  return items
 })
 
 onMounted(loadFormData)
@@ -201,7 +218,7 @@ function chooseTemplateFromType(type: string | null | undefined) {
   if (normalized === 'PROTOTYPE_TASK' || normalized === 'ACTION_ITEM') return templates.value.find((item) => item.slug === 'prototype-challenge')
   if (normalized === 'GAME_PROJECT') return templates.value.find((item) => item.slug === 'project-critique')
   if (normalized === 'BOOK') return templates.value.find((item) => item.slug === 'book-discussion')
-  return templates.value.find((item) => item.slug === 'book-discussion')
+  return templates.value.find((item) => item.slug === 'general') ?? templates.value.find((item) => item.slug === 'book-discussion')
 }
 
 function chooseCategoryFromType(type: string | null | undefined) {
@@ -246,6 +263,23 @@ function numberQuery(key: string) {
 
 .thread-form-card {
   padding: 0;
+}
+
+.context-card {
+  padding: var(--space-4);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, var(--bookos-primary) 24%, var(--bookos-border));
+  border-radius: var(--radius-lg);
+  background: var(--bookos-primary-soft);
+}
+
+.context-card p {
+  margin: var(--space-1) 0 0;
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
 }
 
 .form-grid {

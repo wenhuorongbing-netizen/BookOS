@@ -3,6 +3,7 @@ package com.bookos.backend.knowledge.entity;
 import com.bookos.backend.book.entity.Book;
 import com.bookos.backend.common.BaseEntity;
 import com.bookos.backend.common.enums.KnowledgeObjectType;
+import com.bookos.backend.common.enums.SourceConfidence;
 import com.bookos.backend.common.enums.Visibility;
 import com.bookos.backend.note.entity.BookNote;
 import com.bookos.backend.user.entity.User;
@@ -54,6 +55,16 @@ public class KnowledgeObject extends BaseEntity {
     @Lob
     @Column(columnDefinition = "LONGTEXT")
     private String description;
+
+    @Column(length = 80)
+    private String ontologyLayer;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32)
+    private SourceConfidence sourceConfidence;
+
+    @Column(nullable = false, length = 64)
+    private String createdBy = "USER";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)

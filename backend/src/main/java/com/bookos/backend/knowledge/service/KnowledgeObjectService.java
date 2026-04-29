@@ -54,17 +54,24 @@ public class KnowledgeObjectService {
             KnowledgeObjectType type,
             Long bookId,
             Long conceptId,
+            String layer,
             String query) {
         User user = userService.getByEmailRequired(email);
         String q = StringUtils.hasText(query) ? query.trim().toLowerCase(Locale.ROOT) : null;
+        String wantedLayer = StringUtils.hasText(layer) ? layer.trim().toLowerCase(Locale.ROOT) : null;
         return knowledgeObjectRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId())
                 .stream()
                 .filter(item -> type == null || item.getType() == type)
                 .filter(item -> bookId == null || (item.getBook() != null && Objects.equals(item.getBook().getId(), bookId)))
                 .filter(item -> conceptId == null || (item.getConcept() != null && Objects.equals(item.getConcept().getId(), conceptId)))
+                .filter(item -> wantedLayer == null
+                        || item.getOntologyLayer() != null
+                                && item.getOntologyLayer().toLowerCase(Locale.ROOT).equals(wantedLayer))
                 .filter(item -> q == null
                         || item.getTitle().toLowerCase(Locale.ROOT).contains(q)
-                        || item.getSlug().contains(q))
+                        || item.getSlug().contains(q)
+                        || item.getDescription() != null && item.getDescription().toLowerCase(Locale.ROOT).contains(q)
+                        || item.getOntologyLayer() != null && item.getOntologyLayer().toLowerCase(Locale.ROOT).contains(q))
                 .map(this::toResponse)
                 .toList();
     }
@@ -174,6 +181,8 @@ public class KnowledgeObjectService {
         knowledgeObject.setSlug(SlugUtils.slugify(request.title().trim()));
         knowledgeObject.setDescription(trimToNull(request.description()));
         knowledgeObject.setVisibility(request.visibility() == null ? Visibility.PRIVATE : request.visibility());
+        knowledgeObject.setOntologyLayer(trimToNull(request.ontologyLayer()));
+        knowledgeObject.setSourceConfidence(sourceReference == null ? knowledgeObject.getSourceConfidence() : sourceReference.getSourceConfidence());
         knowledgeObject.setBook(book);
         knowledgeObject.setNote(note);
         knowledgeObject.setConcept(concept);
@@ -196,6 +205,9 @@ public class KnowledgeObjectService {
                 knowledgeObject.getSlug(),
                 knowledgeObject.getDescription(),
                 knowledgeObject.getVisibility(),
+                knowledgeObject.getOntologyLayer(),
+                knowledgeObject.getSourceConfidence(),
+                knowledgeObject.getCreatedBy(),
                 knowledgeObject.getBook() == null ? null : knowledgeObject.getBook().getId(),
                 knowledgeObject.getBook() == null ? null : knowledgeObject.getBook().getTitle(),
                 knowledgeObject.getNote() == null ? null : knowledgeObject.getNote().getId(),

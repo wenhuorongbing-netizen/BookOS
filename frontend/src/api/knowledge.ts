@@ -9,11 +9,11 @@ import type {
   KnowledgeObjectType,
 } from '../types'
 
-export function getConcepts(params?: { bookId?: number | string; q?: string }) {
+export function getConcepts(params?: { bookId?: number | string; layer?: string; q?: string }) {
   return unwrap<ConceptRecord[]>(api.get('/concepts', { params }))
 }
 
-export function getBookConcepts(bookId: number | string, params?: { q?: string }) {
+export function getBookConcepts(bookId: number | string, params?: { layer?: string; q?: string }) {
   return unwrap<ConceptRecord[]>(api.get(`/books/${bookId}/concepts`, { params }))
 }
 
@@ -37,6 +37,7 @@ export function getKnowledgeObjects(params?: {
   type?: KnowledgeObjectType
   bookId?: number | string
   conceptId?: number | string
+  layer?: string
   q?: string
 }) {
   return unwrap<KnowledgeObjectRecord[]>(api.get('/knowledge-objects', { params }))

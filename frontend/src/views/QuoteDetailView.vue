@@ -22,6 +22,9 @@
             <AppButton variant="secondary" @click="navigate">All Quotes</AppButton>
           </RouterLink>
           <AppButton variant="ghost" @click="openSource">Open Source</AppButton>
+          <RouterLink :to="{ name: 'graph-book', params: { bookId: quote.bookId } }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+          </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
           </RouterLink>

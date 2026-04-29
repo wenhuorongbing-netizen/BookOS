@@ -112,22 +112,18 @@ async function reopenSource() {
 
 async function createForumThread() {
   if (!sourceDrawerSource.value) return
+  const source = sourceDrawerSource.value
   await router.push({
     name: 'forum-new',
     query: {
-      relatedEntityType: sourceDrawerSource.value.sourceType,
-      relatedEntityId: relatedEntityIdForForum(),
-      bookId: String(sourceDrawerSource.value.bookId),
-      sourceReferenceId: String(sourceDrawerSource.value.id),
-      title: `Discuss source ${sourceDrawerSource.value.locationLabel ?? `#${sourceDrawerSource.value.id}`}`,
+      relatedEntityType: 'SOURCE_REFERENCE',
+      relatedEntityId: String(source.id),
+      bookId: source.bookId ? String(source.bookId) : undefined,
+      sourceReferenceId: String(source.id),
+      title: `Discuss source ${source.locationLabel ?? `#${source.id}`}`,
     },
   })
   closeSourceDrawer()
-}
-
-function relatedEntityIdForForum() {
-  const id = sourceDrawerSource.value?.rawCaptureId ?? sourceDrawerSource.value?.noteBlockId ?? sourceDrawerSource.value?.noteId ?? null
-  return id === null ? undefined : String(id)
 }
 
 function confidenceVariant(confidence: SourceConfidence) {

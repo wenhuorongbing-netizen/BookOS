@@ -16,4 +16,7 @@ public interface DailyDesignPromptRepository extends JpaRepository<DailyDesignPr
     Optional<DailyDesignPrompt> findByIdAndUserId(Long id, Long userId);
 
     List<DailyDesignPrompt> findByUserIdAndDayOrderByCreatedAtAsc(Long userId, LocalDate day);
+
+    @EntityGraph(attributePaths = {"book", "knowledgeObject"})
+    List<DailyDesignPrompt> findByUserIdOrderByCreatedAtDesc(Long userId);
 }

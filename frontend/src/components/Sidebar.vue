@@ -22,7 +22,7 @@
     <div id="bookos-sidebar-drawer" class="sidebar__drawer" :class="{ 'sidebar__drawer--open': navOpen }">
       <nav class="sidebar__nav" aria-label="Main navigation">
         <div class="sidebar__section-label">Main</div>
-        <RouterLink v-for="item in routeItems" :key="item.to" :to="item.to" custom v-slot="{ href, navigate }">
+        <RouterLink v-for="item in visibleRouteItems" :key="item.to" :to="item.to" custom v-slot="{ href, navigate }">
           <a
             class="sidebar__nav-link"
             :class="{ 'sidebar__nav-link--active': isNavActive(item) }"
@@ -73,11 +73,13 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 import AppCard from './ui/AppCard.vue'
 
 const route = useRoute()
+const auth = useAuthStore()
 const navOpen = ref(false)
 
 const routeItems = [
@@ -130,6 +132,12 @@ const routeItems = [
     activePaths: ['/daily'],
   },
   {
+    label: 'Graph',
+    to: '/graph',
+    short: 'GR',
+    activePaths: ['/graph'],
+  },
+  {
     label: 'Forum',
     to: '/forum',
     short: 'FO',
@@ -143,6 +151,21 @@ const plannedItems = [
   { label: 'Exercises', short: 'EX' },
   { label: 'Projects', short: 'PR' },
 ]
+
+const visibleRouteItems = computed(() => {
+  if (auth.user?.role !== 'ADMIN') {
+    return routeItems
+  }
+  return [
+    ...routeItems,
+    {
+      label: 'Admin',
+      to: '/admin/ontology',
+      short: 'AD',
+      activePaths: ['/admin'],
+    },
+  ]
+})
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalEscape)

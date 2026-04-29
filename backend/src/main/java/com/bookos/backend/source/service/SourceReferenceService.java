@@ -1,11 +1,19 @@
 package com.bookos.backend.source.service;
 
 import com.bookos.backend.book.entity.Book;
+import com.bookos.backend.action.repository.ActionItemRepository;
+import com.bookos.backend.common.enums.ForumThreadStatus;
 import com.bookos.backend.common.enums.SourceConfidence;
+import com.bookos.backend.daily.repository.DailyDesignPromptRepository;
+import com.bookos.backend.daily.repository.DailySentenceRepository;
+import com.bookos.backend.forum.repository.ForumThreadRepository;
+import com.bookos.backend.knowledge.repository.ConceptRepository;
+import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
 import com.bookos.backend.knowledge.service.ConceptService;
 import com.bookos.backend.note.entity.BookNote;
 import com.bookos.backend.note.entity.NoteBlock;
 import com.bookos.backend.parser.dto.ParsedNoteResponse;
+import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.dto.SourceReferenceResponse;
 import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
@@ -26,6 +34,13 @@ public class SourceReferenceService {
     private final SourceReferenceRepository sourceReferenceRepository;
     private final UserService userService;
     private final ConceptService conceptService;
+    private final QuoteRepository quoteRepository;
+    private final ActionItemRepository actionItemRepository;
+    private final ConceptRepository conceptRepository;
+    private final KnowledgeObjectRepository knowledgeObjectRepository;
+    private final ForumThreadRepository forumThreadRepository;
+    private final DailyDesignPromptRepository dailyDesignPromptRepository;
+    private final DailySentenceRepository dailySentenceRepository;
 
     @Transactional(readOnly = true)
     public SourceReferenceResponse getSourceReference(String email, Long id) {
@@ -158,9 +173,39 @@ public class SourceReferenceService {
             case "NOTE" -> sourceReferenceRepository.findByNoteIdAndUserIdOrderByCreatedAtDesc(entityId, user.getId());
             case "NOTE_BLOCK" -> sourceReferenceRepository.findByNoteBlockIdAndUserIdOrderByCreatedAtDesc(entityId, user.getId());
             case "RAW_CAPTURE", "CAPTURE" -> sourceReferenceRepository.findByRawCaptureIdAndUserIdOrderByCreatedAtDesc(entityId, user.getId());
+            case "QUOTE" -> quoteRepository.findByIdAndUserIdAndArchivedFalse(entityId, user.getId())
+                    .map(quote -> sourceById(user, quote.getSourceReferenceId()))
+                    .orElse(List.of());
+            case "ACTION_ITEM" -> actionItemRepository.findByIdAndUserIdAndArchivedFalse(entityId, user.getId())
+                    .map(item -> sourceById(user, item.getSourceReferenceId()))
+                    .orElse(List.of());
+            case "CONCEPT" -> conceptRepository.findByIdAndUserIdAndArchivedFalse(entityId, user.getId())
+                    .map(concept -> concept.getFirstSourceReference() == null
+                            ? List.<SourceReference>of()
+                            : sourceById(user, concept.getFirstSourceReference().getId()))
+                    .orElse(List.of());
+            case "KNOWLEDGE_OBJECT" -> knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(entityId, user.getId())
+                    .map(object -> sourceById(user, object.getSourceReferenceId()))
+                    .orElse(List.of());
+            case "FORUM_THREAD" -> forumThreadRepository.findByIdAndStatusNot(entityId, ForumThreadStatus.ARCHIVED)
+                    .map(thread -> sourceById(user, thread.getSourceReferenceId()))
+                    .orElse(List.of());
+            case "DAILY_PROMPT", "DAILY_DESIGN_PROMPT" -> dailyDesignPromptRepository.findByIdAndUserId(entityId, user.getId())
+                    .map(prompt -> sourceById(user, prompt.getSourceReferenceId()))
+                    .orElse(List.of());
+            case "DAILY_SENTENCE" -> dailySentenceRepository.findByIdAndUserId(entityId, user.getId())
+                    .map(sentence -> sourceById(user, sentence.getSourceReferenceId()))
+                    .orElse(List.of());
             case "SOURCE_REFERENCE" -> sourceReferenceRepository.findByIdAndUserId(entityId, user.getId()).stream().toList();
             default -> throw new IllegalArgumentException("Unsupported source reference entity type: " + entityType);
         };
+    }
+
+    private List<SourceReference> sourceById(User user, Long sourceReferenceId) {
+        if (sourceReferenceId == null) {
+            return List.of();
+        }
+        return sourceReferenceRepository.findByIdAndUserId(sourceReferenceId, user.getId()).stream().toList();
     }
 
     private String normalize(String value) {

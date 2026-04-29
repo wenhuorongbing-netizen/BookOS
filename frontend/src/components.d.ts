@@ -61,6 +61,7 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     FavoriteBookButton: typeof import('./components/book-detail/FavoriteBookButton.vue')['default']
     GlobalSearchDialog: typeof import('./components/search/GlobalSearchDialog.vue')['default']
+    MiniThreadList: typeof import('./components/forum/MiniThreadList.vue')['default']
     QuoteFormDialog: typeof import('./components/quotes/QuoteFormDialog.vue')['default']
     ReadingProgressBar: typeof import('./components/book-detail/ReadingProgressBar.vue')['default']
     RightRail: typeof import('./components/RightRail.vue')['default']

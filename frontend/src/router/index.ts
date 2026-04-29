@@ -26,6 +26,8 @@ const ConceptDetailView = () => import('../views/ConceptDetailView.vue')
 const KnowledgeObjectsView = () => import('../views/KnowledgeObjectsView.vue')
 const KnowledgeObjectDetailView = () => import('../views/KnowledgeObjectDetailView.vue')
 const DailyView = () => import('../views/DailyView.vue')
+const GraphView = () => import('../views/GraphView.vue')
+const AdminOntologyView = () => import('../views/AdminOntologyView.vue')
 const ForumView = () => import('../views/ForumView.vue')
 const ForumNewThreadView = () => import('../views/ForumNewThreadView.vue')
 const ForumThreadView = () => import('../views/ForumThreadView.vue')
@@ -178,6 +180,30 @@ const router = createRouter({
           meta: { requiresAuth: true, title: 'Daily' },
         },
         {
+          path: 'graph',
+          name: 'graph',
+          component: GraphView,
+          meta: { requiresAuth: true, title: 'Knowledge Graph' },
+        },
+        {
+          path: 'graph/book/:bookId',
+          name: 'graph-book',
+          component: GraphView,
+          meta: { requiresAuth: true, title: 'Book Graph' },
+        },
+        {
+          path: 'graph/concept/:conceptId',
+          name: 'graph-concept',
+          component: GraphView,
+          meta: { requiresAuth: true, title: 'Concept Graph' },
+        },
+        {
+          path: 'admin/ontology',
+          name: 'admin-ontology',
+          component: AdminOntologyView,
+          meta: { requiresAuth: true, title: 'Ontology Admin', role: 'ADMIN' },
+        },
+        {
           path: 'forum',
           name: 'forum',
           component: ForumView,
@@ -241,6 +267,10 @@ router.beforeEach(async (to) => {
 
   if (requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (typeof to.meta.role === 'string' && auth.user?.role !== to.meta.role) {
+    return { name: 'dashboard' }
   }
 
   if (isPublic && auth.isAuthenticated) {

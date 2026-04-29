@@ -33,8 +33,9 @@ public class ConceptController {
     public ApiResponse<List<ConceptResponse>> listConcepts(
             Authentication authentication,
             @RequestParam(required = false) Long bookId,
+            @RequestParam(required = false) String layer,
             @RequestParam(required = false) String q) {
-        return ApiResponse.ok("Concepts loaded.", conceptService.listConcepts(authentication.getName(), bookId, q));
+        return ApiResponse.ok("Concepts loaded.", conceptService.listConcepts(authentication.getName(), bookId, layer, q));
     }
 
     @PostMapping

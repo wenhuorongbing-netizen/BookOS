@@ -27,8 +27,11 @@ public record ForumThreadResponse(
         long commentCount,
         long likeCount,
         long bookmarkCount,
+        long reportCount,
         boolean likedByCurrentUser,
         boolean bookmarkedByCurrentUser,
         boolean canEdit,
+        boolean canModerate,
+        boolean sourceContextUnavailable,
         Instant createdAt,
         Instant updatedAt) {}

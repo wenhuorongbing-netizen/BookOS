@@ -16,6 +16,43 @@
     <AppErrorState v-if="errorMessage" title="Forum could not load" :description="errorMessage" retry-label="Retry" @retry="loadForum" />
 
     <template v-else>
+      <section v-if="!activeSlug" class="forum-overview" aria-label="Forum overview">
+        <AppCard class="overview-card" as="section">
+          <AppSectionHeader title="Latest Threads" eyebrow="Recent activity" :level="2" compact />
+          <MiniThreadList :threads="latestThreads" empty-label="No recent threads yet." />
+        </AppCard>
+        <AppCard class="overview-card" as="section">
+          <AppSectionHeader title="Popular Threads" eyebrow="Likes and replies" :level="2" compact />
+          <MiniThreadList :threads="popularThreads" empty-label="No popular threads yet." />
+        </AppCard>
+        <AppCard class="overview-card" as="section">
+          <AppSectionHeader title="Your Bookmarks" eyebrow="Saved discussions" :level="2" compact />
+          <MiniThreadList :threads="bookmarkedThreads" empty-label="No bookmarked discussions yet." />
+        </AppCard>
+        <AppCard class="overview-card" as="section">
+          <AppSectionHeader title="Source-Linked" eyebrow="Traceable discussions" :level="2" compact />
+          <MiniThreadList :threads="sourceLinkedThreads" empty-label="No source-linked discussions yet." />
+        </AppCard>
+      </section>
+
+      <AppCard v-if="isModerator" class="moderation-panel" as="section">
+        <AppSectionHeader title="Open Reports" eyebrow="Moderator queue" :level="2" compact />
+        <AppEmptyState v-if="!openReports.length" title="No open reports" description="Reported discussions will appear here for review." compact />
+        <div v-else class="report-list">
+          <article v-for="report in openReports" :key="report.id" class="report-row">
+            <div>
+              <RouterLink :to="{ name: 'forum-thread', params: { id: report.threadId } }">
+                <strong>{{ report.threadTitle }}</strong>
+              </RouterLink>
+              <p>{{ report.reason }} · {{ report.reporterDisplayName }}</p>
+            </div>
+            <AppButton variant="secondary" :loading="resolvingReportId === report.id" @click="resolveOpenReport(report.id)">
+              Resolve
+            </AppButton>
+          </article>
+        </div>
+      </AppCard>
+
       <section class="forum-grid" aria-label="Forum categories and threads">
         <aside class="forum-sidebar">
           <AppCard class="forum-panel" as="section">
@@ -54,6 +91,24 @@
                 <span>Search discussions</span>
                 <el-input v-model="searchText" clearable placeholder="Search thread title or body..." @keyup.enter="loadForum" />
               </label>
+              <label class="forum-search">
+                <span>Sort</span>
+                <el-select v-model="sortMode" aria-label="Sort forum threads" @change="loadForum">
+                  <el-option label="Latest" value="latest" />
+                  <el-option label="Popular" value="popular" />
+                  <el-option label="Unanswered" value="unanswered" />
+                </el-select>
+              </label>
+              <label class="forum-search">
+                <span>Filter</span>
+                <el-select v-model="filterMode" clearable aria-label="Filter forum threads" @change="loadForum">
+                  <el-option label="Bookmarked" value="bookmarked" />
+                  <el-option label="Source-linked" value="source-linked" />
+                  <el-option label="Unanswered" value="unanswered" />
+                  <el-option label="Reported" value="reported" />
+                  <el-option label="Hidden" value="hidden" />
+                </el-select>
+              </label>
               <AppButton variant="secondary" @click="loadForum">Search</AppButton>
             </div>
 
@@ -73,8 +128,11 @@
               >
                 <div class="thread-card__topline">
                   <AppBadge variant="info" size="sm">{{ thread.categoryName }}</AppBadge>
+                  <AppBadge :variant="statusVariant(thread.status)" size="sm">{{ statusLabel(thread.status) }}</AppBadge>
                   <AppBadge :variant="thread.visibility === 'PRIVATE' ? 'warning' : 'success'" size="sm">{{ thread.visibility }}</AppBadge>
                   <AppBadge v-if="thread.relatedEntityType" variant="accent" size="sm">{{ thread.relatedEntityType }}</AppBadge>
+                  <AppBadge v-if="thread.sourceReferenceId" variant="primary" size="sm">Source-linked</AppBadge>
+                  <AppBadge v-if="thread.sourceContextUnavailable" variant="warning" size="sm">Private context</AppBadge>
                 </div>
                 <h2>{{ thread.title }}</h2>
                 <p>{{ preview(thread.bodyMarkdown) }}</p>
@@ -82,6 +140,7 @@
                   <span>By {{ thread.authorDisplayName }}</span>
                   <span>{{ thread.commentCount }} comments</span>
                   <span>{{ thread.likeCount }} likes</span>
+                  <span v-if="thread.bookmarkedByCurrentUser">Bookmarked</span>
                   <span>{{ formatDate(thread.updatedAt) }}</span>
                 </div>
               </RouterLink>
@@ -95,8 +154,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { RouterLink, useRoute } from 'vue-router'
-import { getForumCategories, getForumThreads } from '../api/forum'
+import { getForumCategories, getForumReports, getForumThreads, resolveForumReport } from '../api/forum'
+import MiniThreadList from '../components/forum/MiniThreadList.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -104,20 +165,33 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
-import type { ForumCategoryRecord, ForumThreadRecord } from '../types'
+import { useAuthStore } from '../stores/auth'
+import type { ForumCategoryRecord, ForumReportRecord, ForumThreadRecord } from '../types'
 
 const route = useRoute()
+const auth = useAuthStore()
 const categories = ref<ForumCategoryRecord[]>([])
 const threads = ref<ForumThreadRecord[]>([])
+const openReports = ref<ForumReportRecord[]>([])
 const loading = ref(false)
+const resolvingReportId = ref<number | null>(null)
 const errorMessage = ref('')
 const searchText = ref('')
+const sortMode = ref<'latest' | 'popular' | 'unanswered'>('latest')
+const filterMode = ref<'bookmarked' | 'source-linked' | 'unanswered' | 'hidden' | 'reported' | ''>('')
 
 const activeSlug = computed(() => (typeof route.params.slug === 'string' ? route.params.slug : ''))
 const activeCategory = computed(() => categories.value.find((category) => category.slug === activeSlug.value))
 const categoryTitle = computed(() => activeCategory.value?.name ?? 'Forum')
 const totalThreads = computed(() => categories.value.reduce((sum, category) => sum + category.threadCount, 0))
 const newThreadQuery = computed(() => (activeCategory.value ? { categoryId: String(activeCategory.value.id) } : {}))
+const latestThreads = computed(() => threads.value.slice(0, 4))
+const popularThreads = computed(() => [...threads.value]
+  .sort((a, b) => b.likeCount + b.commentCount + b.bookmarkCount - (a.likeCount + a.commentCount + a.bookmarkCount))
+  .slice(0, 4))
+const bookmarkedThreads = computed(() => threads.value.filter((thread) => thread.bookmarkedByCurrentUser).slice(0, 4))
+const sourceLinkedThreads = computed(() => threads.value.filter((thread) => thread.sourceReferenceId || thread.relatedEntityType).slice(0, 4))
+const isModerator = computed(() => auth.user?.role === 'ADMIN' || auth.user?.role === 'MODERATOR')
 
 onMounted(loadForum)
 watch(() => route.params.slug, loadForum)
@@ -126,16 +200,36 @@ async function loadForum() {
   loading.value = true
   errorMessage.value = ''
   try {
-    const [categoryResult, threadResult] = await Promise.all([
+    const [categoryResult, threadResult, reportResult] = await Promise.all([
       getForumCategories(),
-      getForumThreads({ categorySlug: activeSlug.value || undefined, q: searchText.value || undefined }),
+      getForumThreads({
+        categorySlug: activeSlug.value || undefined,
+        q: searchText.value || undefined,
+        sort: sortMode.value,
+        filter: filterMode.value || undefined,
+      }),
+      isModerator.value ? getForumReports({ status: 'OPEN' }) : Promise.resolve([]),
     ])
     categories.value = categoryResult
     threads.value = threadResult
+    openReports.value = reportResult
   } catch {
     errorMessage.value = 'Check backend availability and try loading the structured forum again.'
   } finally {
     loading.value = false
+  }
+}
+
+async function resolveOpenReport(id: number) {
+  resolvingReportId.value = id
+  try {
+    await resolveForumReport(id)
+    openReports.value = openReports.value.filter((report) => report.id !== id)
+    ElMessage.success('Report resolved.')
+  } catch {
+    ElMessage.error('Report resolution failed.')
+  } finally {
+    resolvingReportId.value = null
   }
 }
 
@@ -146,14 +240,32 @@ function preview(markdown: string) {
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
 }
+
+function statusLabel(status: ForumThreadRecord['status']) {
+  if (status === 'ACTIVE') return 'OPEN'
+  if (status === 'CLOSED') return 'LOCKED'
+  return status
+}
+
+function statusVariant(status: ForumThreadRecord['status']) {
+  const canonical = statusLabel(status)
+  if (canonical === 'LOCKED') return 'warning'
+  if (canonical === 'HIDDEN') return 'danger'
+  return 'success'
+}
 </script>
 
 <style scoped>
 .forum-page,
+.forum-overview,
 .forum-grid,
 .thread-list {
   display: grid;
   gap: var(--space-5);
+}
+
+.forum-overview {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .forum-grid {
@@ -208,9 +320,43 @@ function formatDate(value: string) {
 
 .forum-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.24fr) minmax(170px, 0.24fr) auto;
   align-items: end;
   gap: var(--space-3);
+}
+
+.overview-card {
+  padding: var(--space-4);
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+}
+
+.moderation-panel {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.report-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.report-row {
+  padding: var(--space-3);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: center;
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background: var(--bookos-surface-muted);
+}
+
+.report-row p {
+  margin: var(--space-1) 0 0;
+  color: var(--bookos-text-secondary);
 }
 
 .forum-search {
@@ -261,13 +407,22 @@ function formatDate(value: string) {
 }
 
 @media (max-width: 980px) {
+  .forum-overview,
   .forum-grid,
   .forum-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .forum-sidebar {
     position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .forum-overview,
+  .forum-grid,
+  .forum-toolbar {
+    grid-template-columns: 1fr;
   }
 }
 </style>

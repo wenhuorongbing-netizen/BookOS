@@ -1,0 +1,6 @@
+target/
+.env
+*.log
+*.out
+*.err
+HELP.md

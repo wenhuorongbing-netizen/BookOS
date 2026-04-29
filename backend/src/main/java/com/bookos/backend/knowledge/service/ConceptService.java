@@ -16,7 +16,10 @@ import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,6 +35,7 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class ConceptService {
 
+    private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
     public static final String ENTITY_TYPE_CONCEPT = "CONCEPT";
     public static final String ENTITY_TYPE_SOURCE_REFERENCE = "SOURCE_REFERENCE";
     public static final String RELATION_MENTIONS_CONCEPT = "MENTIONS_CONCEPT";
@@ -42,19 +46,27 @@ public class ConceptService {
     private final UserBookRepository userBookRepository;
     private final UserService userService;
     private final BookService bookService;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public List<ConceptResponse> listConcepts(String email, Long bookId, String query) {
+    public List<ConceptResponse> listConcepts(String email, Long bookId, String layer, String query) {
         User user = userService.getByEmailRequired(email);
         List<Concept> concepts = bookId == null
                 ? conceptRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId())
                 : conceptRepository.findByUserIdAndFirstBookIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId(), bookId);
 
         String q = StringUtils.hasText(query) ? query.trim().toLowerCase(Locale.ROOT) : null;
+        String wantedLayer = StringUtils.hasText(layer) ? layer.trim().toLowerCase(Locale.ROOT) : null;
         return concepts.stream()
+                .filter(concept -> wantedLayer == null
+                        || concept.getOntologyLayer() != null
+                                && concept.getOntologyLayer().toLowerCase(Locale.ROOT).equals(wantedLayer))
                 .filter(concept -> q == null
                         || concept.getName().toLowerCase(Locale.ROOT).contains(q)
-                        || concept.getSlug().contains(q))
+                        || concept.getSlug().contains(q)
+                        || concept.getDescription() != null && concept.getDescription().toLowerCase(Locale.ROOT).contains(q)
+                        || concept.getOntologyLayer() != null && concept.getOntologyLayer().toLowerCase(Locale.ROOT).contains(q)
+                        || readList(concept.getTagsJson()).stream().anyMatch(tag -> tag.contains(q)))
                 .map(concept -> toResponse(user, concept))
                 .toList();
     }
@@ -75,6 +87,10 @@ public class ConceptService {
         }
 
         Concept concept = upsertConcept(user, book, sourceReference, request.name(), request.description(), request.visibility());
+        concept.setOntologyLayer(trimToNull(request.ontologyLayer()));
+        concept.setTagsJson(writeList(cleanTags(request.tags())));
+        concept.setSourceConfidence(sourceReference == null ? concept.getSourceConfidence() : sourceReference.getSourceConfidence());
+        concept = conceptRepository.save(concept);
         if (sourceReference != null) {
             linkSourceToConcept(user, sourceReference, concept);
         }
@@ -96,6 +112,8 @@ public class ConceptService {
         concept.setSlug(slug);
         concept.setDescription(trimToNull(request.description()));
         concept.setVisibility(request.visibility() == null ? concept.getVisibility() : request.visibility());
+        concept.setOntologyLayer(trimToNull(request.ontologyLayer()));
+        concept.setTagsJson(writeList(cleanTags(request.tags())));
 
         if (request.bookId() != null) {
             concept.setFirstBook(getLibraryBook(user, request.bookId()));
@@ -256,6 +274,10 @@ public class ConceptService {
                 concept.getSlug(),
                 concept.getDescription(),
                 concept.getVisibility(),
+                concept.getOntologyLayer(),
+                concept.getSourceConfidence(),
+                concept.getCreatedBy(),
+                readList(concept.getTagsJson()),
                 concept.getFirstBook() == null ? null : concept.getFirstBook().getId(),
                 concept.getFirstBook() == null ? null : concept.getFirstBook().getTitle(),
                 concept.getMentionCount(),
@@ -333,5 +355,37 @@ public class ConceptService {
 
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private List<String> cleanTags(List<String> tags) {
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        if (tags == null) {
+            return List.of();
+        }
+        for (String tag : tags) {
+            if (StringUtils.hasText(tag)) {
+                values.add(tag.trim().replaceFirst("^#", "").toLowerCase(Locale.ROOT));
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private String writeList(List<String> values) {
+        try {
+            return objectMapper.writeValueAsString(values == null ? List.of() : values);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Could not serialize concept tags.", exception);
+        }
+    }
+
+    private List<String> readList(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(raw, STRING_LIST);
+        } catch (Exception exception) {
+            return List.of();
+        }
     }
 }

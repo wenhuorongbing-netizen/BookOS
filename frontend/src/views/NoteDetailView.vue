@@ -24,6 +24,12 @@
           <RouterLink :to="{ name: 'book-detail', params: { id: note.bookId } }" custom v-slot="{ navigate }">
             <AppButton variant="ghost" @click="navigate">Open Book</AppButton>
           </RouterLink>
+          <RouterLink :to="{ name: 'graph-book', params: { bookId: note.bookId } }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+          </RouterLink>
+          <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
+          </RouterLink>
         </template>
       </AppSectionHeader>
 
@@ -245,6 +251,20 @@ const sortedBlocks = computed(() => {
 const noteSourceReferences = computed(() => note.value?.blocks.flatMap((block) => block.sourceReferences) ?? [])
 const canSaveNote = computed(() => Boolean(editForm.title.trim() && editForm.markdown.trim()))
 const renderedMarkdown = computed(() => renderSafeMarkdown(editForm.markdown))
+const forumThreadLink = computed(() => {
+  if (!note.value) return { name: 'forum-new' }
+  const firstSource = noteSourceReferences.value[0] ?? null
+  return {
+    name: 'forum-new',
+    query: {
+      relatedEntityType: 'NOTE',
+      relatedEntityId: String(note.value.id),
+      bookId: String(note.value.bookId),
+      sourceReferenceId: firstSource ? String(firstSource.id) : undefined,
+      title: `Discuss note: ${note.value.title}`,
+    },
+  }
+})
 
 onMounted(loadNote)
 

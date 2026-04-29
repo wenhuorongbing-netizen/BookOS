@@ -628,12 +628,12 @@ async function handleCreatePrototypeTask(promptId: number | string | null) {
 
 function handleOpenGraph() {
   if (!book.value) return
-  router.push({ name: 'dashboard', query: { focus: 'knowledge-graph', bookId: String(book.value.id) } })
+  router.push({ name: 'graph-book', params: { bookId: String(book.value.id) } })
 }
 
 function handleOpenConcept(name: string) {
   if (!book.value) return
-  router.push({ name: 'dashboard', query: { focus: 'concept', concept: name, bookId: String(book.value.id) } })
+  router.push({ name: 'concepts', query: { q: name === 'all' ? undefined : name, bookId: String(book.value.id) } })
 }
 
 function handleOpenLens(name: string) {

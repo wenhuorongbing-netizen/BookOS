@@ -4,7 +4,9 @@ import type {
   ForumCategoryRecord,
   ForumCommentPayload,
   ForumCommentRecord,
+  ForumModerationPayload,
   ForumReportPayload,
+  ForumReportRecord,
   ForumThreadPayload,
   ForumThreadRecord,
   StructuredPostTemplateRecord,
@@ -22,7 +24,12 @@ export function getForumTemplates() {
   return unwrap<StructuredPostTemplateRecord[]>(api.get('/forum/templates'))
 }
 
-export function getForumThreads(params?: { categorySlug?: string; q?: string }) {
+export function getForumThreads(params?: {
+  categorySlug?: string
+  q?: string
+  sort?: 'latest' | 'popular' | 'unanswered'
+  filter?: 'bookmarked' | 'source-linked' | 'unanswered' | 'hidden' | 'reported'
+}) {
   return unwrap<ForumThreadRecord[]>(api.get('/forum/threads', { params }))
 }
 
@@ -76,4 +83,16 @@ export function removeForumLike(id: number | string) {
 
 export function reportForumThread(id: number | string, payload: ForumReportPayload) {
   return unwrap<void>(api.post(`/forum/threads/${id}/report`, payload))
+}
+
+export function moderateForumThread(id: number | string, payload: ForumModerationPayload) {
+  return unwrap<ForumThreadRecord>(api.put(`/forum/threads/${id}/moderation`, payload))
+}
+
+export function getForumReports(params?: { status?: 'OPEN' | 'RESOLVED' }) {
+  return unwrap<ForumReportRecord[]>(api.get('/forum/reports', { params }))
+}
+
+export function resolveForumReport(id: number | string) {
+  return unwrap<ForumReportRecord>(api.put(`/forum/reports/${id}/resolve`))
 }

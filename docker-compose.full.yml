@@ -1,0 +1,67 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: bookos-mysql-full
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bookos}
+      MYSQL_USER: ${MYSQL_USER:-bookos}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-bookos}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - bookos-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: bookos-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bookos}
+      MYSQL_USER: ${MYSQL_USER:-bookos}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-bookos}
+      JWT_ISSUER: ${JWT_ISSUER:-bookos-local}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting the full stack}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-720}
+      APP_CORS_ALLOWED_ORIGIN: ${APP_CORS_ALLOWED_ORIGIN:-http://localhost:5173}
+      APP_CORS_ALLOWED_ORIGIN_ALT: ${APP_CORS_ALLOWED_ORIGIN_ALT:-http://localhost:8081}
+      APP_CORS_ALLOWED_ORIGIN_DOCKER: ${APP_CORS_ALLOWED_ORIGIN_DOCKER:-http://localhost:8081}
+      APP_SEED_ENABLED: ${APP_SEED_ENABLED:-false}
+      FLYWAY_ENABLED: ${FLYWAY_ENABLED:-true}
+      FLYWAY_BASELINE_ON_MIGRATE: ${FLYWAY_BASELINE_ON_MIGRATE:-false}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: bookos-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+
+volumes:
+  bookos-mysql-data:

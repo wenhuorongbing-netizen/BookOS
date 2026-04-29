@@ -37,25 +37,27 @@
       <section aria-labelledby="entity-links-title" class="backlinks-section__group">
         <h3 id="entity-links-title">Backlinks</h3>
         <AppEmptyState
-          v-if="!entityLinks.length"
+          v-if="!backlinks.length"
           title="No backlinks"
           description="Related concepts, notes, captures, quotes, and tasks will appear here when linked."
           compact
         />
         <template v-else>
-          <article v-for="link in entityLinks" :key="link.id" class="backlink-card">
+          <article v-for="backlink in backlinks" :key="`${backlink.direction}-${backlink.linkId}`" class="backlink-card">
             <div class="backlink-card__main">
-              <AppBadge variant="info" size="sm">{{ link.relationType }}</AppBadge>
-              <strong>{{ linkLabel(link) }}</strong>
-              <span>{{ formatDate(link.createdAt) }}</span>
+              <AppBadge variant="info" size="sm">{{ backlink.relationType }}</AppBadge>
+              <AppBadge variant="neutral" size="sm">{{ backlink.direction }}</AppBadge>
+              <strong>{{ backlink.title }}</strong>
+              <span>{{ backlink.entityType }} #{{ backlink.entityId }}</span>
+              <span>{{ formatDate(backlink.createdAt) }}</span>
             </div>
-            <AppButton
-              v-if="link.sourceReferenceId"
-              variant="secondary"
-              @click="openReferenceById(link.sourceReferenceId, link)"
-            >
-              Open Source
-            </AppButton>
+            <p v-if="backlink.excerpt">{{ backlink.excerpt }}</p>
+            <div class="backlink-card__actions">
+              <AppButton variant="secondary" @click="openBacklink(backlink)">Open</AppButton>
+              <AppButton v-if="backlink.sourceReference" variant="ghost" @click="openReference(backlink.sourceReference)">
+                Open Source
+              </AppButton>
+            </div>
           </article>
         </template>
       </section>
@@ -64,11 +66,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { getEntityLinks } from '../../api/entityLinks'
-import { getSourceReference } from '../../api/sourceReferences'
+import { onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { getBacklinks } from '../../api/backlinks'
 import { useOpenSource } from '../../composables/useOpenSource'
-import type { EntityLinkRecord, SourceConfidence, SourceReferenceRecord } from '../../types'
+import type { BacklinkRecord, SourceConfidence, SourceReferenceRecord } from '../../types'
 import AppBadge from '../ui/AppBadge.vue'
 import AppButton from '../ui/AppButton.vue'
 import AppCard from '../ui/AppCard.vue'
@@ -94,20 +96,11 @@ const props = withDefaults(
   },
 )
 
+const router = useRouter()
 const { openSource } = useOpenSource()
-const outgoingLinks = ref<EntityLinkRecord[]>([])
-const incomingLinks = ref<EntityLinkRecord[]>([])
+const backlinks = ref<BacklinkRecord[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
-
-const entityLinks = computed(() => {
-  const seen = new Set<number>()
-  return [...outgoingLinks.value, ...incomingLinks.value].filter((link) => {
-    if (seen.has(link.id)) return false
-    seen.add(link.id)
-    return true
-  })
-})
 
 onMounted(loadLinks)
 
@@ -122,15 +115,9 @@ async function loadLinks() {
   loading.value = true
   errorMessage.value = ''
   try {
-    const [outgoing, incoming] = await Promise.all([
-      getEntityLinks({ sourceType: props.entityType, sourceId: props.entityId }),
-      getEntityLinks({ targetType: props.entityType, targetId: props.entityId }),
-    ])
-    outgoingLinks.value = outgoing
-    incomingLinks.value = incoming
+    backlinks.value = await getBacklinks({ entityType: props.entityType, entityId: props.entityId })
   } catch {
-    outgoingLinks.value = []
-    incomingLinks.value = []
+    backlinks.value = []
     errorMessage.value = 'Backlinks could not be loaded. Check backend availability and permissions.'
   } finally {
     loading.value = false
@@ -151,32 +138,40 @@ function openReference(source: SourceReferenceRecord) {
   })
 }
 
-async function openReferenceById(sourceReferenceId: number, link: EntityLinkRecord) {
-  try {
-    const source = await getSourceReference(sourceReferenceId)
-    await openSource({
-      sourceType: 'SOURCE_REFERENCE',
-      sourceId: source.id,
-      bookId: source.bookId,
-      bookTitle: props.bookTitle,
-      pageStart: source.pageStart,
-      sourceReference: source,
-    })
-  } catch {
-    await openSource({
-      sourceType: link.sourceType,
-      sourceId: link.sourceId,
-    })
+function openBacklink(backlink: BacklinkRecord) {
+  const target = routeFor(backlink.entityType, backlink.entityId)
+  if (target) {
+    void router.push(target)
+    return
   }
+  if (backlink.sourceReference) {
+    openReference(backlink.sourceReference)
+    return
+  }
+  void openSource({
+    sourceType: backlink.entityType,
+    sourceId: backlink.entityId,
+  })
 }
 
-function linkLabel(link: EntityLinkRecord) {
-  return `${link.sourceType} #${link.sourceId} -> ${link.targetType} #${link.targetId}`
+function routeFor(entityType: string, entityId: number) {
+  if (entityType === 'BOOK') return { name: 'book-detail', params: { id: entityId } }
+  if (entityType === 'NOTE') return { name: 'note-detail', params: { id: entityId } }
+  if (entityType === 'RAW_CAPTURE' || entityType === 'CAPTURE') return { name: 'capture-inbox', query: { captureId: String(entityId) } }
+  if (entityType === 'QUOTE') return { name: 'quote-detail', params: { id: entityId } }
+  if (entityType === 'ACTION_ITEM') return { name: 'action-item-detail', params: { id: entityId } }
+  if (entityType === 'CONCEPT') return { name: 'concept-detail', params: { id: entityId } }
+  if (entityType === 'KNOWLEDGE_OBJECT') return { name: 'knowledge-detail', params: { id: entityId } }
+  if (entityType === 'FORUM_THREAD') return { name: 'forum-thread', params: { id: entityId } }
+  if (entityType === 'DAILY_PROMPT' || entityType === 'DAILY_DESIGN_PROMPT' || entityType === 'DAILY_SENTENCE') {
+    return { name: 'daily' }
+  }
+  return null
 }
 
 function pageLabel(source: SourceReferenceRecord) {
-  if (source.pageStart && source.pageEnd) return `p.${source.pageStart}-${source.pageEnd}`
-  if (source.pageStart) return `p.${source.pageStart}`
+  if (source.pageStart != null && source.pageEnd != null) return `p.${source.pageStart}-${source.pageEnd}`
+  if (source.pageStart != null) return `p.${source.pageStart}`
   return 'No page'
 }
 
@@ -223,6 +218,13 @@ function formatDate(value: string) {
 }
 
 .backlink-card__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.backlink-card__actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);

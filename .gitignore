@@ -5,6 +5,7 @@
 /tools/*.7z
 /tools/jdk*/
 /.env
+*.local
 /backend.zip
 *.7z
 *.zip

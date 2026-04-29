@@ -16,4 +16,7 @@ public interface DailySentenceRepository extends JpaRepository<DailySentence, Lo
     Optional<DailySentence> findByIdAndUserId(Long id, Long userId);
 
     List<DailySentence> findByUserIdAndDayOrderByCreatedAtAsc(Long userId, LocalDate day);
+
+    @EntityGraph(attributePaths = {"book"})
+    List<DailySentence> findByUserIdOrderByCreatedAtDesc(Long userId);
 }

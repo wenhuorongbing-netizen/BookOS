@@ -23,7 +23,8 @@ public class BookConceptController {
     public ApiResponse<List<ConceptResponse>> listBookConcepts(
             Authentication authentication,
             @PathVariable Long bookId,
+            @RequestParam(required = false) String layer,
             @RequestParam(required = false) String q) {
-        return ApiResponse.ok("Book concepts loaded.", conceptService.listConcepts(authentication.getName(), bookId, q));
+        return ApiResponse.ok("Book concepts loaded.", conceptService.listConcepts(authentication.getName(), bookId, layer, q));
     }
 }

@@ -32,8 +32,10 @@ Known limitations:
 
 - `backend`: Spring Boot REST API.
 - `frontend`: Vue application.
-- `docs`: product specs, UI review, responsive/accessibility notes, and prompt traceability.
+- `docs`: product specs, release checklist, deployment guide, endpoint inventory, data model overview, UI review, responsive/accessibility notes, and prompt traceability.
+- `.github/workflows/ci.yml`: backend and frontend CI.
 - `docker-compose.yml`: local MySQL service.
+- `docker-compose.full.yml`: optional local full-stack compose file.
 - `.env.example`: shared local environment template.
 
 ## Local Setup
@@ -94,6 +96,11 @@ cd backend
 
 Backend URL defaults to `http://localhost:8080`.
 
+Health endpoints:
+
+- `GET http://localhost:8080/api/health`
+- `GET http://localhost:8080/actuator/health`
+
 Reset local MySQL data only when you intentionally want a fresh development database:
 
 ```powershell
@@ -137,6 +144,48 @@ npm run build
 ```
 
 Frontend URL defaults to `http://localhost:5173`. Vite proxies `/api` to `VITE_API_PROXY_TARGET`, which defaults to `http://localhost:8080`.
+
+## CI/CD
+
+GitHub Actions workflow:
+
+- `.github/workflows/ci.yml`
+
+Jobs:
+
+- Backend: sets up Java 21, uses Maven cache, runs `./mvnw -B test`.
+- Frontend: sets up Node 24, uses npm cache, runs `npm ci`, `npm run typecheck`, and `npm run build`.
+
+CI uses isolated test databases and does not require production secrets.
+
+## Docker
+
+Local MySQL only:
+
+```powershell
+docker compose up -d mysql
+```
+
+Optional full local stack:
+
+```powershell
+Copy-Item .env.example .env
+# Set JWT_SECRET in .env before starting.
+docker compose -f docker-compose.full.yml up --build
+```
+
+Full-stack defaults:
+
+- Frontend: `http://localhost:8081`
+- Backend: `http://localhost:8080`
+- MySQL: `localhost:3306`
+
+Container images:
+
+- Backend: `backend/Dockerfile`
+- Frontend: `frontend/Dockerfile`
+
+Deployment details are documented in `docs/deployment-guide.md`.
 
 ## Optional Local Seed Accounts
 
@@ -252,10 +301,14 @@ Forum:
 - `POST /api/forum/threads/{id}/like`
 - `DELETE /api/forum/threads/{id}/like`
 - `POST /api/forum/threads/{id}/report`
+- `PUT /api/forum/threads/{id}/moderation`
+- `GET /api/forum/reports`
+- `PUT /api/forum/reports/{id}/resolve`
 
 Search, graph, and Mock AI:
 
 - `GET /api/search?q=&type=&bookId=`
+- `GET /api/graph`
 - `GET /api/graph/book/{bookId}`
 - `GET /api/graph/concept/{conceptId}`
 - `POST /api/ai/suggestions/note-summary`
@@ -265,6 +318,12 @@ Search, graph, and Mock AI:
 - `PUT /api/ai/suggestions/{id}/accept`
 - `PUT /api/ai/suggestions/{id}/reject`
 - `PUT /api/ai/suggestions/{id}/edit`
+
+Admin ontology import:
+
+- `GET /api/admin/ontology/default`
+- `POST /api/admin/ontology/import/default`
+- `POST /api/admin/ontology/import`
 
 ## Verification
 
@@ -282,3 +341,6 @@ npm run build
 No `.7z` archives, `backend.zip`, logs, `.out`, `.err`, backend `target`, frontend `dist`, frontend `node_modules`, or local JDK archives should be committed.
 
 Additional database migration details are documented in `docs/database-migrations.md`.
+Release candidate guidance is documented in `docs/mvp-release-candidate.md`.
+The complete endpoint inventory is documented in `docs/api-endpoint-inventory.md`.
+The current data model overview is documented in `docs/data-model-overview.md`.

@@ -33,4 +33,7 @@ public record KnowledgeObjectRequest(
         @Positive(message = "Source reference id must be positive.")
         Long sourceReferenceId,
 
+        @Size(max = 80, message = "Ontology layer must be at most 80 characters.")
+        String ontologyLayer,
+
         List<@Size(max = 80, message = "Tag must be at most 80 characters.") String> tags) {}

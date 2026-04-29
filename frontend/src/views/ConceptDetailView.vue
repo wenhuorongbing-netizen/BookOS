@@ -15,6 +15,9 @@
             <AppButton variant="secondary" @click="navigate">All Concepts</AppButton>
           </RouterLink>
           <AppButton variant="ghost" :disabled="!primarySource" @click="openPrimarySource">Open Source</AppButton>
+          <RouterLink :to="{ name: 'graph-concept', params: { conceptId: concept.id } }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+          </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
           </RouterLink>
@@ -25,10 +28,16 @@
         <AppCard class="concept-main" as="article">
           <div class="concept-main__badges">
             <AppBadge variant="primary">{{ concept.visibility }}</AppBadge>
+            <AppBadge v-if="concept.ontologyLayer" variant="accent">{{ concept.ontologyLayer }}</AppBadge>
+            <AppBadge v-if="concept.createdBy === 'SYSTEM'" variant="info">Seeded</AppBadge>
+            <AppBadge v-if="concept.sourceConfidence" variant="warning">{{ concept.sourceConfidence }} confidence</AppBadge>
             <AppBadge variant="info">{{ concept.mentionCount }} mentions</AppBadge>
             <AppBadge variant="accent">{{ concept.sourceReferences.length }} sources</AppBadge>
           </div>
           <p>{{ concept.description ?? 'No description yet. Add one later when the concept stabilizes.' }}</p>
+          <div v-if="concept.tags.length" class="concept-main__tags">
+            <AppBadge v-for="tag in concept.tags" :key="tag" variant="neutral" size="sm">#{{ tag }}</AppBadge>
+          </div>
         </AppCard>
 
         <AppCard class="concept-related" as="aside">
@@ -193,7 +202,8 @@ function openPrimarySource() {
   gap: var(--space-4);
 }
 
-.concept-main__badges {
+.concept-main__badges,
+.concept-main__tags {
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;

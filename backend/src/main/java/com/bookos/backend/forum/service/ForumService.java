@@ -6,14 +6,18 @@ import com.bookos.backend.book.repository.BookRepository;
 import com.bookos.backend.book.repository.UserBookRepository;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.SlugUtils;
+import com.bookos.backend.common.enums.ForumReportStatus;
 import com.bookos.backend.common.enums.ForumThreadStatus;
+import com.bookos.backend.common.enums.KnowledgeObjectType;
 import com.bookos.backend.common.enums.RoleName;
 import com.bookos.backend.common.enums.Visibility;
 import com.bookos.backend.forum.dto.ForumCategoryRequest;
 import com.bookos.backend.forum.dto.ForumCategoryResponse;
 import com.bookos.backend.forum.dto.ForumCommentRequest;
 import com.bookos.backend.forum.dto.ForumCommentResponse;
+import com.bookos.backend.forum.dto.ForumModerationRequest;
 import com.bookos.backend.forum.dto.ForumReportRequest;
+import com.bookos.backend.forum.dto.ForumReportResponse;
 import com.bookos.backend.forum.dto.ForumThreadRequest;
 import com.bookos.backend.forum.dto.ForumThreadResponse;
 import com.bookos.backend.forum.dto.StructuredPostTemplateResponse;
@@ -114,6 +118,8 @@ public class ForumService {
                 "## Challenge\n\nWhat should be prototyped?\n\n## Constraint\n\nWhat must stay small?\n\n## Success Signal\n\nWhat would prove the idea works?");
         seedTemplate("Project Critique", "project-critique", "Apply source-backed knowledge to a game project.", "GAME_PROJECT",
                 "## Project Context\n\nWhat is being designed?\n\n## Source Insight\n\nWhich book/note/concept informs this critique?\n\n## Critique Request\n\nWhat feedback do you need?");
+        seedTemplate("General", "general", "Use when the discussion is not tied to a more specific template.", "GENERAL",
+                "## Topic\n\nWhat should be discussed?\n\n## Context\n\nWhat source, project, or decision makes this useful?\n\n## Question\n\nWhat response are you looking for?");
     }
 
     @Transactional(readOnly = true)
@@ -150,7 +156,12 @@ public class ForumService {
     }
 
     @Transactional(readOnly = true)
-    public List<ForumThreadResponse> listThreads(String email, String categorySlug, String query) {
+    public List<ForumThreadResponse> listThreads(
+            String email,
+            String categorySlug,
+            String query,
+            String sort,
+            String filter) {
         User viewer = userService.getByEmailRequired(email);
         String q = StringUtils.hasText(query) ? query.trim().toLowerCase(Locale.ROOT) : null;
         List<ForumThread> threads = StringUtils.hasText(categorySlug)
@@ -158,9 +169,11 @@ public class ForumService {
                 : threadRepository.findByStatusNotOrderByUpdatedAtDesc(ForumThreadStatus.ARCHIVED);
         return threads.stream()
                 .filter(thread -> canReadThread(viewer, thread))
+                .filter(thread -> matchesForumFilter(viewer, thread, sort, filter))
                 .filter(thread -> q == null
                         || thread.getTitle().toLowerCase(Locale.ROOT).contains(q)
                         || thread.getBodyMarkdown().toLowerCase(Locale.ROOT).contains(q))
+                .sorted((left, right) -> compareThreads(left, right, sort))
                 .map(thread -> toThreadResponse(viewer, thread))
                 .toList();
     }
@@ -221,8 +234,8 @@ public class ForumService {
         if (!canReadThread(author, thread)) {
             throw new NoSuchElementException("Forum thread not found.");
         }
-        if (thread.getStatus() == ForumThreadStatus.CLOSED) {
-            throw new IllegalArgumentException("This thread is closed.");
+        if (isLocked(thread.getStatus())) {
+            throw new IllegalArgumentException("This thread is locked.");
         }
         ForumComment comment = new ForumComment();
         comment.setAuthor(author);
@@ -301,7 +314,83 @@ public class ForumService {
         report.setReporter(reporter);
         report.setReason(request.reason().trim());
         report.setDetails(trimToNull(request.details()));
+        report.setStatus(ForumReportStatus.OPEN);
         reportRepository.save(report);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ForumReportResponse> listReports(String email, String status) {
+        User user = userService.getByEmailRequired(email);
+        requireModerator(user);
+        ForumReportStatus requestedStatus = StringUtils.hasText(status)
+                ? ForumReportStatus.valueOf(status.trim().toUpperCase(Locale.ROOT))
+                : null;
+        List<ForumReport> reports = requestedStatus == null
+                ? reportRepository.findAllByOrderByCreatedAtDesc()
+                : reportRepository.findByStatusOrderByCreatedAtDesc(requestedStatus);
+        return reports.stream()
+                .filter(report -> canReadThread(user, report.getThread()))
+                .map(this::toReportResponse)
+                .toList();
+    }
+
+    @Transactional
+    public ForumThreadResponse moderateThread(String email, Long threadId, ForumModerationRequest request) {
+        User user = userService.getByEmailRequired(email);
+        requireModerator(user);
+        ForumThread thread = getExistingThread(threadId);
+        ForumThreadStatus status = canonicalStatus(request.status());
+        if (status != ForumThreadStatus.OPEN && status != ForumThreadStatus.LOCKED && status != ForumThreadStatus.HIDDEN) {
+            throw new IllegalArgumentException("Moderators can only set OPEN, LOCKED, or HIDDEN.");
+        }
+        thread.setStatus(status);
+        return toThreadResponse(user, threadRepository.save(thread));
+    }
+
+    @Transactional
+    public ForumReportResponse resolveReport(String email, Long reportId) {
+        User user = userService.getByEmailRequired(email);
+        requireModerator(user);
+        ForumReport report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new NoSuchElementException("Forum report not found."));
+        report.setResolved(true);
+        report.setStatus(ForumReportStatus.RESOLVED);
+        return toReportResponse(reportRepository.save(report));
+    }
+
+    private boolean matchesForumFilter(User viewer, ForumThread thread, String sort, String filter) {
+        String normalized = StringUtils.hasText(filter)
+                ? filter.trim().toLowerCase(Locale.ROOT)
+                : StringUtils.hasText(sort) && "unanswered".equalsIgnoreCase(sort.trim()) ? "unanswered" : "";
+        return switch (normalized) {
+            case "bookmarked" -> bookmarkRepository.existsByThreadIdAndUserId(thread.getId(), viewer.getId());
+            case "source-linked" -> thread.getSourceReferenceId() != null
+                    || thread.getRelatedEntityType() != null
+                    || thread.getRelatedBook() != null
+                    || thread.getRelatedConcept() != null;
+            case "unanswered" -> commentRepository.countByThreadIdAndArchivedFalse(thread.getId()) == 0;
+            case "hidden" -> isModerator(viewer) && canonicalStatus(thread.getStatus()) == ForumThreadStatus.HIDDEN;
+            case "reported" -> isModerator(viewer)
+                    && reportRepository.countByThreadIdAndStatus(thread.getId(), ForumReportStatus.OPEN) > 0;
+            default -> true;
+        };
+    }
+
+    private int compareThreads(ForumThread left, ForumThread right, String sort) {
+        String normalized = StringUtils.hasText(sort) ? sort.trim().toLowerCase(Locale.ROOT) : "latest";
+        if ("popular".equals(normalized)) {
+            long leftScore = likeRepository.countByThreadId(left.getId())
+                    + bookmarkRepository.countByThreadId(left.getId())
+                    + commentRepository.countByThreadIdAndArchivedFalse(left.getId());
+            long rightScore = likeRepository.countByThreadId(right.getId())
+                    + bookmarkRepository.countByThreadId(right.getId())
+                    + commentRepository.countByThreadIdAndArchivedFalse(right.getId());
+            int score = Long.compare(rightScore, leftScore);
+            if (score != 0) {
+                return score;
+            }
+        }
+        return right.getUpdatedAt().compareTo(left.getUpdatedAt());
     }
 
     private void seedTemplate(String name, String slug, String description, String type, String body) {
@@ -408,8 +497,15 @@ public class ForumService {
     }
 
     private boolean canReadThread(User viewer, ForumThread thread) {
+        ForumThreadStatus status = canonicalStatus(thread.getStatus());
+        if (status == ForumThreadStatus.ARCHIVED) {
+            return false;
+        }
         if (Objects.equals(thread.getAuthor().getId(), viewer.getId())) {
             return true;
+        }
+        if (status == ForumThreadStatus.HIDDEN) {
+            return isModerator(viewer);
         }
         return thread.getVisibility() == Visibility.PUBLIC || thread.getVisibility() == Visibility.SHARED;
     }
@@ -437,6 +533,11 @@ public class ForumService {
             case "ACTION_ITEM" -> actionItemRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
             case "CONCEPT" -> conceptRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
             case "KNOWLEDGE_OBJECT" -> knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
+            case "DESIGN_LENS", "LENS", "DIAGNOSTIC_QUESTION", "QUESTION", "EXERCISE", "PROTOTYPE_TASK", "PRINCIPLE",
+                    "CHECKLIST", "METHOD", "PATTERN", "ANTI_PATTERN", "EXAMPLE_CASE" ->
+                    knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId())
+                            .filter(object -> object.getType() == KnowledgeObjectType.valueOf(type))
+                            .isPresent();
             case "SOURCE_REFERENCE" -> sourceReferenceRepository.findByIdAndUserId(id, viewer.getId()).isPresent();
             default -> false;
         };
@@ -448,6 +549,12 @@ public class ForumService {
         }
     }
 
+    private void requireModerator(User user) {
+        if (!isModerator(user)) {
+            throw new AccessDeniedException("Only moderators can perform this forum action.");
+        }
+    }
+
     private void requireCanEdit(User user, ForumComment comment) {
         if (!Objects.equals(comment.getAuthor().getId(), user.getId()) && !isModerator(user)) {
             throw new AccessDeniedException("You are not allowed to edit this forum comment.");
@@ -455,6 +562,9 @@ public class ForumService {
     }
 
     private boolean canEdit(User user, ForumThread thread) {
+        if (isLocked(thread.getStatus()) && !isModerator(user)) {
+            return false;
+        }
         return Objects.equals(thread.getAuthor().getId(), user.getId()) || isModerator(user);
     }
 
@@ -464,6 +574,21 @@ public class ForumService {
         }
         RoleName role = user.getRole().getName();
         return role == RoleName.ADMIN || role == RoleName.MODERATOR;
+    }
+
+    private boolean isLocked(ForumThreadStatus status) {
+        ForumThreadStatus canonical = canonicalStatus(status);
+        return canonical == ForumThreadStatus.LOCKED || canonical == ForumThreadStatus.HIDDEN;
+    }
+
+    private ForumThreadStatus canonicalStatus(ForumThreadStatus status) {
+        if (status == ForumThreadStatus.ACTIVE) {
+            return ForumThreadStatus.OPEN;
+        }
+        if (status == ForumThreadStatus.CLOSED) {
+            return ForumThreadStatus.LOCKED;
+        }
+        return status == null ? ForumThreadStatus.OPEN : status;
     }
 
     private ForumCategoryResponse toCategoryResponse(ForumCategory category) {
@@ -495,6 +620,10 @@ public class ForumService {
         boolean canSeeRelatedEntity = thread.getRelatedEntityType() != null
                 && thread.getRelatedEntityId() != null
                 && canReadRelatedEntity(viewer, thread.getRelatedEntityType(), thread.getRelatedEntityId());
+        boolean hasHiddenContext = thread.getSourceReferenceId() != null && sourceReference == null
+                || thread.getRelatedBook() != null && visibleBook == null
+                || thread.getRelatedConcept() != null && visibleConcept == null
+                || thread.getRelatedEntityType() != null && thread.getRelatedEntityId() != null && !canSeeRelatedEntity;
 
         return new ForumThreadResponse(
                 thread.getId(),
@@ -513,14 +642,17 @@ public class ForumService {
                 visibleConcept == null ? null : visibleConcept.getName(),
                 sourceReference == null ? null : thread.getSourceReferenceId(),
                 sourceReference,
-                thread.getStatus(),
+                canonicalStatus(thread.getStatus()),
                 thread.getVisibility(),
                 commentRepository.countByThreadIdAndArchivedFalse(thread.getId()),
                 likeRepository.countByThreadId(thread.getId()),
                 bookmarkRepository.countByThreadId(thread.getId()),
+                reportRepository.countByThreadIdAndStatus(thread.getId(), ForumReportStatus.OPEN),
                 likeRepository.existsByThreadIdAndUserId(thread.getId(), viewer.getId()),
                 bookmarkRepository.existsByThreadIdAndUserId(thread.getId(), viewer.getId()),
                 canEdit(viewer, thread),
+                isModerator(viewer),
+                hasHiddenContext,
                 thread.getCreatedAt(),
                 thread.getUpdatedAt());
     }
@@ -536,6 +668,21 @@ public class ForumService {
                 Objects.equals(comment.getAuthor().getId(), viewer.getId()) || isModerator(viewer),
                 comment.getCreatedAt(),
                 comment.getUpdatedAt());
+    }
+
+    private ForumReportResponse toReportResponse(ForumReport report) {
+        return new ForumReportResponse(
+                report.getId(),
+                report.getThread().getId(),
+                report.getThread().getTitle(),
+                report.getReporter().getId(),
+                displayName(report.getReporter()),
+                report.getReason(),
+                report.getDetails(),
+                report.getStatus(),
+                report.isResolved(),
+                report.getCreatedAt(),
+                report.getUpdatedAt());
     }
 
     private StructuredPostTemplateResponse toTemplateResponse(StructuredPostTemplate template) {

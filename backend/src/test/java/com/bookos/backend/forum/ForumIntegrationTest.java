@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.nullValue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -163,6 +164,118 @@ class ForumIntegrationTest {
                 .andExpect(jsonPath("$.data[?(@.slug == 'prototype-challenge')]").exists());
     }
 
+    @Test
+    void moderatorCanLockHideResolveReportsAndPrivateSourcesDoNotLeak() throws Exception {
+        String authorToken = loginAsDesigner();
+        String adminToken = loginAsAdmin();
+        String intruderToken = register("forum-viewer-%s@bookos.local".formatted(UUID.randomUUID()), "Forum Viewer");
+        Long categoryId = firstCategoryId(authorToken);
+        Long bookId = createBookAndAddToLibrary(authorToken);
+        Long sourceReferenceId = createCaptureSource(authorToken, bookId);
+
+        String threadResponse = mockMvc.perform(post("/api/forum/threads")
+                        .header("Authorization", "Bearer " + authorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryId": %d,
+                                  "title": "Private source-linked discussion",
+                                  "bodyMarkdown": "Discuss a private source without leaking it.",
+                                  "relatedEntityType": "BOOK",
+                                  "relatedEntityId": %d,
+                                  "relatedBookId": %d,
+                                  "sourceReferenceId": %d,
+                                  "visibility": "SHARED"
+                                }
+                                """.formatted(categoryId, bookId, bookId, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.status").value("OPEN"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long threadId = objectMapper.readTree(threadResponse).path("data").path("id").asLong();
+
+        mockMvc.perform(get("/api/forum/threads/{id}", threadId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.relatedBookId").value(nullValue()))
+                .andExpect(jsonPath("$.data.sourceReference").value(nullValue()))
+                .andExpect(jsonPath("$.data.sourceContextUnavailable").value(true));
+
+        mockMvc.perform(put("/api/forum/threads/{id}/moderation", threadId)
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "LOCKED"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/forum/threads/{id}/moderation", threadId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "LOCKED"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("LOCKED"));
+
+        mockMvc.perform(post("/api/forum/threads/{id}/comments", threadId)
+                        .header("Authorization", "Bearer " + authorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bodyMarkdown": "Should not post to locked thread."
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/forum/threads/{id}/report", threadId)
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "Needs moderation",
+                                  "details": "Testing report resolution."
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        String reportsResponse = mockMvc.perform(get("/api/forum/reports")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("status", "OPEN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].status").value("OPEN"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long reportId = objectMapper.readTree(reportsResponse).path("data").get(0).path("id").asLong();
+
+        mockMvc.perform(put("/api/forum/reports/{id}/resolve", reportId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RESOLVED"))
+                .andExpect(jsonPath("$.data.resolved").value(true));
+
+        mockMvc.perform(put("/api/forum/threads/{id}/moderation", threadId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "HIDDEN"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("HIDDEN"));
+
+        mockMvc.perform(get("/api/forum/threads/{id}", threadId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+    }
+
     private Long firstCategoryId(String token) throws Exception {
         String response = mockMvc.perform(get("/api/forum/categories")
                         .header("Authorization", "Bearer " + token))
@@ -234,6 +347,23 @@ class ForumIntegrationTest {
                                 {
                                   "email": "designer@bookos.local",
                                   "password": "Password123!"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readTree(response).path("data").path("token").asText();
+    }
+
+    private String loginAsAdmin() throws Exception {
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "admin@bookos.local",
+                                  "password": "Admin123!"
                                 }
                                 """))
                 .andExpect(status().isOk())

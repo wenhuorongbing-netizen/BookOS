@@ -206,6 +206,7 @@ public class DailyService {
                 null,
                 null,
                 prompt.getSourceReferenceId(),
+                null,
                 List.of("daily", "prototype"));
 
         try {
@@ -220,6 +221,7 @@ public class DailyService {
                     null,
                     null,
                     payload.sourceReferenceId(),
+                    payload.ontologyLayer(),
                     payload.tags());
             return knowledgeObjectService.createKnowledgeObject(email, deduped);
         }

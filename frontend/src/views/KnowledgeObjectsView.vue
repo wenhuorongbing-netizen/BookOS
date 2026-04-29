@@ -22,6 +22,12 @@
           <el-option v-for="type in supportedTypes" :key="type" :label="typeLabel(type)" :value="type" />
         </el-select>
       </label>
+      <label class="field">
+        <span>Layer</span>
+        <el-select v-model="layerFilter" clearable placeholder="All layers" @change="loadObjects">
+          <el-option v-for="layer in ontologyLayers" :key="layer" :label="layer" :value="layer" />
+        </el-select>
+      </label>
     </AppCard>
 
     <AppErrorState v-if="errorMessage" title="Knowledge objects could not load" :description="errorMessage" retry-label="Retry" @retry="loadPage" />
@@ -33,11 +39,19 @@
         <div class="knowledge-card__topline">
           <AppBadge variant="info" size="sm">{{ item.type }}</AppBadge>
           <AppBadge variant="primary" size="sm">{{ item.visibility }}</AppBadge>
+          <AppBadge v-if="item.ontologyLayer" variant="accent" size="sm">{{ item.ontologyLayer }}</AppBadge>
+          <AppBadge v-if="item.createdBy === 'SYSTEM'" variant="info" size="sm">Seeded</AppBadge>
+          <AppBadge v-if="item.sourceConfidence" :variant="confidenceVariant(item.sourceConfidence)" size="sm">
+            {{ item.sourceConfidence }} confidence
+          </AppBadge>
         </div>
         <RouterLink :to="{ name: 'knowledge-detail', params: { id: item.id } }" class="knowledge-card__link">
           <h2>{{ item.title }}</h2>
         </RouterLink>
         <p>{{ item.description ?? 'No description yet.' }}</p>
+        <p v-if="item.sourceConfidence === 'LOW'" class="knowledge-card__warning">
+          Low-confidence seed: no page-level source is implied.
+        </p>
         <div v-if="item.tags.length" class="knowledge-card__tags">
           <AppBadge v-for="tag in item.tags" :key="`${item.id}-${tag}`" variant="neutral" size="sm">#{{ tag }}</AppBadge>
         </div>
@@ -94,6 +108,13 @@
         </div>
 
         <label class="field">
+          <span>Ontology layer</span>
+          <el-select v-model="form.ontologyLayer" clearable placeholder="Optional layer">
+            <el-option v-for="layer in ontologyLayers" :key="layer" :label="layer" :value="layer" />
+          </el-select>
+        </label>
+
+        <label class="field">
           <span>Tags</span>
           <el-input v-model="form.tagsInput" placeholder="lens, prototype, systems" />
         </label>
@@ -121,7 +142,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
-import type { BookRecord, ConceptRecord, KnowledgeObjectRecord, KnowledgeObjectType, Visibility } from '../types'
+import type { BookRecord, ConceptRecord, KnowledgeObjectRecord, KnowledgeObjectType, SourceConfidence, Visibility } from '../types'
 
 const supportedTypes: KnowledgeObjectType[] = [
   'CONCEPT',
@@ -136,6 +157,17 @@ const supportedTypes: KnowledgeObjectType[] = [
   'EXAMPLE_CASE',
 ]
 
+const ontologyLayers = [
+  'Play & Fun',
+  'Player Experience',
+  'Design Lenses',
+  'Systems & Loops',
+  'Game Feel',
+  'Practice & Exercises',
+  'Topics & Reader',
+  'Projects & Application',
+]
+
 const { openSource } = useOpenSource()
 const books = ref<BookRecord[]>([])
 const concepts = ref<ConceptRecord[]>([])
@@ -145,6 +177,7 @@ const saving = ref(false)
 const errorMessage = ref('')
 const searchText = ref('')
 const typeFilter = ref<KnowledgeObjectType | ''>('')
+const layerFilter = ref('')
 const dialogOpen = ref(false)
 const form = reactive({
   type: 'CONCEPT' as KnowledgeObjectType,
@@ -153,6 +186,7 @@ const form = reactive({
   visibility: 'PRIVATE' as Visibility,
   bookId: null as number | null,
   conceptId: null as number | null,
+  ontologyLayer: '',
   tagsInput: '',
 })
 
@@ -180,7 +214,10 @@ async function loadPage() {
 }
 
 async function loadObjects() {
-  objects.value = await getKnowledgeObjects(typeFilter.value ? { type: typeFilter.value } : undefined)
+  objects.value = await getKnowledgeObjects({
+    type: typeFilter.value || undefined,
+    layer: layerFilter.value || undefined,
+  })
 }
 
 async function saveObject() {
@@ -197,12 +234,14 @@ async function saveObject() {
       visibility: form.visibility,
       bookId: form.bookId,
       conceptId: form.conceptId,
+      ontologyLayer: form.ontologyLayer || null,
       tags: parseList(form.tagsInput),
     })
     objects.value = [saved, ...objects.value]
     dialogOpen.value = false
     form.title = ''
     form.description = ''
+    form.ontologyLayer = ''
     form.tagsInput = ''
     ElMessage.success('Knowledge object created.')
   } catch {
@@ -239,6 +278,12 @@ function parseList(value: string) {
     .map((item) => item.trim().replace(/^#/, '').toLowerCase())
     .filter(Boolean)
 }
+
+function confidenceVariant(confidence: SourceConfidence) {
+  if (confidence === 'HIGH') return 'success'
+  if (confidence === 'MEDIUM') return 'warning'
+  return 'danger'
+}
 </script>
 
 <style scoped>
@@ -250,7 +295,7 @@ function parseList(value: string) {
 .knowledge-filter,
 .knowledge-form__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.36fr);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.32fr) minmax(220px, 0.32fr);
   gap: var(--space-3);
 }
 
@@ -307,6 +352,14 @@ function parseList(value: string) {
   margin: 0;
   color: var(--bookos-text-secondary);
   line-height: var(--type-body-line);
+}
+
+.knowledge-card__warning {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--bookos-warning) 32%, var(--bookos-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bookos-warning-soft) 52%, var(--bookos-surface));
+  font-size: var(--type-metadata);
 }
 
 .knowledge-form__actions {

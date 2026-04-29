@@ -79,6 +79,71 @@ class SearchGraphAIIntegrationTest {
     }
 
     @Test
+    void workspaceGraphUsesRealQuoteNodesAndRelationshipFilters() throws Exception {
+        String token = register("workspace-graph-owner-%s@bookos.local".formatted(UUID.randomUUID()), "Workspace Graph Owner");
+        Long bookId = createBookAndAddToLibrary(token, "Workspace Graph Book " + UUID.randomUUID());
+        JsonNode capture = createCapture(token, bookId, "\\uD83D\\uDCAC p.17 Real graph quote about readable source links.");
+        Long quoteId = convertCaptureToQuote(token, capture.path("id").asLong());
+
+        JsonNode graph = objectMapper.readTree(mockMvc.perform(get("/api/graph")
+                        .header("Authorization", "Bearer " + token)
+                        .param("bookId", String.valueOf(bookId))
+                        .param("relationshipType", "SOURCE_OF"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).path("data");
+
+        assertThat(StreamSupport.stream(graph.path("nodes").spliterator(), false)
+                        .anyMatch(node -> "QUOTE".equals(node.path("type").asText())
+                                && quoteId.equals(node.path("entityId").asLong())))
+                .isTrue();
+        assertThat(StreamSupport.stream(graph.path("edges").spliterator(), false)
+                        .allMatch(edge -> "SOURCE_OF".equals(edge.path("type").asText())))
+                .isTrue();
+        assertThat(graph.toString()).doesNotContain("MDA Framework", "Game Feel", "Fake");
+    }
+
+    @Test
+    void backlinksResolveLabelsAndRemainOwnerScoped() throws Exception {
+        String ownerToken = register("backlink-owner-%s@bookos.local".formatted(UUID.randomUUID()), "Backlink Owner");
+        String intruderToken = register("backlink-intruder-%s@bookos.local".formatted(UUID.randomUUID()), "Backlink Intruder");
+        Long bookId = createBookAndAddToLibrary(ownerToken, "Backlink Book " + UUID.randomUUID());
+        JsonNode capture = createCapture(ownerToken, bookId, "p.33 Backlink source reference should stay private.");
+        Long sourceReferenceId = capture.path("sourceReferences").get(0).path("id").asLong();
+
+        mockMvc.perform(post("/api/entity-links")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "BOOK",
+                                  "sourceId": %d,
+                                  "targetType": "SOURCE_REFERENCE",
+                                  "targetId": %d,
+                                  "relationType": "SOURCE_OF",
+                                  "sourceReferenceId": %d
+                                }
+                                """.formatted(bookId, sourceReferenceId, sourceReferenceId)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/backlinks")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .param("entityType", "BOOK")
+                        .param("entityId", String.valueOf(bookId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].entityType").value("SOURCE_REFERENCE"))
+                .andExpect(jsonPath("$.data[0].title").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].sourceReference.id").value(sourceReferenceId));
+
+        mockMvc.perform(get("/api/backlinks")
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .param("entityType", "BOOK")
+                        .param("entityId", String.valueOf(bookId)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void mockAISuggestionDraftLifecycleDoesNotOverwriteSourceContent() throws Exception {
         String token = register("ai-owner-%s@bookos.local".formatted(UUID.randomUUID()), "AI Owner");
         Long bookId = createBookAndAddToLibrary(token, "Mock AI Book " + UUID.randomUUID());
@@ -170,6 +235,16 @@ class SearchGraphAIIntegrationTest {
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(response).path("data");
+    }
+
+    private Long convertCaptureToQuote(String token, Long captureId) throws Exception {
+        String response = mockMvc.perform(post("/api/captures/{id}/convert/quote", captureId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("targetId").asLong();
     }
 
     private Long createBookAndAddToLibrary(String token, String title) throws Exception {

@@ -21,6 +21,8 @@ Current migrations:
 
 - `V1__create_bookos_schema.sql`: creates the current schema for users, books, notes, captures, parser-derived records, quotes, action items, source references, entity links, concepts, knowledge objects, daily resurfacing, forum, and Mock AI suggestions.
 - `V2__seed_core_roles_and_forum_defaults.sql`: seeds stable roles, default forum categories, and structured forum post templates.
+- `V3__add_ontology_seed_metadata.sql`: adds ontology layer, source confidence, created-by metadata, and concept tag JSON for source-aware ontology seeds.
+- `V4__forum_structured_moderation.sql`: adds OPEN/LOCKED/HIDDEN forum status support and report status for moderation workflows.
 
 The seed migration does not include copyrighted book passages. Unknown source pages must remain `null`; source confidence must be explicit when source-backed knowledge is added later.
 

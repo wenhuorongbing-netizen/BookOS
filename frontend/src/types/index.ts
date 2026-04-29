@@ -61,7 +61,8 @@ export type KnowledgeObjectType =
   | 'CROSS_BOOK_SYNTHESIS'
   | 'MECHANIC'
   | 'METHOD_PATTERN'
-export type ForumThreadStatus = 'ACTIVE' | 'CLOSED' | 'ARCHIVED'
+export type ForumThreadStatus = 'OPEN' | 'LOCKED' | 'HIDDEN' | 'ACTIVE' | 'CLOSED' | 'ARCHIVED'
+export type ForumReportStatus = 'OPEN' | 'RESOLVED'
 export type SearchResultType =
   | 'BOOK'
   | 'NOTE'
@@ -419,6 +420,8 @@ export interface ConceptPayload {
   visibility?: Visibility | null
   bookId?: number | null
   sourceReferenceId?: number | null
+  ontologyLayer?: string | null
+  tags?: string[]
 }
 
 export interface ConceptRecord {
@@ -427,6 +430,10 @@ export interface ConceptRecord {
   slug: string
   description: string | null
   visibility: Visibility
+  ontologyLayer: string | null
+  sourceConfidence: SourceConfidence | null
+  createdBy: string
+  tags: string[]
   bookId: number | null
   bookTitle: string | null
   mentionCount: number
@@ -460,6 +467,7 @@ export interface KnowledgeObjectPayload {
   noteId?: number | null
   conceptId?: number | null
   sourceReferenceId?: number | null
+  ontologyLayer?: string | null
   tags?: string[]
 }
 
@@ -470,6 +478,9 @@ export interface KnowledgeObjectRecord {
   slug: string
   description: string | null
   visibility: Visibility
+  ontologyLayer: string | null
+  sourceConfidence: SourceConfidence | null
+  createdBy: string
   bookId: number | null
   bookTitle: string | null
   noteId: number | null
@@ -610,15 +621,18 @@ export interface ForumThreadRecord {
   sourceReference: SourceReferenceRecord | null
   status: ForumThreadStatus
   visibility: Visibility
-  commentCount: number
-  likeCount: number
-  bookmarkCount: number
-  likedByCurrentUser: boolean
-  bookmarkedByCurrentUser: boolean
-  canEdit: boolean
-  createdAt: string
-  updatedAt: string
-}
+    commentCount: number
+    likeCount: number
+    bookmarkCount: number
+    reportCount: number
+    likedByCurrentUser: boolean
+    bookmarkedByCurrentUser: boolean
+    canEdit: boolean
+    canModerate: boolean
+    sourceContextUnavailable: boolean
+    createdAt: string
+    updatedAt: string
+  }
 
 export interface ForumCommentPayload {
   bodyMarkdown: string
@@ -637,10 +651,28 @@ export interface ForumCommentRecord {
   updatedAt: string
 }
 
-export interface ForumReportPayload {
-  reason: string
-  details?: string | null
-}
+  export interface ForumReportPayload {
+    reason: string
+    details?: string | null
+  }
+
+  export interface ForumModerationPayload {
+    status: 'OPEN' | 'LOCKED' | 'HIDDEN'
+  }
+
+  export interface ForumReportRecord {
+    id: number
+    threadId: number
+    threadTitle: string
+    reporterId: number
+    reporterDisplayName: string
+    reason: string
+    details: string | null
+    status: ForumReportStatus
+    resolved: boolean
+    createdAt: string
+    updatedAt: string
+  }
 
 export interface StructuredPostTemplateRecord {
   id: number
@@ -669,6 +701,18 @@ export interface EntityLinkRecord {
   targetId: number
   relationType: string
   sourceReferenceId: number | null
+  createdAt: string
+}
+
+export interface BacklinkRecord {
+  linkId: number
+  direction: 'OUTGOING' | 'INCOMING' | string
+  relationType: string
+  entityType: string
+  entityId: number
+  title: string
+  excerpt: string | null
+  sourceReference: SourceReferenceRecord | null
   createdAt: string
 }
 
@@ -732,6 +776,60 @@ export interface ActionItemRecord {
   sourceReference: SourceReferenceRecord | null
   createdAt: string
   updatedAt: string
+}
+
+export interface OntologySeedBookPayload {
+  title: string
+  subtitle?: string | null
+  summary?: string | null
+  publisher?: string | null
+  publicationYear?: number | null
+  category?: string | null
+  visibility?: Visibility | null
+  authors?: string[]
+  tags?: string[]
+}
+
+export interface OntologySeedConceptPayload {
+  title: string
+  description?: string | null
+  layer: string
+  tags?: string[]
+  sourceBookTitle?: string | null
+  sourceConfidence?: SourceConfidence | null
+}
+
+export interface OntologySeedKnowledgeObjectPayload {
+  type: KnowledgeObjectType
+  title: string
+  description?: string | null
+  layer: string
+  tags?: string[]
+  sourceBookTitle?: string | null
+  conceptTitle?: string | null
+  pageStart?: number | null
+  pageEnd?: number | null
+  sourceConfidence?: SourceConfidence | null
+}
+
+export interface OntologyImportPayload {
+  books?: OntologySeedBookPayload[]
+  concepts?: OntologySeedConceptPayload[]
+  knowledgeObjects?: OntologySeedKnowledgeObjectPayload[]
+}
+
+export interface OntologyImportResult {
+  dryRun: boolean
+  booksCreated: number
+  booksExisting: number
+  conceptsCreated: number
+  conceptsUpdated: number
+  conceptsExisting: number
+  knowledgeObjectsCreated: number
+  knowledgeObjectsUpdated: number
+  knowledgeObjectsExisting: number
+  sourceReferencesCreated: number
+  warnings: string[]
 }
 
 export interface BookFilterState {

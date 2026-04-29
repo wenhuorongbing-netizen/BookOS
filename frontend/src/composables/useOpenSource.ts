@@ -135,7 +135,20 @@ function sourceReferenceLookup(target: OpenSourceTarget) {
   if (target.rawCaptureId) return { entityType: 'RAW_CAPTURE', entityId: target.rawCaptureId }
 
   const sourceType = target.sourceType.toUpperCase()
-  if (sourceType === 'NOTE' || sourceType === 'NOTE_BLOCK' || sourceType === 'RAW_CAPTURE' || sourceType === 'CAPTURE') {
+  if (
+    sourceType === 'NOTE' ||
+    sourceType === 'NOTE_BLOCK' ||
+    sourceType === 'RAW_CAPTURE' ||
+    sourceType === 'CAPTURE' ||
+    sourceType === 'QUOTE' ||
+    sourceType === 'ACTION_ITEM' ||
+    sourceType === 'CONCEPT' ||
+    sourceType === 'KNOWLEDGE_OBJECT' ||
+    sourceType === 'FORUM_THREAD' ||
+    sourceType === 'DAILY_PROMPT' ||
+    sourceType === 'DAILY_DESIGN_PROMPT' ||
+    sourceType === 'DAILY_SENTENCE'
+  ) {
     return { entityType: sourceType, entityId: target.sourceId }
   }
 

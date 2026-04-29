@@ -5,7 +5,9 @@ import com.bookos.backend.forum.dto.ForumCategoryRequest;
 import com.bookos.backend.forum.dto.ForumCategoryResponse;
 import com.bookos.backend.forum.dto.ForumCommentRequest;
 import com.bookos.backend.forum.dto.ForumCommentResponse;
+import com.bookos.backend.forum.dto.ForumModerationRequest;
 import com.bookos.backend.forum.dto.ForumReportRequest;
+import com.bookos.backend.forum.dto.ForumReportResponse;
 import com.bookos.backend.forum.dto.ForumThreadRequest;
 import com.bookos.backend.forum.dto.ForumThreadResponse;
 import com.bookos.backend.forum.dto.StructuredPostTemplateResponse;
@@ -58,8 +60,10 @@ public class ForumController {
     public ApiResponse<List<ForumThreadResponse>> threads(
             Authentication authentication,
             @RequestParam(required = false) String categorySlug,
-            @RequestParam(required = false) String q) {
-        return ApiResponse.ok("Forum threads loaded.", forumService.listThreads(authentication.getName(), categorySlug, q));
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String filter) {
+        return ApiResponse.ok("Forum threads loaded.", forumService.listThreads(authentication.getName(), categorySlug, q, sort, filter));
     }
 
     @PostMapping("/threads")
@@ -144,5 +148,28 @@ public class ForumController {
             @Valid @RequestBody ForumReportRequest request) {
         forumService.report(authentication.getName(), id, request);
         return ApiResponse.ok("Forum thread reported.");
+    }
+
+    @PutMapping("/threads/{id}/moderation")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
+    public ApiResponse<ForumThreadResponse> moderateThread(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestBody ForumModerationRequest request) {
+        return ApiResponse.ok("Forum thread moderation updated.", forumService.moderateThread(authentication.getName(), id, request));
+    }
+
+    @GetMapping("/reports")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
+    public ApiResponse<List<ForumReportResponse>> reports(
+            Authentication authentication,
+            @RequestParam(required = false) String status) {
+        return ApiResponse.ok("Forum reports loaded.", forumService.listReports(authentication.getName(), status));
+    }
+
+    @PutMapping("/reports/{id}/resolve")
+    @PreAuthorize("hasAnyRole('ADMIN','MODERATOR')")
+    public ApiResponse<ForumReportResponse> resolveReport(Authentication authentication, @PathVariable Long id) {
+        return ApiResponse.ok("Forum report resolved.", forumService.resolveReport(authentication.getName(), id));
     }
 }

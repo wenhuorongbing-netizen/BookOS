@@ -36,10 +36,11 @@ public class KnowledgeObjectController {
             @RequestParam(required = false) KnowledgeObjectType type,
             @RequestParam(required = false) Long bookId,
             @RequestParam(required = false) Long conceptId,
+            @RequestParam(required = false) String layer,
             @RequestParam(required = false) String q) {
         return ApiResponse.ok(
                 "Knowledge objects loaded.",
-                knowledgeObjectService.listKnowledgeObjects(authentication.getName(), type, bookId, conceptId, q));
+                knowledgeObjectService.listKnowledgeObjects(authentication.getName(), type, bookId, conceptId, layer, q));
     }
 
     @PostMapping

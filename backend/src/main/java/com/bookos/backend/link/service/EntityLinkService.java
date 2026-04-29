@@ -3,6 +3,10 @@ package com.bookos.backend.link.service;
 import com.bookos.backend.book.repository.UserBookRepository;
 import com.bookos.backend.action.repository.ActionItemRepository;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
+import com.bookos.backend.common.enums.ForumThreadStatus;
+import com.bookos.backend.daily.repository.DailyDesignPromptRepository;
+import com.bookos.backend.daily.repository.DailySentenceRepository;
+import com.bookos.backend.forum.repository.ForumThreadRepository;
 import com.bookos.backend.knowledge.repository.ConceptRepository;
 import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
 import com.bookos.backend.link.dto.EntityLinkRequest;
@@ -36,6 +40,9 @@ public class EntityLinkService {
     private final BookNoteRepository bookNoteRepository;
     private final RawCaptureRepository rawCaptureRepository;
     private final UserBookRepository userBookRepository;
+    private final ForumThreadRepository forumThreadRepository;
+    private final DailyDesignPromptRepository dailyDesignPromptRepository;
+    private final DailySentenceRepository dailySentenceRepository;
     private final UserService userService;
 
     @Transactional(readOnly = true)
@@ -115,6 +122,13 @@ public class EntityLinkService {
                     .orElseThrow(() -> new NoSuchElementException("Quote not found."));
             case "ACTION_ITEM" -> actionItemRepository.findByIdAndUserIdAndArchivedFalse(id, user.getId())
                     .orElseThrow(() -> new NoSuchElementException("Action item not found."));
+            case "FORUM_THREAD" -> forumThreadRepository.findByIdAndStatusNot(id, ForumThreadStatus.ARCHIVED)
+                    .filter(thread -> thread.getAuthor().getId().equals(user.getId()))
+                    .orElseThrow(() -> new NoSuchElementException("Forum thread not found."));
+            case "DAILY_PROMPT", "DAILY_DESIGN_PROMPT" -> dailyDesignPromptRepository.findByIdAndUserId(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Daily design prompt not found."));
+            case "DAILY_SENTENCE" -> dailySentenceRepository.findByIdAndUserId(id, user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Daily sentence not found."));
             case "BOOK" -> {
                 if (userBookRepository.findByUserIdAndBookId(user.getId(), id).isEmpty()) {
                     throw new AccessDeniedException("Add this book to your library before linking it.");

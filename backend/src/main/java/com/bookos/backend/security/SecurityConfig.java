@@ -47,7 +47,7 @@ public class SecurityConfig {
                                 writeSecurityError(response, HttpStatus.UNAUTHORIZED, "Authentication is required."))
                         .accessDeniedHandler((request, response, exception) ->
                                 writeSecurityError(response, HttpStatus.FORBIDDEN, "You are not allowed to access this resource.")))
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/health", "/api/auth/**").permitAll()
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/health", "/actuator/health/**", "/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

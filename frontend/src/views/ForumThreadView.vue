@@ -15,6 +15,9 @@
             <AppButton variant="secondary" @click="navigate">Forum</AppButton>
           </RouterLink>
           <AppButton variant="ghost" :disabled="!thread.sourceReference" @click="openThreadSource">Open Source</AppButton>
+          <RouterLink :to="graphContextLink" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+          </RouterLink>
           <AppButton variant="secondary" :loading="busy" @click="toggleLike">
             {{ thread.likedByCurrentUser ? 'Unlike' : 'Like' }} ({{ thread.likeCount }})
           </AppButton>
@@ -23,6 +26,15 @@
           </AppButton>
           <AppButton v-if="thread.canEdit" variant="primary" @click="editingThread = !editingThread">
             {{ editingThread ? 'Cancel Edit' : 'Edit' }}
+          </AppButton>
+          <AppButton v-if="thread.canModerate && thread.status !== 'LOCKED'" variant="secondary" :loading="busy" @click="setThreadStatus('LOCKED')">
+            Lock
+          </AppButton>
+          <AppButton v-if="thread.canModerate && thread.status !== 'OPEN'" variant="secondary" :loading="busy" @click="setThreadStatus('OPEN')">
+            Reopen
+          </AppButton>
+          <AppButton v-if="thread.canModerate && thread.status !== 'HIDDEN'" variant="danger" :loading="busy" @click="setThreadStatus('HIDDEN')">
+            Hide
           </AppButton>
           <AppButton v-if="thread.canEdit" variant="text" @click="archiveThread">Delete</AppButton>
           <AppButton variant="text" @click="reportOpen = true">Report</AppButton>
@@ -34,10 +46,13 @@
           <AppCard class="thread-card" as="article">
             <div class="thread-meta">
               <AppBadge variant="info">{{ thread.categoryName }}</AppBadge>
+              <AppBadge :variant="statusVariant(thread.status)">{{ statusLabel(thread.status) }}</AppBadge>
               <AppBadge :variant="thread.visibility === 'PRIVATE' ? 'warning' : 'success'">{{ thread.visibility }}</AppBadge>
               <AppBadge v-if="thread.relatedEntityType" variant="accent">{{ thread.relatedEntityType }}</AppBadge>
               <AppBadge v-if="thread.relatedBookTitle" variant="primary">{{ thread.relatedBookTitle }}</AppBadge>
               <AppBadge v-if="thread.relatedConceptName" variant="primary">[[{{ thread.relatedConceptName }}]]</AppBadge>
+              <AppBadge v-if="thread.sourceContextUnavailable" variant="warning">Private source context hidden</AppBadge>
+              <AppBadge v-if="thread.canModerate && thread.reportCount" variant="danger">{{ thread.reportCount }} open reports</AppBadge>
             </div>
 
             <div v-if="editingThread" class="thread-editor">
@@ -61,11 +76,30 @@
           <AppCard class="comments-card" as="section">
             <AppSectionHeader title="Comments" eyebrow="Discussion" :level="2" compact />
             <div class="comment-form">
+              <AppEmptyState
+                v-if="thread.status === 'LOCKED' || thread.status === 'HIDDEN'"
+                title="Thread is not accepting replies"
+                :description="thread.status === 'HIDDEN' ? 'This thread is hidden by moderation.' : 'A moderator locked this thread.'"
+                compact
+              />
               <label class="form-field">
                 <span>Add comment</span>
-                <el-input v-model="newComment" type="textarea" :rows="4" placeholder="Add a source-aware response..." />
+                <el-input
+                  v-model="newComment"
+                  type="textarea"
+                  :rows="4"
+                  :disabled="thread.status === 'LOCKED' || thread.status === 'HIDDEN'"
+                  placeholder="Add a source-aware response..."
+                />
               </label>
-              <AppButton variant="primary" :loading="busy" @click="submitComment">Post Comment</AppButton>
+              <AppButton
+                variant="primary"
+                :loading="busy"
+                :disabled="thread.status === 'LOCKED' || thread.status === 'HIDDEN'"
+                @click="submitComment"
+              >
+                Post Comment
+              </AppButton>
             </div>
 
             <AppEmptyState v-if="!comments.length" title="No comments yet" description="Be the first to add a structured reply." compact />
@@ -112,10 +146,25 @@
                 <dt>Source</dt>
                 <dd>{{ thread.sourceReference?.locationLabel ?? (thread.sourceReferenceId ? `Source #${thread.sourceReferenceId}` : 'Not attached') }}</dd>
               </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{{ statusLabel(thread.status) }}</dd>
+              </div>
+              <div v-if="thread.canModerate">
+                <dt>Open reports</dt>
+                <dd>{{ thread.reportCount }}</dd>
+              </div>
             </dl>
           </AppCard>
         </aside>
       </section>
+
+      <BacklinksSection
+        entity-type="FORUM_THREAD"
+        :entity-id="thread.id"
+        :source-references="thread.sourceReference ? [thread.sourceReference] : []"
+        :book-title="thread.relatedBookTitle"
+      />
 
       <el-dialog v-model="reportOpen" title="Report Thread" width="min(520px, 96vw)">
         <label class="form-field">
@@ -136,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
@@ -147,12 +196,14 @@ import {
   getForumComments,
   getForumThread,
   likeForumThread,
+  moderateForumThread,
   removeForumBookmark,
   removeForumLike,
   reportForumThread,
   updateForumComment,
   updateForumThread,
 } from '../api/forum'
+import BacklinksSection from '../components/source/BacklinksSection.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -189,6 +240,12 @@ const editForm = reactive<ForumThreadPayload>({
   relatedConceptId: null,
   sourceReferenceId: null,
   visibility: 'SHARED',
+})
+
+const graphContextLink = computed(() => {
+  if (thread.value?.relatedBookId) return { name: 'graph-book', params: { bookId: thread.value.relatedBookId } }
+  if (thread.value?.relatedConceptId) return { name: 'graph-concept', params: { conceptId: thread.value.relatedConceptId } }
+  return { name: 'graph' }
 })
 
 onMounted(loadThread)
@@ -289,6 +346,19 @@ async function submitComment() {
   }
 }
 
+async function setThreadStatus(status: 'OPEN' | 'LOCKED' | 'HIDDEN') {
+  if (!thread.value) return
+  busy.value = true
+  try {
+    thread.value = await moderateForumThread(thread.value.id, { status })
+    ElMessage.success(`Thread marked ${status.toLowerCase()}.`)
+  } catch {
+    ElMessage.error('Moderation update failed.')
+  } finally {
+    busy.value = false
+  }
+}
+
 function startEditComment(comment: ForumCommentRecord) {
   editingCommentId.value = comment.id
   editingCommentBody.value = comment.bodyMarkdown
@@ -355,6 +425,19 @@ function openThreadSource() {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function statusLabel(status: ForumThreadRecord['status']) {
+  if (status === 'ACTIVE') return 'OPEN'
+  if (status === 'CLOSED') return 'LOCKED'
+  return status
+}
+
+function statusVariant(status: ForumThreadRecord['status']) {
+  const canonical = statusLabel(status)
+  if (canonical === 'LOCKED') return 'warning'
+  if (canonical === 'HIDDEN') return 'danger'
+  return 'success'
 }
 </script>
 
