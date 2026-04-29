@@ -10,6 +10,26 @@
     <AppCard class="admin-panel" as="section">
       <div class="admin-panel__intro">
         <div>
+          <h2>AI Provider Status</h2>
+          <p>Provider secrets are never displayed. External providers remain optional and all suggestions stay draft-only.</p>
+        </div>
+        <AppBadge :variant="aiStatus?.available ? 'success' : 'warning'">
+          {{ aiStatus?.activeProvider ?? 'Unknown provider' }}
+        </AppBadge>
+      </div>
+      <dl v-if="aiStatus" class="result-grid">
+        <div><dt>Enabled</dt><dd>{{ aiStatus.enabled ? 'Yes' : 'No' }}</dd></div>
+        <div><dt>Available</dt><dd>{{ aiStatus.available ? 'Yes' : 'No' }}</dd></div>
+        <div><dt>Configured</dt><dd>{{ aiStatus.configuredProvider }}</dd></div>
+        <div><dt>External configured</dt><dd>{{ aiStatus.externalProviderConfigured ? 'Yes' : 'No' }}</dd></div>
+        <div><dt>Max input</dt><dd>{{ aiStatus.maxInputChars }} characters</dd></div>
+      </dl>
+      <p class="status-note">{{ aiStatus?.message ?? aiStatusError }}</p>
+    </AppCard>
+
+    <AppCard class="admin-panel" as="section">
+      <div class="admin-panel__intro">
+        <div>
           <h2>Game Design Ontology</h2>
           <p>
             Seed books as metadata only, then import original concepts, lenses, diagnostic questions, exercises, and prototype task
@@ -58,10 +78,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getAIProviderStatus } from '../api/ai'
 import { getDefaultOntologySeed, importOntologySeed } from '../api/admin'
-import type { OntologyImportPayload, OntologyImportResult } from '../types'
+import type { AIProviderStatusRecord, OntologyImportPayload, OntologyImportResult } from '../types'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -73,6 +94,18 @@ const result = ref<OntologyImportResult | null>(null)
 const errorMessage = ref('')
 const loadingDefault = ref(false)
 const submitting = ref(false)
+const aiStatus = ref<AIProviderStatusRecord | null>(null)
+const aiStatusError = ref('AI provider status could not be loaded.')
+
+onMounted(loadAIProviderStatus)
+
+async function loadAIProviderStatus() {
+  try {
+    aiStatus.value = await getAIProviderStatus()
+  } catch (error) {
+    aiStatusError.value = apiError(error, 'AI provider status could not be loaded.')
+  }
+}
 
 async function loadDefaultSeed() {
   loadingDefault.value = true
@@ -189,6 +222,11 @@ function apiError(error: unknown, fallback: string) {
 }
 
 .warnings {
+  color: var(--bookos-text-secondary);
+}
+
+.status-note {
+  margin: 0;
   color: var(--bookos-text-secondary);
 }
 </style>

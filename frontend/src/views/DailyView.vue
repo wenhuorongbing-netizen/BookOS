@@ -67,6 +67,9 @@
             <AppButton variant="secondary" :disabled="!daily.prompt.sourceReference" @click="openDailySource('PROMPT')">Open source</AppButton>
             <AppButton variant="primary" @click="reflectionTarget = 'PROMPT'">Save reflection</AppButton>
             <AppButton variant="accent" :loading="dailyBusy" @click="createPrototypeTask">Create prototype task</AppButton>
+            <AppButton variant="secondary" @click="applyProjectOpen = true">Apply to Project</AppButton>
+            <AppButton variant="secondary" @click="openProjectAction('PROBLEM')">Create project problem</AppButton>
+            <AppButton variant="secondary" @click="openProjectAction('LENS_REVIEW')">Create lens review</AppButton>
             <AppButton variant="ghost" :loading="dailyBusy" @click="updateDaily('PROMPT', 'regenerate')">Regenerate</AppButton>
             <AppButton variant="text" :loading="dailyBusy" @click="updateDaily('PROMPT', 'skip')">Skip</AppButton>
           </div>
@@ -115,6 +118,25 @@
           compact
         />
       </AppCard>
+
+      <ApplyToProjectDialog
+        v-if="daily.prompt"
+        v-model="applyProjectOpen"
+        source-type="DAILY_DESIGN_PROMPT"
+        :source-id="daily.prompt.id"
+        :source-reference="daily.prompt.sourceReference"
+        :source-label="daily.prompt.sourceTitle ?? daily.prompt.bookTitle ?? 'Daily design prompt'"
+        :default-title="daily.prompt.question"
+        :default-description="daily.prompt.templatePrompt ? 'Template prompt application. No source page is implied.' : daily.prompt.question"
+      />
+
+      <DailyProjectActionDialog
+        v-if="daily.prompt"
+        v-model="projectActionOpen"
+        :mode="projectActionMode"
+        :prompt="daily.prompt"
+        @created="loadHistory"
+      />
     </template>
   </div>
 </template>
@@ -124,6 +146,8 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { createPrototypeTaskFromDaily, getDailyHistory, getDailyToday, regenerateDaily, saveDailyReflection, skipDaily } from '../api/daily'
+import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
+import DailyProjectActionDialog from '../components/project/DailyProjectActionDialog.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -144,6 +168,9 @@ const errorMessage = ref('')
 const historyError = ref('')
 const reflectionTarget = ref<DailyTarget>('PROMPT')
 const reflectionText = ref('')
+const applyProjectOpen = ref(false)
+const projectActionOpen = ref(false)
+const projectActionMode = ref<'PROBLEM' | 'LENS_REVIEW'>('PROBLEM')
 const reflectionOptions = computed(() => [
   { label: 'Prompt', value: 'PROMPT' },
   { label: 'Sentence', value: 'SENTENCE', disabled: !daily.value?.sentence },
@@ -220,6 +247,11 @@ async function createPrototypeTask() {
   } finally {
     dailyBusy.value = false
   }
+}
+
+function openProjectAction(mode: 'PROBLEM' | 'LENS_REVIEW') {
+  projectActionMode.value = mode
+  projectActionOpen.value = true
 }
 
 function openDailySource(target: DailyTarget) {

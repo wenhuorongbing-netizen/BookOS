@@ -55,8 +55,8 @@
 
       <AppCard class="sidebar__project" variant="rail" as="section">
         <div class="eyebrow">Current Project</div>
-        <strong>Project mode is not implemented yet</strong>
-        <p>Game project application workflows will appear here after the project module is built.</p>
+        <strong>Project cockpit is available</strong>
+        <p>Open Projects to apply source-backed reading knowledge. A pinned current-project selector is future work.</p>
       </AppCard>
 
       <AppCard class="sidebar__concepts" variant="rail" as="section">
@@ -132,6 +132,36 @@ const routeItems = [
     activePaths: ['/daily'],
   },
   {
+    label: 'Analytics',
+    to: '/analytics',
+    short: 'AN',
+    activePaths: ['/analytics'],
+  },
+  {
+    label: 'Review',
+    to: '/review',
+    short: 'RV',
+    activePaths: ['/review'],
+  },
+  {
+    label: 'Mastery',
+    to: '/mastery',
+    short: 'MA',
+    activePaths: ['/mastery'],
+  },
+  {
+    label: 'Import / Export',
+    to: '/import-export',
+    short: 'IE',
+    activePaths: ['/import-export'],
+  },
+  {
+    label: 'Projects',
+    to: '/projects',
+    short: 'PR',
+    activePaths: ['/projects'],
+  },
+  {
     label: 'Graph',
     to: '/graph',
     short: 'GR',
@@ -149,7 +179,6 @@ const plannedItems = [
   { label: 'Lenses', short: 'LE' },
   { label: 'Diagnostics', short: 'DI' },
   { label: 'Exercises', short: 'EX' },
-  { label: 'Projects', short: 'PR' },
 ]
 
 const visibleRouteItems = computed(() => {

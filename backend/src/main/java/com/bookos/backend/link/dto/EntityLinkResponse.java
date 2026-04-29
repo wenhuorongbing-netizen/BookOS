@@ -10,4 +10,7 @@ public record EntityLinkResponse(
         Long targetId,
         String relationType,
         Long sourceReferenceId,
+        String note,
+        String createdBy,
+        boolean systemCreated,
         Instant createdAt) {}

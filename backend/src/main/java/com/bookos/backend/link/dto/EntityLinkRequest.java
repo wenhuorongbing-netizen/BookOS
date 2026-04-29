@@ -27,4 +27,7 @@ public record EntityLinkRequest(
         String relationType,
 
         @Positive(message = "Source reference id must be positive.")
-        Long sourceReferenceId) {}
+        Long sourceReferenceId,
+
+        @Size(max = 2000, message = "Relationship note must be at most 2000 characters.")
+        String note) {}

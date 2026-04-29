@@ -21,6 +21,7 @@
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
           </RouterLink>
+          <AppButton variant="accent" @click="applyProjectOpen = true">Apply to Project</AppButton>
         </template>
       </AppSectionHeader>
 
@@ -62,6 +63,17 @@
         :source-references="object.sourceReference ? [object.sourceReference] : []"
         :book-title="object.bookTitle"
       />
+
+      <ApplyToProjectDialog
+        v-if="object"
+        v-model="applyProjectOpen"
+        source-type="KNOWLEDGE_OBJECT"
+        :source-id="object.id"
+        :source-reference="object.sourceReference"
+        :source-label="object.title"
+        :default-title="`Apply ${object.title}`"
+        :default-description="object.description ?? `Apply this ${typeLabel(object.type).toLowerCase()} to the current project.`"
+      />
     </template>
   </div>
 </template>
@@ -70,6 +82,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { getKnowledgeObject } from '../api/knowledge'
+import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -85,6 +98,7 @@ const { openSource } = useOpenSource()
 const object = ref<KnowledgeObjectRecord | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
+const applyProjectOpen = ref(false)
 
 const graphContextLink = computed(() => {
   if (object.value?.conceptId) return { name: 'graph-concept', params: { conceptId: object.value.conceptId } }

@@ -14,6 +14,10 @@ export function createEntityLink(payload: EntityLinkPayload) {
   return unwrap<EntityLinkRecord>(api.post('/entity-links', payload))
 }
 
+export function updateEntityLink(id: number | string, payload: EntityLinkPayload) {
+  return unwrap<EntityLinkRecord>(api.put(`/entity-links/${id}`, payload))
+}
+
 export function deleteEntityLink(id: number | string) {
   return unwrap<void>(api.delete(`/entity-links/${id}`))
 }

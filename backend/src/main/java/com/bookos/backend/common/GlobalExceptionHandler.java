@@ -1,5 +1,6 @@
 package com.bookos.backend.common;
 
+import com.bookos.backend.ai.service.AIProviderUnavailableException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -40,6 +41,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
     ResponseEntity<ApiResponse<Void>> handleNotFound(NoSuchElementException exception) {
         return build(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(AIProviderUnavailableException.class)
+    ResponseEntity<ApiResponse<Void>> handleAIProviderUnavailable(AIProviderUnavailableException exception) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
     }
 
     @ExceptionHandler({AuthorizationDeniedException.class, org.springframework.security.access.AccessDeniedException.class})

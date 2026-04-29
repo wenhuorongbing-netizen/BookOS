@@ -19,6 +19,18 @@ import com.bookos.backend.knowledge.repository.ConceptRepository;
 import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
 import com.bookos.backend.note.entity.BookNote;
 import com.bookos.backend.note.repository.BookNoteRepository;
+import com.bookos.backend.project.entity.DesignDecision;
+import com.bookos.backend.project.entity.GameProject;
+import com.bookos.backend.project.entity.PlaytestFinding;
+import com.bookos.backend.project.entity.ProjectApplication;
+import com.bookos.backend.project.entity.ProjectLensReview;
+import com.bookos.backend.project.entity.ProjectProblem;
+import com.bookos.backend.project.repository.DesignDecisionRepository;
+import com.bookos.backend.project.repository.GameProjectRepository;
+import com.bookos.backend.project.repository.PlaytestFindingRepository;
+import com.bookos.backend.project.repository.ProjectApplicationRepository;
+import com.bookos.backend.project.repository.ProjectLensReviewRepository;
+import com.bookos.backend.project.repository.ProjectProblemRepository;
 import com.bookos.backend.quote.entity.Quote;
 import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.search.dto.SearchResultResponse;
@@ -54,6 +66,12 @@ public class SearchService {
     private final SourceReferenceRepository sourceReferenceRepository;
     private final UserService userService;
     private final UserBookRepository userBookRepository;
+    private final GameProjectRepository projectRepository;
+    private final ProjectProblemRepository projectProblemRepository;
+    private final ProjectApplicationRepository projectApplicationRepository;
+    private final DesignDecisionRepository designDecisionRepository;
+    private final PlaytestFindingRepository playtestFindingRepository;
+    private final ProjectLensReviewRepository projectLensReviewRepository;
 
     @Transactional(readOnly = true)
     public List<SearchResultResponse> search(String email, String query, String type, Long bookId) {
@@ -207,6 +225,109 @@ public class SearchService {
                     .forEach(results::add);
         }
 
+        if (matchesType(wantedType, "GAME_PROJECT")) {
+            projectRepository.findByOwnerIdAndArchivedAtIsNullOrderByUpdatedAtDesc(user.getId()).stream()
+                    .filter(project -> matches(q, project.getTitle(), project.getDescription(), project.getGenre(), project.getPlatform(), project.getStage()))
+                    .map(project -> new SearchResultResponse(
+                            "GAME_PROJECT",
+                            project.getId(),
+                            project.getTitle(),
+                            excerpt(firstText(project.getDescription(), project.getGenre(), project.getPlatform(), project.getStage())),
+                            null,
+                            null,
+                            project.getId(),
+                            project.getTitle(),
+                            null,
+                            project.getUpdatedAt()))
+                    .forEach(results::add);
+        }
+
+        if (matchesType(wantedType, "PROJECT_PROBLEM")) {
+            projectProblemRepository.findByProjectOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
+                    .filter(problem -> matches(q, problem.getTitle(), problem.getDescription(), problem.getStatus(), problem.getPriority(), problem.getProject().getTitle()))
+                    .map(problem -> new SearchResultResponse(
+                            "PROJECT_PROBLEM",
+                            problem.getId(),
+                            problem.getTitle(),
+                            excerpt(problem.getDescription()),
+                            sourceBookId(problem.getRelatedSourceReference()),
+                            sourceBookTitle(problem.getRelatedSourceReference()),
+                            problem.getProject().getId(),
+                            problem.getProject().getTitle(),
+                            sourceReferenceId(problem.getRelatedSourceReference()),
+                            problem.getUpdatedAt()))
+                    .forEach(results::add);
+        }
+
+        if (matchesType(wantedType, "PROJECT_APPLICATION")) {
+            projectApplicationRepository.findByProjectOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
+                    .filter(application -> matches(q, application.getTitle(), application.getDescription(), application.getApplicationType(), application.getStatus(), application.getProject().getTitle()))
+                    .map(application -> new SearchResultResponse(
+                            "PROJECT_APPLICATION",
+                            application.getId(),
+                            application.getTitle(),
+                            excerpt(application.getDescription()),
+                            sourceBookId(application.getSourceReference()),
+                            sourceBookTitle(application.getSourceReference()),
+                            application.getProject().getId(),
+                            application.getProject().getTitle(),
+                            sourceReferenceId(application.getSourceReference()),
+                            application.getUpdatedAt()))
+                    .forEach(results::add);
+        }
+
+        if (matchesType(wantedType, "DESIGN_DECISION")) {
+            designDecisionRepository.findByProjectOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
+                    .filter(decision -> matches(q, decision.getTitle(), decision.getDecision(), decision.getRationale(), decision.getTradeoffs(), decision.getStatus(), decision.getProject().getTitle()))
+                    .map(decision -> new SearchResultResponse(
+                            "DESIGN_DECISION",
+                            decision.getId(),
+                            decision.getTitle(),
+                            excerpt(firstText(decision.getDecision(), decision.getRationale(), decision.getTradeoffs())),
+                            sourceBookId(decision.getSourceReference()),
+                            sourceBookTitle(decision.getSourceReference()),
+                            decision.getProject().getId(),
+                            decision.getProject().getTitle(),
+                            sourceReferenceId(decision.getSourceReference()),
+                            decision.getUpdatedAt()))
+                    .forEach(results::add);
+        }
+
+        if (matchesType(wantedType, "PLAYTEST_FINDING")) {
+            playtestFindingRepository.findByProjectOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
+                    .filter(finding -> matches(q, finding.getTitle(), finding.getObservation(), finding.getRecommendation(), finding.getSeverity(), finding.getStatus(), finding.getProject().getTitle()))
+                    .map(finding -> new SearchResultResponse(
+                            "PLAYTEST_FINDING",
+                            finding.getId(),
+                            finding.getTitle(),
+                            excerpt(firstText(finding.getObservation(), finding.getRecommendation())),
+                            sourceBookId(finding.getSourceReference()),
+                            sourceBookTitle(finding.getSourceReference()),
+                            finding.getProject().getId(),
+                            finding.getProject().getTitle(),
+                            sourceReferenceId(finding.getSourceReference()),
+                            finding.getUpdatedAt()))
+                    .forEach(results::add);
+        }
+
+        if (matchesType(wantedType, "PROJECT_LENS_REVIEW")) {
+            projectLensReviewRepository.findByProjectOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
+                    .filter(review -> matches(q, review.getQuestion(), review.getAnswer(), review.getStatus(), review.getProject().getTitle(),
+                            review.getKnowledgeObject() == null ? null : review.getKnowledgeObject().getTitle()))
+                    .map(review -> new SearchResultResponse(
+                            "PROJECT_LENS_REVIEW",
+                            review.getId(),
+                            review.getQuestion(),
+                            excerpt(review.getAnswer()),
+                            sourceBookId(review.getSourceReference()),
+                            sourceBookTitle(review.getSourceReference()),
+                            review.getProject().getId(),
+                            review.getProject().getTitle(),
+                            sourceReferenceId(review.getSourceReference()),
+                            review.getUpdatedAt()))
+                    .forEach(results::add);
+        }
+
         return results.stream()
                 .sorted(Comparator.comparing(SearchResultResponse::updatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(MAX_RESULTS)
@@ -255,6 +376,18 @@ public class SearchService {
                 .findFirst()
                 .map(SourceReference::getId)
                 .orElse(null);
+    }
+
+    private Long sourceReferenceId(SourceReference sourceReference) {
+        return sourceReference == null ? null : sourceReference.getId();
+    }
+
+    private Long sourceBookId(SourceReference sourceReference) {
+        return sourceReference == null || sourceReference.getBook() == null ? null : sourceReference.getBook().getId();
+    }
+
+    private String sourceBookTitle(SourceReference sourceReference) {
+        return sourceReference == null || sourceReference.getBook() == null ? null : sourceReference.getBook().getTitle();
     }
 
     private boolean matchesType(String wantedType, String type) {

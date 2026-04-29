@@ -21,6 +21,8 @@
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
           </RouterLink>
+          <AppButton variant="secondary" :loading="reviewBusy" @click="createConceptReview">Create Review</AppButton>
+          <AppButton variant="accent" @click="applyProjectOpen = true">Apply to Project</AppButton>
         </template>
       </AppSectionHeader>
 
@@ -59,6 +61,10 @@
               <dt>Related action items</dt>
               <dd>{{ relatedActionItems.length }}</dd>
             </div>
+            <div>
+              <dt>Mastery</dt>
+              <dd>{{ mastery ? `${mastery.familiarityScore}/5 familiar` : 'Not reviewed' }}</dd>
+            </div>
           </dl>
         </AppCard>
       </section>
@@ -81,16 +87,29 @@
         :source-references="concept.sourceReferences"
         :book-title="concept.bookTitle"
       />
+
+      <ApplyToProjectDialog
+        v-if="concept"
+        v-model="applyProjectOpen"
+        source-type="CONCEPT"
+        :source-id="concept.id"
+        :source-reference="primarySource"
+        :source-label="concept.name"
+        :default-title="`Apply concept: ${concept.name}`"
+        :default-description="concept.description ?? `Apply [[${concept.name}]] to the current game project.`"
+      />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getActionItems } from '../api/actionItems'
 import { getConcept, getKnowledgeObjects } from '../api/knowledge'
+import { generateReviewFromConcept, getMasteryTarget } from '../api/learning'
 import { getQuotes } from '../api/quotes'
+import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -100,16 +119,20 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import { useOpenSource } from '../composables/useOpenSource'
-import type { ActionItemRecord, ConceptRecord, KnowledgeObjectRecord, QuoteRecord } from '../types'
+import type { ActionItemRecord, ConceptRecord, KnowledgeMasteryRecord, KnowledgeObjectRecord, QuoteRecord } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const { openSource } = useOpenSource()
 const concept = ref<ConceptRecord | null>(null)
 const knowledgeObjects = ref<KnowledgeObjectRecord[]>([])
 const quotes = ref<QuoteRecord[]>([])
 const actionItems = ref<ActionItemRecord[]>([])
+const mastery = ref<KnowledgeMasteryRecord | null>(null)
 const loading = ref(false)
+const reviewBusy = ref(false)
 const errorMessage = ref('')
+const applyProjectOpen = ref(false)
 
 const primarySource = computed(() => concept.value?.firstSourceReference ?? concept.value?.sourceReferences[0] ?? null)
 const forumThreadLink = computed(() => {
@@ -159,6 +182,7 @@ async function loadConcept() {
     knowledgeObjects.value = objects
     quotes.value = quoteResult
     actionItems.value = actionResult
+    mastery.value = await getMasteryTarget('CONCEPT', result.id).catch(() => null)
   } catch {
     errorMessage.value = 'Check backend availability and permissions, then try opening this concept again.'
   } finally {
@@ -177,6 +201,22 @@ function openPrimarySource() {
     sourceReference: primarySource.value,
     sourceReferenceId: primarySource.value.id,
   })
+}
+
+async function createConceptReview() {
+  if (!concept.value) return
+  reviewBusy.value = true
+  try {
+    const session = await generateReviewFromConcept({
+      id: concept.value.id,
+      title: `Review concept: ${concept.value.name}`,
+      mode: 'SOURCE_REVIEW',
+      limit: 4,
+    })
+    await router.push({ name: 'review-detail', params: { id: session.id } })
+  } finally {
+    reviewBusy.value = false
+  }
 }
 </script>
 

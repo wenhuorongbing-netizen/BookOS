@@ -30,6 +30,7 @@ import com.bookos.backend.knowledge.dto.KnowledgeObjectResponse;
 import com.bookos.backend.knowledge.entity.KnowledgeObject;
 import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
 import com.bookos.backend.knowledge.service.KnowledgeObjectService;
+import com.bookos.backend.learning.service.LearningService;
 import com.bookos.backend.note.entity.NoteBlock;
 import com.bookos.backend.note.repository.NoteBlockRepository;
 import com.bookos.backend.quote.entity.Quote;
@@ -82,6 +83,7 @@ public class DailyService {
     private final UserService userService;
     private final SourceReferenceService sourceReferenceService;
     private final KnowledgeObjectService knowledgeObjectService;
+    private final LearningService learningService;
 
     @Transactional
     public DailyTodayResponse getToday(String email) {
@@ -151,6 +153,9 @@ public class DailyService {
         reflection.setDay(day);
         reflection.setTargetType(request.target().name());
         reflection.setReflectionText(request.reflectionText().trim());
+        String reviewTargetType = null;
+        Long reviewTargetId = null;
+        Long sourceReferenceId = null;
 
         if (request.target() == DailyTarget.SENTENCE) {
             DailySentence sentence = request.dailySentenceId() == null
@@ -161,15 +166,23 @@ public class DailyService {
                 throw new NoSuchElementException("Daily sentence not found.");
             }
             reflection.setDailySentenceId(sentence.getId());
+            reviewTargetType = sentence.getSourceType();
+            reviewTargetId = sentence.getSourceId();
+            sourceReferenceId = sentence.getSourceReferenceId();
         } else {
             DailyDesignPrompt prompt = request.dailyDesignPromptId() == null
                     ? getOrCreatePrompt(user, day)
                     : dailyDesignPromptRepository.findByIdAndUserId(request.dailyDesignPromptId(), user.getId())
                             .orElseThrow(() -> new NoSuchElementException("Daily design prompt not found."));
             reflection.setDailyDesignPromptId(prompt.getId());
+            reviewTargetType = prompt.getSourceType();
+            reviewTargetId = prompt.getSourceId();
+            sourceReferenceId = prompt.getSourceReferenceId();
         }
 
-        return toReflectionResponse(dailyReflectionRepository.save(reflection));
+        DailyReflection saved = dailyReflectionRepository.save(reflection);
+        learningService.recordDailyReview(user, reviewTargetType, reviewTargetId, sourceReferenceId);
+        return toReflectionResponse(saved);
     }
 
     @Transactional(readOnly = true)

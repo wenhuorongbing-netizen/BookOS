@@ -61,6 +61,7 @@
           <AppButton variant="accent" :loading="dailyActionLoading" @click="$emit('create-prototype-task', prompt.id ?? null)">
             Create Prototype Task
           </AppButton>
+          <AppButton variant="secondary" @click="$emit('apply-prompt-to-project')">Apply to Project</AppButton>
           <AppButton variant="ghost" :loading="dailyActionLoading" @click="$emit('regenerate-daily', 'PROMPT')">Regenerate</AppButton>
           <AppButton variant="text" :loading="dailyActionLoading" @click="$emit('skip-daily', 'PROMPT')">Skip</AppButton>
         </div>
@@ -167,6 +168,7 @@ const emit = defineEmits<{
   'skip-daily': [target: DailyTarget]
   'save-reflection': [payload: { target: DailyTarget; text: string }]
   'create-prototype-task': [promptId: number | string | null]
+  'apply-prompt-to-project': []
 }>()
 
 const promptOpen = ref(false)

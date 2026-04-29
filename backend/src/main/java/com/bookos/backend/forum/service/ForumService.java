@@ -40,6 +40,13 @@ import com.bookos.backend.knowledge.repository.ConceptRepository;
 import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
 import com.bookos.backend.note.repository.BookNoteRepository;
 import com.bookos.backend.note.repository.NoteBlockRepository;
+import com.bookos.backend.project.entity.GameProject;
+import com.bookos.backend.project.repository.DesignDecisionRepository;
+import com.bookos.backend.project.repository.GameProjectRepository;
+import com.bookos.backend.project.repository.PlaytestFindingRepository;
+import com.bookos.backend.project.repository.ProjectApplicationRepository;
+import com.bookos.backend.project.repository.ProjectLensReviewRepository;
+import com.bookos.backend.project.repository.ProjectProblemRepository;
 import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.dto.SourceReferenceResponse;
 import com.bookos.backend.source.entity.SourceReference;
@@ -86,6 +93,12 @@ public class ForumService {
     private final ActionItemRepository actionItemRepository;
     private final ConceptRepository conceptRepository;
     private final KnowledgeObjectRepository knowledgeObjectRepository;
+    private final GameProjectRepository projectRepository;
+    private final ProjectProblemRepository projectProblemRepository;
+    private final ProjectApplicationRepository projectApplicationRepository;
+    private final DesignDecisionRepository designDecisionRepository;
+    private final PlaytestFindingRepository playtestFindingRepository;
+    private final ProjectLensReviewRepository projectLensReviewRepository;
     private final SourceReferenceRepository sourceReferenceRepository;
     private final SourceReferenceService sourceReferenceService;
     private final UserService userService;
@@ -431,9 +444,13 @@ public class ForumService {
         SourceReference sourceReference = request.sourceReferenceId() == null ? null : getOwnedSourceReference(author, request.sourceReferenceId());
         Book book = request.relatedBookId() == null ? null : getReadableBook(author, request.relatedBookId());
         Concept concept = request.relatedConceptId() == null ? null : getOwnedConcept(author, request.relatedConceptId());
+        GameProject project = request.relatedProjectId() == null ? null : getOwnedProject(author, request.relatedProjectId());
         String relatedEntityType = normalizeEntityType(request.relatedEntityType());
         Long relatedEntityId = request.relatedEntityId();
         validateRelatedEntity(author, relatedEntityType, relatedEntityId);
+        if (project == null && "GAME_PROJECT".equals(relatedEntityType) && relatedEntityId != null) {
+            project = getOwnedProject(author, relatedEntityId);
+        }
 
         if (sourceReference != null) {
             book = sourceReference.getBook();
@@ -449,6 +466,7 @@ public class ForumService {
         thread.setRelatedEntityId(relatedEntityId);
         thread.setRelatedBook(book);
         thread.setRelatedConcept(concept);
+        thread.setRelatedProject(project);
         thread.setSourceReferenceId(sourceReference == null ? null : sourceReference.getId());
         thread.setVisibility(request.visibility() == null ? Visibility.SHARED : request.visibility());
     }
@@ -496,6 +514,11 @@ public class ForumService {
                 .orElseThrow(() -> new NoSuchElementException("Concept not found."));
     }
 
+    private GameProject getOwnedProject(User user, Long projectId) {
+        return projectRepository.findByIdAndOwnerIdAndArchivedAtIsNull(projectId, user.getId())
+                .orElseThrow(() -> new NoSuchElementException("Project not found."));
+    }
+
     private boolean canReadThread(User viewer, ForumThread thread) {
         ForumThreadStatus status = canonicalStatus(thread.getStatus());
         if (status == ForumThreadStatus.ARCHIVED) {
@@ -533,6 +556,12 @@ public class ForumService {
             case "ACTION_ITEM" -> actionItemRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
             case "CONCEPT" -> conceptRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
             case "KNOWLEDGE_OBJECT" -> knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId()).isPresent();
+            case "GAME_PROJECT", "PROJECT" -> projectRepository.findByIdAndOwnerIdAndArchivedAtIsNull(id, viewer.getId()).isPresent();
+            case "PROJECT_PROBLEM" -> projectProblemRepository.findByIdAndProjectOwnerId(id, viewer.getId()).isPresent();
+            case "PROJECT_APPLICATION" -> projectApplicationRepository.findByIdAndProjectOwnerId(id, viewer.getId()).isPresent();
+            case "DESIGN_DECISION" -> designDecisionRepository.findByIdAndProjectOwnerId(id, viewer.getId()).isPresent();
+            case "PLAYTEST_FINDING" -> playtestFindingRepository.findByIdAndProjectOwnerId(id, viewer.getId()).isPresent();
+            case "PROJECT_LENS_REVIEW" -> projectLensReviewRepository.findByIdAndProjectOwnerId(id, viewer.getId()).isPresent();
             case "DESIGN_LENS", "LENS", "DIAGNOSTIC_QUESTION", "QUESTION", "EXERCISE", "PROTOTYPE_TASK", "PRINCIPLE",
                     "CHECKLIST", "METHOD", "PATTERN", "ANTI_PATTERN", "EXAMPLE_CASE" ->
                     knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(id, viewer.getId())
@@ -617,12 +646,17 @@ public class ForumService {
                 && Objects.equals(thread.getRelatedConcept().getUser().getId(), viewer.getId())
                 ? thread.getRelatedConcept()
                 : null;
+        GameProject visibleProject = thread.getRelatedProject() != null
+                && Objects.equals(thread.getRelatedProject().getOwner().getId(), viewer.getId())
+                ? thread.getRelatedProject()
+                : null;
         boolean canSeeRelatedEntity = thread.getRelatedEntityType() != null
                 && thread.getRelatedEntityId() != null
                 && canReadRelatedEntity(viewer, thread.getRelatedEntityType(), thread.getRelatedEntityId());
         boolean hasHiddenContext = thread.getSourceReferenceId() != null && sourceReference == null
                 || thread.getRelatedBook() != null && visibleBook == null
                 || thread.getRelatedConcept() != null && visibleConcept == null
+                || thread.getRelatedProject() != null && visibleProject == null
                 || thread.getRelatedEntityType() != null && thread.getRelatedEntityId() != null && !canSeeRelatedEntity;
 
         return new ForumThreadResponse(
@@ -640,6 +674,8 @@ public class ForumService {
                 visibleBook == null ? null : visibleBook.getTitle(),
                 visibleConcept == null ? null : visibleConcept.getId(),
                 visibleConcept == null ? null : visibleConcept.getName(),
+                visibleProject == null ? null : visibleProject.getId(),
+                visibleProject == null ? null : visibleProject.getTitle(),
                 sourceReference == null ? null : thread.getSourceReferenceId(),
                 sourceReference,
                 canonicalStatus(thread.getStatus()),

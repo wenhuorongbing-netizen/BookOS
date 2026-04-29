@@ -4,6 +4,7 @@ import com.bookos.backend.action.repository.ActionItemRepository;
 import com.bookos.backend.ai.dto.AISuggestionEditRequest;
 import com.bookos.backend.ai.dto.AISuggestionRequest;
 import com.bookos.backend.ai.dto.AISuggestionResponse;
+import com.bookos.backend.ai.dto.AIProviderStatusResponse;
 import com.bookos.backend.ai.entity.AIInteraction;
 import com.bookos.backend.ai.entity.AISuggestion;
 import com.bookos.backend.ai.repository.AIInteractionRepository;
@@ -45,6 +46,9 @@ public class AISuggestionService {
     private final BookService bookService;
     private final SourceReferenceRepository sourceReferenceRepository;
     private final SourceReferenceService sourceReferenceService;
+    private final AIProviderRouter aiProviderRouter;
+    private final AIProviderProperties aiProviderProperties;
+    private final AISuggestionValidator suggestionValidator;
     private final QuoteRepository quoteRepository;
     private final ActionItemRepository actionItemRepository;
     private final RawCaptureRepository rawCaptureRepository;
@@ -55,8 +59,8 @@ public class AISuggestionService {
     public AISuggestionResponse generate(String email, AISuggestionType type, AISuggestionRequest request) {
         User user = userService.getByEmailRequired(email);
         SourceMaterial sourceMaterial = resolveSourceMaterial(user, request == null ? new AISuggestionRequest(null, null, null, null, null) : request);
-        MockAIDraft draft = aiProvider.generate(type, sourceMaterial.sourceText(), sourceMaterial.sourceTitle());
-        validateJson(draft.draftJson());
+        AIDraft draft = aiProvider.generate(type, truncateInput(sourceMaterial.sourceText()), sourceMaterial.sourceTitle());
+        draft = suggestionValidator.validate(type, draft, sourceMaterial.sourceReference());
 
         AIInteraction interaction = new AIInteraction();
         interaction.setUser(user);
@@ -66,8 +70,10 @@ public class AISuggestionService {
         interaction.setSourceReferenceId(sourceMaterial.sourceReference() == null ? null : sourceMaterial.sourceReference().getId());
         Map<String, Object> input = new LinkedHashMap<>();
         input.put("type", type.name());
+        input.put("provider", aiProvider.providerName());
         input.put("bookId", sourceMaterial.book() == null ? null : sourceMaterial.book().getId());
         input.put("sourceReferenceId", sourceMaterial.sourceReference() == null ? null : sourceMaterial.sourceReference().getId());
+        input.put("maxInputChars", aiProviderProperties.getMaxInputChars());
         interaction.setInputJson(writeJson(input));
         interaction = interactionRepository.save(interaction);
 
@@ -82,6 +88,19 @@ public class AISuggestionService {
         suggestion.setDraftText(draft.draftText());
         suggestion.setDraftJson(draft.draftJson());
         return toResponse(suggestionRepository.save(suggestion));
+    }
+
+    @Transactional(readOnly = true)
+    public AIProviderStatusResponse providerStatus() {
+        AIProviderStatus status = aiProviderRouter.status();
+        return new AIProviderStatusResponse(
+                status.enabled(),
+                status.available(),
+                status.configuredProvider(),
+                status.activeProvider(),
+                status.externalProviderConfigured(),
+                status.maxInputChars(),
+                status.message());
     }
 
     @Transactional(readOnly = true)
@@ -118,11 +137,20 @@ public class AISuggestionService {
             throw new IllegalArgumentException("Draft edit payload is required.");
         }
         if (StringUtils.hasText(request.draftText())) {
+            if (request.draftText().trim().length() > 8000) {
+                throw new IllegalArgumentException("AI draft text is too long.");
+            }
             suggestion.setDraftText(request.draftText().trim());
         }
         if (StringUtils.hasText(request.draftJson())) {
-            validateJson(request.draftJson());
-            suggestion.setDraftJson(request.draftJson().trim());
+            SourceReference sourceReference = suggestion.getSourceReferenceId() == null
+                    ? null
+                    : sourceReferenceRepository.findByIdAndUserId(suggestion.getSourceReferenceId(), suggestion.getUser().getId()).orElse(null);
+            AIDraft validated = suggestionValidator.validate(
+                    suggestion.getSuggestionType(),
+                    new AIDraft(suggestion.getDraftText(), request.draftJson().trim()),
+                    sourceReference);
+            suggestion.setDraftJson(validated.draftJson());
         }
         return toResponse(suggestionRepository.save(suggestion));
     }
@@ -233,6 +261,15 @@ public class AISuggestionService {
         return null;
     }
 
+    private String truncateInput(String sourceText) {
+        if (!StringUtils.hasText(sourceText)) {
+            return sourceText;
+        }
+        int maxChars = Math.max(1000, aiProviderProperties.getMaxInputChars());
+        String clean = sourceText.replaceAll("\\s+", " ").trim();
+        return clean.length() <= maxChars ? clean : clean.substring(0, maxChars);
+    }
+
     private String writeJson(Map<String, Object> payload) {
         Map<String, Object> cleaned = new LinkedHashMap<>(payload);
         cleaned.entrySet().removeIf(entry -> entry.getValue() == null);
@@ -240,17 +277,6 @@ public class AISuggestionService {
             return objectMapper.writeValueAsString(cleaned);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("AI interaction input could not be serialized.", exception);
-        }
-    }
-
-    private void validateJson(String json) {
-        if (!StringUtils.hasText(json)) {
-            throw new IllegalArgumentException("AI draft JSON is required.");
-        }
-        try {
-            objectMapper.readTree(json);
-        } catch (JsonProcessingException exception) {
-            throw new IllegalArgumentException("AI draft JSON is invalid.");
         }
     }
 

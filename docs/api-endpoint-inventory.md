@@ -1,12 +1,17 @@
 # BookOS API Endpoint Inventory
 
-Last updated: 2026-04-28.
+Last updated: 2026-04-29.
 
 Authentication:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
+
+Users:
+
+- `GET /api/users/me/profile`
+- `GET /api/users`
 
 Health:
 
@@ -41,6 +46,7 @@ Notes, blocks, parser, captures:
 - `DELETE /api/note-blocks/{id}`
 - `POST /api/parser/preview`
 - `POST /api/captures`
+- `GET /api/captures`
 - `GET /api/captures/inbox`
 - `GET /api/captures/{id}`
 - `PUT /api/captures/{id}`
@@ -72,6 +78,9 @@ Source references and links:
 
 - `GET /api/source-references`
 - `GET /api/source-references/{id}`
+- `GET /api/books/{bookId}/source-references`
+- `GET /api/notes/{noteId}/source-references`
+- `GET /api/captures/{captureId}/source-references`
 - `GET /api/entity-links`
 - `POST /api/entity-links`
 - `DELETE /api/entity-links/{id}`
@@ -106,6 +115,38 @@ Daily:
 - `GET /api/daily/history`
 - `POST /api/daily/create-prototype-task`
 
+Learning, review, mastery, and analytics:
+
+- `GET /api/reading-sessions`
+- `POST /api/reading-sessions/start`
+- `PUT /api/reading-sessions/{id}/finish`
+- `GET /api/books/{bookId}/reading-sessions`
+- `GET /api/review/sessions`
+- `POST /api/review/sessions`
+- `GET /api/review/sessions/{id}`
+- `POST /api/review/sessions/{id}/items`
+- `PUT /api/review/items/{id}`
+- `POST /api/review/generate-from-book`
+- `POST /api/review/generate-from-concept`
+- `POST /api/review/generate-from-project`
+- `GET /api/mastery`
+- `GET /api/mastery/target`
+- `PUT /api/mastery/target`
+- `GET /api/analytics/reading`
+- `GET /api/analytics/knowledge`
+- `GET /api/analytics/books/{bookId}`
+
+Import/export and backups:
+
+- `GET /api/export/json`
+- `GET /api/export/book/{bookId}/json`
+- `GET /api/export/book/{bookId}/markdown`
+- `GET /api/export/quotes/csv`
+- `GET /api/export/action-items/csv`
+- `GET /api/export/concepts/csv`
+- `POST /api/import/preview`
+- `POST /api/import/commit`
+
 Forum:
 
 - `GET /api/forum/categories`
@@ -135,12 +176,17 @@ Search and graph:
 - `GET /api/graph`
 - `GET /api/graph/book/{bookId}`
 - `GET /api/graph/concept/{conceptId}`
+- `GET /api/graph/project/{projectId}`
 
-Mock AI:
+AI:
 
+- `GET /api/ai/status`
 - `POST /api/ai/suggestions/note-summary`
 - `POST /api/ai/suggestions/extract-actions`
 - `POST /api/ai/suggestions/extract-concepts`
+- `POST /api/ai/suggestions/design-lenses`
+- `POST /api/ai/suggestions/project-applications`
+- `POST /api/ai/suggestions/forum-thread`
 - `GET /api/ai/suggestions`
 - `PUT /api/ai/suggestions/{id}/accept`
 - `PUT /api/ai/suggestions/{id}/reject`
@@ -151,4 +197,5 @@ Endpoint rules:
 - Private user content is owner-scoped.
 - Public/shared catalog behavior must be explicit.
 - Source references must not invent page numbers; unknown pages stay `null`.
-- Mock AI suggestions are drafts and do not overwrite user content.
+- AI suggestions are drafts and do not overwrite user content.
+- `MockAIProvider` is the default local provider. `OpenAICompatibleProvider` is optional and requires environment configuration.

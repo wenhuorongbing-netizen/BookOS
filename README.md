@@ -2,7 +2,7 @@
 
 BookOS is a full-stack reading record system, book notes library, source-referenced knowledge OS, game design knowledge cockpit, and structured forum.
 
-Current repository status: the app has moved beyond the original Milestone 1 foundation. It now includes authentication, personal book library, notes, quick capture, deterministic parser, source references, quotes, action items, concept review, knowledge objects, daily resurfacing, structured forum, global search, real graph preview endpoints, and draft-only MockAIProvider suggestions.
+Current repository status: the app has moved beyond the original Milestone 1 foundation. It now includes authentication, personal book library, notes, quick capture, deterministic parser, source references, quotes, action items, concept review, knowledge objects, daily resurfacing, structured forum, global search, graph exploration, game project mode, reading analytics/review/mastery, import/export, and draft-only AI suggestions through MockAIProvider or an optional OpenAI-compatible provider.
 
 ## Current Milestone Status
 
@@ -10,16 +10,19 @@ Implemented:
 
 - Java 21 + Spring Boot backend with JWT authentication, role checks, validation, JPA/Hibernate, MySQL configuration, and H2-backed tests.
 - Vue 3 + TypeScript + Vite frontend with Pinia, Vue Router, Element Plus, responsive BookOS cockpit shell, right rail, and design-system primitives.
-- Auth, books, user library, notes, note blocks, captures, parser, source references, backlinks/entity links, quotes, action items, concepts, knowledge objects, daily quote/prompt resurfacing, structured forum, search, graph preview, and Mock AI draft APIs.
-- Frontend workspaces for library, notes, captures, quotes, action items, concepts, knowledge objects, forum, book detail cockpit, global search, and source drawer.
+- Auth, books, user library, notes, note blocks, captures, parser, source references, backlinks/entity links, quotes, action items, concepts, knowledge objects, daily quote/prompt resurfacing, structured forum, search, graph exploration, game projects, reading sessions, review sessions, mastery, import/export, and draft-only AI APIs.
+- Frontend workspaces for library, notes, captures, quotes, action items, concepts, knowledge objects, forum, book detail cockpit, global search, graph workspace, game projects, analytics/review/mastery, import/export, and source drawer.
 
 Known limitations:
 
-- Graph preview is a lightweight real-data preview, not a full graph editor or advanced visualization workspace.
-- MockAIProvider is deterministic and local-only. It does not call external AI providers.
+- Graph exploration is a lightweight SVG workspace, not an advanced force-directed graph editor.
+- MockAIProvider is deterministic, local-only, and remains the default local provider.
+- OpenAI-compatible AI is optional and enabled only through environment variables.
 - AI suggestions are drafts. Accepting a suggestion records the decision but does not overwrite notes, quotes, concepts, action items, or user-authored content.
 - Forum moderation is minimal; automated moderation and realtime notifications are not implemented.
-- Project mode and advanced game-project application workflows remain future work.
+- Project mode is usable for MVP project records, project problems, applications, decisions, playtests, and lens reviews, but advanced project analytics and planning automation remain future work.
+- Import/export supports MVP JSON, Markdown, and CSV flows, but large-scale migration tooling and conflict-resolution UX remain limited.
+- Reading analytics, review sessions, and mastery tracking use real local data, but advanced spaced-repetition scheduling is intentionally not implemented.
 
 ## Product Rules
 
@@ -143,6 +146,15 @@ Run production build:
 npm run build
 ```
 
+Run browser E2E smoke tests:
+
+```powershell
+npx playwright install chromium
+npm run e2e
+```
+
+The E2E suite starts the backend with the `test` profile on port `18080`, starts Vite on port `5174`, uses H2/Flyway test data, and does not require production secrets or external AI. Details are documented in `docs/e2e-smoke-tests.md`.
+
 Frontend URL defaults to `http://localhost:5173`. Vite proxies `/api` to `VITE_API_PROXY_TARGET`, which defaults to `http://localhost:8080`.
 
 ## CI/CD
@@ -202,6 +214,11 @@ Auth:
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 
+Users:
+
+- `GET /api/users/me/profile`
+- `GET /api/users`
+
 Books and library:
 
 - `GET /api/books`
@@ -229,6 +246,7 @@ Notes, captures, parser, and sources:
 - `PUT /api/note-blocks/{id}`
 - `DELETE /api/note-blocks/{id}`
 - `POST /api/captures`
+- `GET /api/captures`
 - `GET /api/captures/inbox`
 - `GET /api/captures/{id}`
 - `PUT /api/captures/{id}`
@@ -238,6 +256,9 @@ Notes, captures, parser, and sources:
 - `POST /api/parser/preview`
 - `GET /api/source-references`
 - `GET /api/source-references/{id}`
+- `GET /api/books/{bookId}/source-references`
+- `GET /api/notes/{noteId}/source-references`
+- `GET /api/captures/{captureId}/source-references`
 - `GET /api/entity-links`
 - `POST /api/entity-links`
 - `DELETE /api/entity-links/{id}`
@@ -305,19 +326,31 @@ Forum:
 - `GET /api/forum/reports`
 - `PUT /api/forum/reports/{id}/resolve`
 
-Search, graph, and Mock AI:
+Search, graph, and AI:
 
 - `GET /api/search?q=&type=&bookId=`
 - `GET /api/graph`
 - `GET /api/graph/book/{bookId}`
 - `GET /api/graph/concept/{conceptId}`
+- `GET /api/graph/project/{projectId}`
+- `GET /api/ai/status`
 - `POST /api/ai/suggestions/note-summary`
 - `POST /api/ai/suggestions/extract-actions`
 - `POST /api/ai/suggestions/extract-concepts`
+- `POST /api/ai/suggestions/design-lenses`
+- `POST /api/ai/suggestions/project-applications`
+- `POST /api/ai/suggestions/forum-thread`
 - `GET /api/ai/suggestions`
 - `PUT /api/ai/suggestions/{id}/accept`
 - `PUT /api/ai/suggestions/{id}/reject`
 - `PUT /api/ai/suggestions/{id}/edit`
+
+AI provider notes:
+
+- `AI_PROVIDER=mock` uses `MockAIProvider` and makes no external calls.
+- `AI_PROVIDER=openai-compatible` requires `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_API_KEY`, and `OPENAI_COMPATIBLE_MODEL`.
+- `GET /api/ai/status` reports provider availability without exposing secrets.
+- Provider output is validated JSON and remains an `AISuggestion` draft until the user accepts, edits, or rejects it.
 
 Admin ontology import:
 
@@ -333,9 +366,11 @@ Current acceptance verification commands:
 Set-Location backend
 .\mvnw.cmd test
 Set-Location ..\frontend
-npm install
+npm ci
 npm run typecheck
 npm run build
+npx playwright install chromium
+npm run e2e
 ```
 
 No `.7z` archives, `backend.zip`, logs, `.out`, `.err`, backend `target`, frontend `dist`, frontend `node_modules`, or local JDK archives should be committed.

@@ -18,7 +18,7 @@
     </template>
 
     <div class="global-search">
-      <label class="sr-only" for="command-search-input">Search books, notes, quotes, concepts, and forum threads</label>
+      <label class="sr-only" for="command-search-input">Search books, notes, quotes, concepts, projects, and forum threads</label>
       <div class="global-search__controls">
         <el-input
           id="command-search-input"
@@ -26,7 +26,7 @@
           v-model="query"
           clearable
           size="large"
-          placeholder="Search books, notes, quotes, action items, concepts..."
+          placeholder="Search books, notes, quotes, action items, concepts, projects..."
           aria-label="Global search query"
           @keydown.enter.prevent="openFirstResult"
         />
@@ -54,8 +54,9 @@
             <AppBadge :variant="badgeVariant(result.type)" size="sm">{{ typeLabel(result.type) }}</AppBadge>
             <div>
               <h3>{{ result.title }}</h3>
-              <p>{{ result.excerpt ?? result.bookTitle ?? 'No excerpt available.' }}</p>
+              <p>{{ result.excerpt ?? result.bookTitle ?? result.projectTitle ?? 'No excerpt available.' }}</p>
               <small v-if="result.bookTitle">Source book: {{ result.bookTitle }}</small>
+              <small v-if="result.projectTitle">Project: {{ result.projectTitle }}</small>
             </div>
           </div>
           <div class="global-search__result-actions">
@@ -117,6 +118,12 @@ const typeOptions: Array<{ label: string; value: SearchResultType }> = [
   { label: 'Concepts', value: 'CONCEPT' },
   { label: 'Knowledge Objects', value: 'KNOWLEDGE_OBJECT' },
   { label: 'Forum Threads', value: 'FORUM_THREAD' },
+  { label: 'Projects', value: 'GAME_PROJECT' },
+  { label: 'Project Problems', value: 'PROJECT_PROBLEM' },
+  { label: 'Project Applications', value: 'PROJECT_APPLICATION' },
+  { label: 'Design Decisions', value: 'DESIGN_DECISION' },
+  { label: 'Playtest Findings', value: 'PLAYTEST_FINDING' },
+  { label: 'Project Lens Reviews', value: 'PROJECT_LENS_REVIEW' },
 ]
 
 const trimmedQuery = computed(() => query.value.trim())
@@ -217,11 +224,15 @@ function openResultGraph(result: SearchResultRecord) {
     void router.push({ name: 'graph-book', params: { bookId: result.bookId } })
     return
   }
+  if (result.projectId) {
+    void router.push({ name: 'graph-project', params: { projectId: result.projectId } })
+    return
+  }
   void router.push({ name: 'graph', query: { entityType: result.type, entityId: String(result.id) } })
 }
 
 function canOpenGraph(result: SearchResultRecord) {
-  return result.type === 'BOOK' || result.type === 'CONCEPT' || Boolean(result.bookId)
+  return result.type === 'BOOK' || result.type === 'CONCEPT' || Boolean(result.bookId) || Boolean(result.projectId)
 }
 
 function routeTarget(result: SearchResultRecord) {
@@ -233,6 +244,12 @@ function routeTarget(result: SearchResultRecord) {
   if (result.type === 'CONCEPT') return { name: 'concept-detail', params: { id: result.id } }
   if (result.type === 'KNOWLEDGE_OBJECT') return { name: 'knowledge-detail', params: { id: result.id } }
   if (result.type === 'FORUM_THREAD') return { name: 'forum-thread', params: { id: result.id } }
+  if (result.type === 'GAME_PROJECT' || result.type === 'PROJECT') return { name: 'project-detail', params: { id: result.id } }
+  if (result.type === 'PROJECT_PROBLEM') return { name: 'project-problems', params: { id: result.projectId } }
+  if (result.type === 'PROJECT_APPLICATION') return { name: 'project-applications', params: { id: result.projectId } }
+  if (result.type === 'DESIGN_DECISION') return { name: 'project-decisions', params: { id: result.projectId } }
+  if (result.type === 'PLAYTEST_FINDING') return { name: 'project-playtests', params: { id: result.projectId } }
+  if (result.type === 'PROJECT_LENS_REVIEW') return { name: 'project-lens-reviews', params: { id: result.projectId } }
   return null
 }
 
@@ -245,6 +262,7 @@ function badgeVariant(type: SearchResultType) {
   if (type === 'ACTION_ITEM') return 'warning'
   if (type === 'FORUM_THREAD') return 'info'
   if (type === 'CONCEPT' || type === 'KNOWLEDGE_OBJECT') return 'primary'
+  if (type === 'GAME_PROJECT' || type === 'PROJECT' || type.startsWith('PROJECT_') || type === 'DESIGN_DECISION' || type === 'PLAYTEST_FINDING') return 'success'
   return 'neutral'
 }
 

@@ -26,6 +26,19 @@ const ConceptDetailView = () => import('../views/ConceptDetailView.vue')
 const KnowledgeObjectsView = () => import('../views/KnowledgeObjectsView.vue')
 const KnowledgeObjectDetailView = () => import('../views/KnowledgeObjectDetailView.vue')
 const DailyView = () => import('../views/DailyView.vue')
+const AnalyticsView = () => import('../views/AnalyticsView.vue')
+const ReviewView = () => import('../views/ReviewView.vue')
+const ReviewSessionView = () => import('../views/ReviewSessionView.vue')
+const MasteryView = () => import('../views/MasteryView.vue')
+const ImportExportView = () => import('../views/ImportExportView.vue')
+const ProjectsView = () => import('../views/ProjectsView.vue')
+const ProjectNewView = () => import('../views/ProjectNewView.vue')
+const ProjectDetailView = () => import('../views/ProjectDetailView.vue')
+const ProjectProblemsView = () => import('../views/ProjectProblemsView.vue')
+const ProjectApplicationsView = () => import('../views/ProjectApplicationsView.vue')
+const ProjectDecisionsView = () => import('../views/ProjectDecisionsView.vue')
+const ProjectPlaytestsView = () => import('../views/ProjectPlaytestsView.vue')
+const ProjectLensReviewsView = () => import('../views/ProjectLensReviewsView.vue')
 const GraphView = () => import('../views/GraphView.vue')
 const AdminOntologyView = () => import('../views/AdminOntologyView.vue')
 const ForumView = () => import('../views/ForumView.vue')
@@ -180,6 +193,96 @@ const router = createRouter({
           meta: { requiresAuth: true, title: 'Daily' },
         },
         {
+          path: 'analytics',
+          name: 'analytics',
+          component: AnalyticsView,
+          meta: { requiresAuth: true, title: 'Analytics' },
+        },
+        {
+          path: 'review',
+          name: 'review',
+          component: ReviewView,
+          meta: { requiresAuth: true, title: 'Review' },
+        },
+        {
+          path: 'review/:id',
+          name: 'review-detail',
+          component: ReviewSessionView,
+          meta: { requiresAuth: true, title: 'Review Session' },
+        },
+        {
+          path: 'mastery',
+          name: 'mastery',
+          component: MasteryView,
+          meta: { requiresAuth: true, title: 'Mastery' },
+        },
+        {
+          path: 'import-export',
+          name: 'import-export',
+          component: ImportExportView,
+          meta: { requiresAuth: true, title: 'Import / Export' },
+        },
+        {
+          path: 'import-export/import',
+          name: 'import-data',
+          component: ImportExportView,
+          meta: { requiresAuth: true, title: 'Import Data' },
+        },
+        {
+          path: 'import-export/export',
+          name: 'export-data',
+          component: ImportExportView,
+          meta: { requiresAuth: true, title: 'Export Data' },
+        },
+        {
+          path: 'projects',
+          name: 'projects',
+          component: ProjectsView,
+          meta: { requiresAuth: true, title: 'Projects' },
+        },
+        {
+          path: 'projects/new',
+          name: 'project-new',
+          component: ProjectNewView,
+          meta: { requiresAuth: true, title: 'New Project' },
+        },
+        {
+          path: 'projects/:id',
+          name: 'project-detail',
+          component: ProjectDetailView,
+          meta: { requiresAuth: true, title: 'Project Cockpit' },
+        },
+        {
+          path: 'projects/:id/problems',
+          name: 'project-problems',
+          component: ProjectProblemsView,
+          meta: { requiresAuth: true, title: 'Project Problems' },
+        },
+        {
+          path: 'projects/:id/applications',
+          name: 'project-applications',
+          component: ProjectApplicationsView,
+          meta: { requiresAuth: true, title: 'Project Applications' },
+        },
+        {
+          path: 'projects/:id/decisions',
+          name: 'project-decisions',
+          component: ProjectDecisionsView,
+          meta: { requiresAuth: true, title: 'Project Decisions' },
+        },
+        {
+          path: 'projects/:id/playtests',
+          name: 'project-playtests',
+          component: ProjectPlaytestsView,
+          meta: { requiresAuth: true, title: 'Project Playtests' },
+        },
+        {
+          path: 'projects/:id/lens-reviews',
+          name: 'project-lens-reviews',
+          component: ProjectLensReviewsView,
+          meta: { requiresAuth: true, title: 'Project Lens Reviews' },
+        },
+        {
           path: 'graph',
           name: 'graph',
           component: GraphView,
@@ -196,6 +299,12 @@ const router = createRouter({
           name: 'graph-concept',
           component: GraphView,
           meta: { requiresAuth: true, title: 'Concept Graph' },
+        },
+        {
+          path: 'graph/project/:projectId',
+          name: 'graph-project',
+          component: GraphView,
+          meta: { requiresAuth: true, title: 'Project Graph' },
         },
         {
           path: 'admin/ontology',

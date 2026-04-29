@@ -68,6 +68,11 @@
         </label>
 
         <label class="form-field">
+          <span>Related project ID</span>
+          <el-input-number v-model="form.relatedProjectId" :min="1" controls-position="right" placeholder="Optional" />
+        </label>
+
+        <label class="form-field">
           <span>Source reference ID</span>
           <el-input-number v-model="form.sourceReferenceId" :min="1" controls-position="right" placeholder="Optional" />
         </label>
@@ -123,7 +128,25 @@ const selectedTemplateSlug = ref('')
 const saving = ref(false)
 const errorMessage = ref('')
 
-const relatedEntityTypes = ['BOOK', 'NOTE', 'QUOTE', 'CONCEPT', 'KNOWLEDGE_OBJECT', 'SOURCE_REFERENCE', 'DESIGN_LENS', 'EXERCISE', 'PROTOTYPE_TASK', 'ACTION_ITEM', 'GAME_PROJECT', 'GENERAL']
+const relatedEntityTypes = [
+  'BOOK',
+  'NOTE',
+  'QUOTE',
+  'CONCEPT',
+  'KNOWLEDGE_OBJECT',
+  'SOURCE_REFERENCE',
+  'DESIGN_LENS',
+  'EXERCISE',
+  'PROTOTYPE_TASK',
+  'ACTION_ITEM',
+  'GAME_PROJECT',
+  'PROJECT_PROBLEM',
+  'PROJECT_APPLICATION',
+  'DESIGN_DECISION',
+  'PLAYTEST_FINDING',
+  'PROJECT_LENS_REVIEW',
+  'GENERAL',
+]
 const form = reactive<ForumThreadPayload>({
   categoryId: 0,
   title: '',
@@ -132,6 +155,7 @@ const form = reactive<ForumThreadPayload>({
   relatedEntityId: null,
   relatedBookId: null,
   relatedConceptId: null,
+  relatedProjectId: null,
   sourceReferenceId: null,
   visibility: 'SHARED',
 })
@@ -140,6 +164,7 @@ const sourceContextSummary = computed(() => {
   if (form.relatedEntityType && form.relatedEntityId) items.push(`${form.relatedEntityType} #${form.relatedEntityId}`)
   if (form.relatedBookId) items.push(`Book #${form.relatedBookId}`)
   if (form.relatedConceptId) items.push(`Concept #${form.relatedConceptId}`)
+  if (form.relatedProjectId) items.push(`Project #${form.relatedProjectId}`)
   if (form.sourceReferenceId) items.push(`Source #${form.sourceReferenceId}`)
   return items
 })
@@ -166,6 +191,7 @@ function resetFromQuery() {
   form.relatedEntityId = numberQuery('relatedEntityId')
   form.relatedBookId = numberQuery('bookId')
   form.relatedConceptId = numberQuery('conceptId')
+  form.relatedProjectId = numberQuery('projectId')
   form.sourceReferenceId = numberQuery('sourceReferenceId')
   form.visibility = 'SHARED'
   selectedTemplateSlug.value = ''
@@ -216,7 +242,14 @@ function chooseTemplateFromType(type: string | null | undefined) {
   if (normalized === 'CONCEPT') return templates.value.find((item) => item.slug === 'concept-discussion')
   if (normalized === 'DESIGN_LENS') return templates.value.find((item) => item.slug === 'design-lens-review')
   if (normalized === 'PROTOTYPE_TASK' || normalized === 'ACTION_ITEM') return templates.value.find((item) => item.slug === 'prototype-challenge')
-  if (normalized === 'GAME_PROJECT') return templates.value.find((item) => item.slug === 'project-critique')
+  if (
+    normalized === 'GAME_PROJECT' ||
+    normalized === 'PROJECT_PROBLEM' ||
+    normalized === 'PROJECT_APPLICATION' ||
+    normalized === 'DESIGN_DECISION' ||
+    normalized === 'PLAYTEST_FINDING' ||
+    normalized === 'PROJECT_LENS_REVIEW'
+  ) return templates.value.find((item) => item.slug === 'project-critique')
   if (normalized === 'BOOK') return templates.value.find((item) => item.slug === 'book-discussion')
   return templates.value.find((item) => item.slug === 'general') ?? templates.value.find((item) => item.slug === 'book-discussion')
 }
@@ -226,7 +259,14 @@ function chooseCategoryFromType(type: string | null | undefined) {
   if (normalized === 'CONCEPT') return findCategory('concept-discussions')
   if (normalized === 'DESIGN_LENS') return findCategory('design-lens-reviews')
   if (normalized === 'PROTOTYPE_TASK' || normalized === 'ACTION_ITEM') return findCategory('prototype-challenges')
-  if (normalized === 'GAME_PROJECT') return findCategory('project-critiques')
+  if (
+    normalized === 'GAME_PROJECT' ||
+    normalized === 'PROJECT_PROBLEM' ||
+    normalized === 'PROJECT_APPLICATION' ||
+    normalized === 'DESIGN_DECISION' ||
+    normalized === 'PLAYTEST_FINDING' ||
+    normalized === 'PROJECT_LENS_REVIEW'
+  ) return findCategory('project-critiques')
   if (normalized === 'BOOK' || normalized === 'QUOTE' || normalized === 'NOTE') return findCategory('book-discussions')
   return findCategory('general')
 }

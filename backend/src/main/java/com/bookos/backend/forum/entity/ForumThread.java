@@ -5,6 +5,7 @@ import com.bookos.backend.common.BaseEntity;
 import com.bookos.backend.common.enums.ForumThreadStatus;
 import com.bookos.backend.common.enums.Visibility;
 import com.bookos.backend.knowledge.entity.Concept;
+import com.bookos.backend.project.entity.GameProject;
 import com.bookos.backend.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,7 +30,8 @@ import lombok.Setter;
         indexes = {
             @Index(name = "idx_forum_threads_category_status", columnList = "category_id, status"),
             @Index(name = "idx_forum_threads_author_status", columnList = "author_id, status"),
-            @Index(name = "idx_forum_threads_related", columnList = "related_entity_type, related_entity_id")
+            @Index(name = "idx_forum_threads_related", columnList = "related_entity_type, related_entity_id"),
+            @Index(name = "idx_forum_threads_related_project", columnList = "related_project_id")
         })
 public class ForumThread extends BaseEntity {
 
@@ -60,6 +62,10 @@ public class ForumThread extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "related_concept_id")
     private Concept relatedConcept;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "related_project_id")
+    private GameProject relatedProject;
 
     private Long sourceReferenceId;
 

@@ -65,14 +65,29 @@
         <AppButton variant="secondary" :disabled="!sourceDrawerSource?.id" @click="createForumThread">
           Discuss Source
         </AppButton>
+        <AppButton variant="accent" :disabled="!sourceDrawerSource?.id" @click="applyProjectOpen = true">
+          Apply to Project
+        </AppButton>
+
+        <ApplyToProjectDialog
+          v-if="sourceDrawerSource"
+          v-model="applyProjectOpen"
+          source-type="SOURCE_REFERENCE"
+          :source-id="sourceDrawerSource.id"
+          :source-reference="sourceDrawerSource"
+          :source-label="sourceProjectLabel"
+          :default-title="sourceProjectTitle"
+          :default-description="sourceDrawerSource.sourceText"
+        />
       </template>
     </div>
   </el-drawer>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import ApplyToProjectDialog from '../project/ApplyToProjectDialog.vue'
 import AppBadge from '../ui/AppBadge.vue'
 import AppButton from '../ui/AppButton.vue'
 import AppErrorState from '../ui/AppErrorState.vue'
@@ -93,6 +108,7 @@ const {
   closeSourceDrawer,
 } = useOpenSource()
 const router = useRouter()
+const applyProjectOpen = ref(false)
 
 const relatedEntityLabel = computed(() => {
   if (!relatedEntityType.value || !relatedEntityId.value) return 'Not linked'
@@ -100,6 +116,11 @@ const relatedEntityLabel = computed(() => {
 })
 const confidence = computed(() => sourceDrawerSource.value?.sourceConfidence ?? sourceDrawerTarget.value?.sourceConfidence ?? null)
 const sourceText = computed(() => sourceDrawerSource.value?.sourceText ?? sourceDrawerTarget.value?.sourceText ?? 'No source text stored for this reference.')
+const sourceProjectLabel = computed(() => {
+  if (!sourceDrawerSource.value) return 'Source reference'
+  return sourceDrawerSource.value.locationLabel ?? `Source #${sourceDrawerSource.value.id}`
+})
+const sourceProjectTitle = computed(() => `Apply ${sourceProjectLabel.value}`)
 
 function handleVisibilityChange(value: boolean) {
   if (!value) closeSourceDrawer()

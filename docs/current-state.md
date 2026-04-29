@@ -1,14 +1,16 @@
 # BookOS Current State
 
-Last reviewed: 2026-04-28.
+Last reviewed: 2026-04-29.
 
 This document records the implementation state of the current `main` branch. Older planning and UI audit documents in `docs/` are historical unless explicitly marked as current.
 
 ## Repository State
 
 - Current verified branch: `main`.
-- Current verified base SHA: `6cf5fa9e6b7d7810b1c3cc0917c245578408a24c`.
-- Local worktree includes uncommitted MVP release-candidate changes after this SHA.
+- Current verified SHA: `1734e5399d5edc6f8fcd683228d9b26d58f1b847`.
+- Current `origin/main` SHA at review time: `1734e5399d5edc6f8fcd683228d9b26d58f1b847`.
+- Working tree status at review start: clean.
+- MVP release-candidate infrastructure, Dockerfiles, CI, endpoint inventory, data model overview, graph workspace, admin ontology import, and release docs are committed on `main`.
 
 ## Implemented Backend Modules
 
@@ -21,8 +23,8 @@ This document records the implementation state of the current `main` branch. Old
 - Daily sentence, daily design prompt, reflections, skip/regenerate, and prototype task creation.
 - Structured forum categories, threads, comments, likes, bookmarks, reports, and templates.
 - Global search across owned/visible books, notes, captures, quotes, action items, concepts, knowledge objects, and forum threads.
-- Graph preview endpoints for books and concepts using real links/source-backed objects.
-- MockAIProvider suggestions with draft lifecycle: generate, edit, accept, reject.
+- Graph exploration endpoints for workspace, books, concepts, and projects using real links/source-backed objects.
+- Draft-only AI suggestions with MockAIProvider by default and optional OpenAI-compatible provider configuration.
 
 ## Implemented Frontend Modules
 
@@ -30,16 +32,16 @@ This document records the implementation state of the current `main` branch. Old
 - Book library and book detail cockpit.
 - Notes, capture inbox, quotes, action items, concepts, knowledge objects, and forum workspaces.
 - Source reference drawer and backlinks sections.
-- Right rail with source reference, real action items, and MockAIProvider draft suggestions.
+- Right rail with source reference, real action items, provider status, and draft-only AI suggestions.
 - Cmd/Ctrl+K global search dialog.
 - Real graph preview wiring on book detail.
 - Responsive BookOS design system and cockpit shell.
 
 ## Known Limitations
 
-- Graph preview is intentionally lightweight and is not an advanced graph editor.
-- MockAIProvider does not call external AI providers and does not produce production-grade semantic extraction.
-- Accepting a Mock AI suggestion only records the draft decision; it does not overwrite or create user content automatically.
+- Graph exploration uses a lightweight SVG workspace and is not an advanced force-directed graph editor.
+- MockAIProvider is the default local provider. OpenAI-compatible AI is optional and enabled only by environment variables.
+- Accepting an AI suggestion only records the draft decision; it does not overwrite or create user content automatically.
 - Forum moderation is basic: lock, hide, reopen, report, and resolve are implemented; realtime notifications are not implemented.
 - Project mode remains future work.
 
@@ -70,7 +72,7 @@ Frontend:
 
 ```powershell
 Set-Location frontend
-npm install
+npm ci
 npm run typecheck
 npm run build
 ```

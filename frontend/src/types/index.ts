@@ -72,18 +72,43 @@ export type SearchResultType =
   | 'CONCEPT'
   | 'KNOWLEDGE_OBJECT'
   | 'FORUM_THREAD'
+  | 'GAME_PROJECT'
+  | 'PROJECT'
+  | 'PROJECT_PROBLEM'
+  | 'PROJECT_APPLICATION'
+  | 'DESIGN_DECISION'
+  | 'PLAYTEST_FINDING'
+  | 'PROJECT_LENS_REVIEW'
 export type GraphNodeType =
   | 'BOOK'
   | 'NOTE'
+  | 'NOTE_BLOCK'
+  | 'RAW_CAPTURE'
   | 'CAPTURE'
   | 'QUOTE'
   | 'ACTION_ITEM'
   | 'CONCEPT'
   | 'KNOWLEDGE_OBJECT'
+  | 'DAILY_PROMPT'
+  | 'FORUM_THREAD'
   | 'SOURCE_REFERENCE'
+  | 'GAME_PROJECT'
+  | 'PROJECT'
+  | 'PROJECT_PROBLEM'
+  | 'PROJECT_APPLICATION'
+  | 'DESIGN_DECISION'
+  | 'PLAYTEST_FINDING'
+  | 'PROJECT_LENS_REVIEW'
   | string
-export type AISuggestionType = 'NOTE_SUMMARY' | 'EXTRACT_ACTIONS' | 'EXTRACT_CONCEPTS'
+export type AISuggestionType =
+  | 'NOTE_SUMMARY'
+  | 'EXTRACT_ACTIONS'
+  | 'EXTRACT_CONCEPTS'
+  | 'SUGGEST_DESIGN_LENSES'
+  | 'SUGGEST_PROJECT_APPLICATIONS'
+  | 'FORUM_THREAD_DRAFT'
 export type AISuggestionStatus = 'DRAFT' | 'ACCEPTED' | 'REJECTED'
+export type ProjectStage = 'IDEATION' | 'PROTOTYPE' | 'PLAYTESTING' | 'ITERATING' | 'SHIPPED' | string
 
 export interface AuthUser {
   id: number
@@ -202,6 +227,8 @@ export interface SearchResultRecord {
   excerpt: string | null
   bookId: number | null
   bookTitle: string | null
+  projectId: number | null
+  projectTitle: string | null
   sourceReferenceId: number | null
   updatedAt: string | null
 }
@@ -211,17 +238,219 @@ export interface GraphNodeRecord {
   type: GraphNodeType
   label: string
   entityId: number
+  sourceReferenceId?: number | null
+  sourceConfidence?: SourceConfidence | null
+  createdAt?: string | null
 }
 
 export interface GraphEdgeRecord {
   source: string
   target: string
   type: string
+  entityLinkId?: number | null
+  sourceReferenceId?: number | null
+  sourceConfidence?: SourceConfidence | null
+  createdBy?: string | null
+  systemCreated?: boolean | null
+  note?: string | null
+  createdAt?: string | null
 }
 
 export interface GraphRecord {
   nodes: GraphNodeRecord[]
   edges: GraphEdgeRecord[]
+}
+
+export interface GameProjectPayload {
+  title: string
+  description?: string | null
+  genre?: string | null
+  platform?: string | null
+  stage?: string | null
+  visibility?: Visibility | null
+  progressPercent?: number | null
+}
+
+export interface GameProjectRecord {
+  id: number
+  title: string
+  slug: string
+  description: string | null
+  genre: string | null
+  platform: string | null
+  stage: ProjectStage
+  visibility: Visibility
+  progressPercent: number
+  createdAt: string
+  updatedAt: string
+  archivedAt: string | null
+}
+
+export interface ProjectProblemPayload {
+  title: string
+  description?: string | null
+  status?: string | null
+  priority?: string | null
+  relatedSourceReferenceId?: number | null
+}
+
+export interface ProjectProblemRecord {
+  id: number
+  projectId: number
+  title: string
+  description: string | null
+  status: string
+  priority: string
+  relatedSourceReference: SourceReferenceRecord | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectApplicationPayload {
+  sourceEntityType?: string | null
+  sourceEntityId?: number | null
+  sourceReferenceId?: number | null
+  applicationType?: string | null
+  title: string
+  description?: string | null
+  status?: string | null
+}
+
+export interface ProjectApplicationRecord {
+  id: number
+  projectId: number
+  sourceEntityType: string | null
+  sourceEntityId: number | null
+  sourceReference: SourceReferenceRecord | null
+  applicationType: string
+  title: string
+  description: string | null
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DesignDecisionPayload {
+  title: string
+  decision: string
+  rationale?: string | null
+  tradeoffs?: string | null
+  sourceReferenceId?: number | null
+  status?: string | null
+}
+
+export interface DesignDecisionRecord {
+  id: number
+  projectId: number
+  title: string
+  decision: string
+  rationale: string | null
+  tradeoffs: string | null
+  sourceReference: SourceReferenceRecord | null
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PlaytestPlanPayload {
+  title: string
+  hypothesis?: string | null
+  targetPlayers?: string | null
+  tasks?: string | null
+  successCriteria?: string | null
+  status?: string | null
+}
+
+export interface PlaytestPlanRecord {
+  id: number
+  projectId: number
+  title: string
+  hypothesis: string | null
+  targetPlayers: string | null
+  tasks: string | null
+  successCriteria: string | null
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PlaytestFindingPayload {
+  sessionId?: number | null
+  title: string
+  observation?: string | null
+  severity?: string | null
+  recommendation?: string | null
+  sourceReferenceId?: number | null
+  status?: string | null
+}
+
+export interface PlaytestFindingRecord {
+  id: number
+  projectId: number
+  sessionId: number | null
+  title: string
+  observation: string | null
+  severity: string
+  recommendation: string | null
+  sourceReference: SourceReferenceRecord | null
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectKnowledgeLinkPayload {
+  targetType: string
+  targetId: number
+  relationshipType?: string | null
+  note?: string | null
+  sourceReferenceId?: number | null
+}
+
+export interface ProjectKnowledgeLinkRecord {
+  id: number
+  projectId: number
+  targetType: string
+  targetId: number
+  relationshipType: string
+  note: string | null
+  sourceReference: SourceReferenceRecord | null
+  createdAt: string
+}
+
+export interface ProjectLensReviewPayload {
+  knowledgeObjectId?: number | null
+  question: string
+  answer?: string | null
+  score?: number | null
+  status?: string | null
+  sourceReferenceId?: number | null
+}
+
+export interface ProjectLensReviewRecord {
+  id: number
+  projectId: number
+  knowledgeObjectId: number | null
+  knowledgeObjectTitle: string | null
+  question: string
+  answer: string | null
+  score: number | null
+  status: string
+  sourceReference: SourceReferenceRecord | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ApplySourcePayload {
+  sourceId: number
+  title?: string | null
+  description?: string | null
+  applicationType?: string | null
+}
+
+export interface ProjectPrototypeTaskFromDailyPayload {
+  dailyDesignPromptId: number
+  title?: string | null
+  description?: string | null
 }
 
 export interface AISuggestionPayload {
@@ -250,6 +479,16 @@ export interface AISuggestionRecord {
   draftJson: string
   createdAt: string
   updatedAt: string
+}
+
+export interface AIProviderStatusRecord {
+  enabled: boolean
+  available: boolean
+  configuredProvider: string
+  activeProvider: string
+  externalProviderConfigured: boolean
+  maxInputChars: number
+  message: string
 }
 
 export interface UserBookRecord {
@@ -573,6 +812,207 @@ export interface DailyPrototypeTaskPayload {
   description?: string | null
 }
 
+export interface ReadingSessionRecord {
+  id: number
+  bookId: number
+  bookTitle: string
+  startedAt: string
+  endedAt: string | null
+  startPage: number | null
+  endPage: number | null
+  minutesRead: number | null
+  notesCount: number
+  capturesCount: number
+  reflection: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReadingSessionStartPayload {
+  bookId: number
+  startPage?: number | null
+  reflection?: string | null
+}
+
+export interface ReadingSessionFinishPayload {
+  endPage?: number | null
+  minutesRead?: number | null
+  notesCount?: number | null
+  capturesCount?: number | null
+  reflection?: string | null
+}
+
+export interface ReviewItemRecord {
+  id: number
+  reviewSessionId: number
+  targetType: string
+  targetId: number
+  sourceReference: SourceReferenceRecord | null
+  prompt: string
+  userResponse: string | null
+  status: string
+  confidenceScore: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReviewSessionRecord {
+  id: number
+  title: string
+  startedAt: string
+  completedAt: string | null
+  mode: string
+  scopeType: string
+  scopeId: number | null
+  summary: string | null
+  itemCount: number
+  completedItemCount: number
+  items: ReviewItemRecord[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReviewSessionPayload {
+  title: string
+  mode?: string | null
+  scopeType?: string | null
+  scopeId?: number | null
+  summary?: string | null
+}
+
+export interface ReviewGeneratePayload {
+  id: number
+  title?: string | null
+  mode?: string | null
+  limit?: number | null
+}
+
+export interface ReviewItemPayload {
+  targetType: string
+  targetId: number
+  sourceReferenceId?: number | null
+  prompt: string
+}
+
+export interface ReviewItemUpdatePayload {
+  userResponse?: string | null
+  status?: string | null
+  confidenceScore?: number | null
+}
+
+export interface KnowledgeMasteryRecord {
+  id: number
+  targetType: string
+  targetId: number
+  familiarityScore: number
+  usefulnessScore: number
+  lastReviewedAt: string | null
+  nextReviewAt: string | null
+  sourceReference: SourceReferenceRecord | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeMasteryPayload {
+  targetType: string
+  targetId: number
+  familiarityScore?: number | null
+  usefulnessScore?: number | null
+  nextReviewAt?: string | null
+  sourceReferenceId?: number | null
+}
+
+export interface AnalyticsCountRecord {
+  label: string
+  count: number
+}
+
+export interface ReadingAnalyticsRecord {
+  libraryBooks: number
+  currentlyReadingBooks: number
+  completedBooks: number
+  notesCount: number
+  capturesCount: number
+  quotesCount: number
+  openActionItems: number
+  completedActionItems: number
+  conceptsCount: number
+  dailyReflectionsCount: number
+  projectApplicationsCount: number
+  reviewSessionsCount: number
+  completedReviewSessions: number
+  totalMinutesRead: number
+  mostActiveBooks: AnalyticsCountRecord[]
+}
+
+export interface KnowledgeAnalyticsRecord {
+  conceptsCount: number
+  knowledgeObjectsCount: number
+  masteryTargets: number
+  dueForReview: number
+  reviewItems: number
+  completedReviewItems: number
+  mostLinkedConcepts: AnalyticsCountRecord[]
+}
+
+export interface BookAnalyticsRecord {
+  bookId: number
+  bookTitle: string
+  notesCount: number
+  capturesCount: number
+  quotesCount: number
+  actionItemsCount: number
+  completedActionItemsCount: number
+  conceptsCount: number
+  readingSessionsCount: number
+  totalMinutesRead: number
+  reviewItemsCount: number
+}
+
+export type ImportType = 'BOOKOS_JSON' | 'MARKDOWN_NOTES' | 'QUOTES_CSV' | 'ACTION_ITEMS_CSV'
+
+export interface ImportRequestPayload {
+  importType: ImportType
+  content: string
+  bookTitle?: string | null
+  fileName?: string | null
+}
+
+export interface ImportRecordPreviewRecord {
+  type: string
+  title: string
+  stableKey: string
+  duplicate: boolean
+  action: string
+  existingId: number | null
+}
+
+export interface ImportPreviewRecord {
+  importType: ImportType
+  totalRecords: number
+  recordsToCreate: number
+  potentialDuplicates: number
+  records: ImportRecordPreviewRecord[]
+  warnings: string[]
+  unsupportedFields: string[]
+  sourceReferenceIssues: string[]
+  pageNumberIssues: string[]
+}
+
+export interface ImportCommitRecord {
+  booksCreated: number
+  notesCreated: number
+  capturesCreated: number
+  quotesCreated: number
+  actionItemsCreated: number
+  conceptsCreated: number
+  knowledgeObjectsCreated: number
+  sourceReferencesCreated: number
+  projectsCreated: number
+  duplicatesSkipped: number
+  warnings: string[]
+}
+
 export interface ForumCategoryPayload {
   name: string
   description?: string | null
@@ -598,6 +1038,7 @@ export interface ForumThreadPayload {
   relatedEntityId?: number | null
   relatedBookId?: number | null
   relatedConceptId?: number | null
+  relatedProjectId?: number | null
   sourceReferenceId?: number | null
   visibility?: Visibility | null
 }
@@ -617,6 +1058,8 @@ export interface ForumThreadRecord {
   relatedBookTitle: string | null
   relatedConceptId: number | null
   relatedConceptName: string | null
+  relatedProjectId: number | null
+  relatedProjectTitle: string | null
   sourceReferenceId: number | null
   sourceReference: SourceReferenceRecord | null
   status: ForumThreadStatus
@@ -691,6 +1134,7 @@ export interface EntityLinkPayload {
   targetId: number
   relationType: string
   sourceReferenceId?: number | null
+  note?: string | null
 }
 
 export interface EntityLinkRecord {
@@ -701,6 +1145,9 @@ export interface EntityLinkRecord {
   targetId: number
   relationType: string
   sourceReferenceId: number | null
+  note: string | null
+  createdBy: string | null
+  systemCreated: boolean
   createdAt: string
 }
 

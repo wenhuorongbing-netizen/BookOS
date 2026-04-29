@@ -42,6 +42,39 @@
       :favorite-loading="favoriteLoading"
       @toggle-favorite="handleFavoriteToggle"
     />
+    <AppCard class="reading-session-panel" as="section">
+      <div class="detail-panel__heading">
+        <div class="eyebrow">Reading Session</div>
+        <h2>Track this reading pass</h2>
+      </div>
+      <div class="reading-session-panel__grid">
+        <label class="detail-field">
+          <span>Start page</span>
+          <el-input-number v-model="readingStartPage" :min="0" controls-position="right" aria-label="Reading session start page" />
+        </label>
+        <label class="detail-field">
+          <span>End page</span>
+          <el-input-number v-model="readingEndPage" :min="0" controls-position="right" aria-label="Reading session end page" />
+        </label>
+        <label class="detail-field">
+          <span>Minutes read</span>
+          <el-input-number v-model="readingMinutes" :min="0" controls-position="right" aria-label="Minutes read" />
+        </label>
+      </div>
+      <label class="detail-field">
+        <span>Reflection</span>
+        <el-input v-model="readingReflection" type="textarea" :rows="3" placeholder="What changed in your understanding during this session?" />
+      </label>
+      <div class="reading-session-panel__actions">
+        <AppButton v-if="!activeReadingSession" variant="primary" :loading="readingBusy" @click="startSession">Start Session</AppButton>
+        <AppButton v-else variant="primary" :loading="readingBusy" @click="finishSession">Finish Session</AppButton>
+        <AppButton variant="secondary" :loading="readingBusy" @click="createBookReview">Create Review from Book</AppButton>
+        <span class="reading-session-panel__meta">
+          {{ readingSessions.length }} sessions logged
+          <template v-if="activeReadingSession">/ active since {{ formatDate(activeReadingSession.startedAt) }}</template>
+        </span>
+      </div>
+    </AppCard>
     <AppCard v-if="cockpitWarning" class="cockpit-warning" as="section" role="status">
       <strong>Some cockpit data could not load</strong>
       <p>{{ cockpitWarning }}</p>
@@ -57,6 +90,7 @@
       @skip-daily="handleSkipDaily"
       @save-reflection="handleSaveDailyReflection"
       @create-prototype-task="handleCreatePrototypeTask"
+      @apply-prompt-to-project="applyDailyPromptOpen = true"
     />
     <BookKnowledgeSection
       :book="book"
@@ -146,6 +180,17 @@
       :source-references="sourceReferenceRecords"
       :book-title="book.title"
     />
+
+    <ApplyToProjectDialog
+      v-if="daily?.prompt"
+      v-model="applyDailyPromptOpen"
+      source-type="DAILY_DESIGN_PROMPT"
+      :source-id="daily.prompt.id"
+      :source-reference="daily.prompt.sourceReference"
+      :source-label="daily.prompt.sourceTitle ?? daily.prompt.bookTitle ?? 'Daily design prompt'"
+      :default-title="daily.prompt.question"
+      :default-description="daily.prompt.templatePrompt ? 'Template prompt application. No source page is implied.' : daily.prompt.question"
+    />
   </div>
 </template>
 
@@ -160,6 +205,7 @@ import { getCaptureInbox } from '../api/captures'
 import { createPrototypeTaskFromDaily, getDailyToday, regenerateDaily, saveDailyReflection, skipDaily } from '../api/daily'
 import { getBookGraph } from '../api/graph'
 import { getBookConcepts } from '../api/knowledge'
+import { finishReadingSession, generateReviewFromBook, getBookReadingSessions, startReadingSession } from '../api/learning'
 import { getBookNotes } from '../api/notes'
 import { getQuotes } from '../api/quotes'
 import { getBookSourceReferences } from '../api/sourceReferences'
@@ -169,6 +215,7 @@ import BookCaptureSection from '../components/book-detail/BookCaptureSection.vue
 import BookHero from '../components/book-detail/BookHero.vue'
 import BookInsightCards from '../components/book-detail/BookInsightCards.vue'
 import BookKnowledgeSection from '../components/book-detail/BookKnowledgeSection.vue'
+import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import BookProgressBar from '../components/BookProgressBar.vue'
 import BookRating from '../components/BookRating.vue'
 import BookStatusBadge from '../components/BookStatusBadge.vue'
@@ -191,6 +238,7 @@ import type {
   GraphRecord,
   QuoteRecord,
   RawCaptureRecord,
+  ReadingSessionRecord,
   ReadingStatus,
   SourceReferenceRecord,
 } from '../types'
@@ -216,6 +264,14 @@ const actionItemRecords = ref<ActionItemRecord[]>([])
 const sourceReferenceRecords = ref<SourceReferenceRecord[]>([])
 const daily = ref<DailyTodayRecord | null>(null)
 const dailyActionLoading = ref(false)
+const applyDailyPromptOpen = ref(false)
+const readingSessions = ref<ReadingSessionRecord[]>([])
+const activeReadingSession = ref<ReadingSessionRecord | null>(null)
+const readingStartPage = ref<number | null>(null)
+const readingEndPage = ref<number | null>(null)
+const readingMinutes = ref<number | null>(null)
+const readingReflection = ref('')
+const readingBusy = ref(false)
 
 onMounted(loadBook)
 onUnmounted(() => {
@@ -245,7 +301,7 @@ async function loadBook() {
 }
 
 async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
-  const [notesResult, capturesResult, quotesResult, actionItemsResult, sourceReferencesResult, conceptsResult, dailyResult, graphResult] =
+  const [notesResult, capturesResult, quotesResult, actionItemsResult, sourceReferencesResult, conceptsResult, dailyResult, graphResult, readingSessionsResult] =
     (await Promise.allSettled([
       getBookNotes(base.id),
       getCaptureInbox({ bookId: base.id }),
@@ -255,6 +311,7 @@ async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
       getBookConcepts(base.id),
       getDailyToday(),
       getBookGraph(base.id),
+      getBookReadingSessions(base.id),
     ])) as [
       PromiseSettledResult<BookNoteRecord[]>,
       PromiseSettledResult<RawCaptureRecord[]>,
@@ -264,6 +321,7 @@ async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
       PromiseSettledResult<ConceptRecord[]>,
       PromiseSettledResult<DailyTodayRecord>,
       PromiseSettledResult<GraphRecord>,
+      PromiseSettledResult<ReadingSessionRecord[]>,
     ]
 
   const notes = settledValue(notesResult, [])
@@ -274,8 +332,11 @@ async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
   const concepts = settledValue(conceptsResult, [])
   const dailyData = settledValue<DailyTodayRecord | null>(dailyResult, null)
   const graph = settledValue<GraphRecord | null>(graphResult, null)
+  const sessions = settledValue(readingSessionsResult, [])
 
   daily.value = dailyData
+  readingSessions.value = sessions
+  activeReadingSession.value = sessions.find((session) => !session.endedAt) ?? null
   quoteRecords.value = quotes
   actionItemRecords.value = actionItems
   sourceReferenceRecords.value = sourceReferences
@@ -291,6 +352,7 @@ async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
     ['concepts', conceptsResult],
     ['daily resurfacing', dailyResult],
     ['knowledge graph', graphResult],
+    ['reading sessions', readingSessionsResult],
   ])
 
   const conceptPreviews = concepts.map(toConceptPreview)
@@ -502,6 +564,54 @@ async function handleFavoriteToggle() {
   }
 }
 
+async function startSession() {
+  if (!book.value) return
+  readingBusy.value = true
+  try {
+    const session = await startReadingSession({
+      bookId: book.value.id,
+      startPage: readingStartPage.value,
+      reflection: readingReflection.value.trim() || null,
+    })
+    activeReadingSession.value = session
+    readingSessions.value = [session, ...readingSessions.value]
+    ElMessage.success('Reading session started.')
+  } finally {
+    readingBusy.value = false
+  }
+}
+
+async function finishSession() {
+  if (!activeReadingSession.value) return
+  readingBusy.value = true
+  try {
+    const session = await finishReadingSession(activeReadingSession.value.id, {
+      endPage: readingEndPage.value,
+      minutesRead: readingMinutes.value,
+      notesCount: book.value?.notesCount ?? 0,
+      capturesCount: book.value?.capturesCount ?? 0,
+      reflection: readingReflection.value.trim() || null,
+    })
+    readingSessions.value = readingSessions.value.map((item) => (item.id === session.id ? session : item))
+    activeReadingSession.value = null
+    readingReflection.value = ''
+    ElMessage.success('Reading session finished.')
+  } finally {
+    readingBusy.value = false
+  }
+}
+
+async function createBookReview() {
+  if (!book.value) return
+  readingBusy.value = true
+  try {
+    const session = await generateReviewFromBook({ id: book.value.id, title: `Review ${book.value.title}`, mode: 'SOURCE_REVIEW', limit: 8 })
+    await router.push({ name: 'review-detail', params: { id: session.id } })
+  } finally {
+    readingBusy.value = false
+  }
+}
+
 function handleOpenSource(target?: DailyTarget) {
   if (!book.value) return
   if (target === 'SENTENCE' && daily.value?.sentence?.sourceReference) {
@@ -640,6 +750,12 @@ function handleOpenLens(name: string) {
   if (!book.value) return
   router.push({ name: 'dashboard', query: { focus: 'lens', lens: name, bookId: String(book.value.id) } })
 }
+
+function formatDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
 </script>
 
 <style scoped>
@@ -669,11 +785,31 @@ function handleOpenLens(name: string) {
 }
 
 .detail-panel,
-.detail-library {
+.detail-library,
+.reading-session-panel {
   padding: var(--space-5);
   display: grid;
   align-content: start;
   gap: var(--space-4);
+}
+
+.reading-session-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.reading-session-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.reading-session-panel__meta {
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  font-weight: 800;
 }
 
 .detail-panel__heading {
@@ -762,7 +898,8 @@ function handleOpenLens(name: string) {
 }
 
 @media (max-width: 640px) {
-  .detail-meta {
+  .detail-meta,
+  .reading-session-panel__grid {
     grid-template-columns: 1fr;
   }
 }

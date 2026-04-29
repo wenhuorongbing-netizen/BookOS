@@ -20,6 +20,8 @@ public record ForumThreadResponse(
         String relatedBookTitle,
         Long relatedConceptId,
         String relatedConceptName,
+        Long relatedProjectId,
+        String relatedProjectTitle,
         Long sourceReferenceId,
         SourceReferenceResponse sourceReference,
         ForumThreadStatus status,

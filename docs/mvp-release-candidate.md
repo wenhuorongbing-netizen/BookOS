@@ -1,6 +1,8 @@
 # BookOS MVP Release Candidate
 
-Last updated: 2026-04-28.
+Last updated: 2026-04-29.
+
+Current reviewed `main` SHA: `1734e5399d5edc6f8fcd683228d9b26d58f1b847`.
 
 ## CI/CD Status
 
@@ -27,7 +29,7 @@ Use `PASS`, `PARTIAL`, `FAIL`, `MISSING`, or `NOT VERIFIED`.
 - Forum categories, templates, threads, comments, reports, and moderator controls work.
 - Search returns only owned/visible records.
 - Graph previews use real links or honest empty states.
-- Mock AI suggestions are drafts and do not overwrite source content.
+- AI suggestions are drafts and do not overwrite source content.
 - Private source references do not leak cross-user.
 - Markdown rendering is sanitized.
 - No generated artifacts or archives are committed.
@@ -52,7 +54,7 @@ Minimum RC smoke path:
 11. Open graph preview for a book and concept.
 12. Create a source-linked forum thread and comment.
 13. Report a thread and resolve it as admin/moderator.
-14. Generate, edit, accept, and reject MockAIProvider suggestions.
+14. Generate, edit, accept, and reject draft-only AI suggestions.
 
 ## Accessibility Checklist
 
@@ -78,15 +80,17 @@ RC minimum:
 - Search and graph are user-scoped.
 - Forum attached private context is hidden from unauthorized users.
 - Markdown rendering is sanitized; raw HTML execution is not allowed.
-- Mock AI is local/draft-only and never overwrites user content.
+- AI suggestions are draft-only and never overwrite user content.
+- External AI providers are optional, environment-controlled, and unavailable without a configured key.
 - No `.env`, archives, logs, `target`, `dist`, or `node_modules` are committed.
 
 ## Known Limitations
 
 - Graph is a real-data preview/workspace, not an advanced graph editor.
-- MockAIProvider is deterministic and local-only.
+- MockAIProvider is deterministic, local-only, and the default provider.
 - Forum moderation is basic and not automated.
-- Project mode and full project-application workflows are not MVP-complete.
+- Project mode exists for MVP project records, project problems, applications, decisions, playtests, knowledge links, and lens reviews; advanced project analytics and automated planning remain future work.
+- Import/export exists for MVP JSON, Markdown, and CSV-oriented flows; conflict-resolution UX remains limited.
 - Advanced ontology curation/review workflow is admin JSON import plus dry-run, not a full editorial CMS.
 - Browser runtime QA must still be performed before tagging a release.
 
@@ -96,7 +100,7 @@ RC minimum:
 2. Full graph editing and richer graph visualization.
 3. Project mode with source-backed application records.
 4. Advanced forum moderation dashboard and audit trail.
-5. Optional external AI provider implementation behind the existing draft-only AI abstraction.
+5. Production monitoring and audit UI for optional external AI provider usage.
 6. Import/export for books, notes, captures, and ontology seed packs.
 7. Production deployment hardening: HTTPS, managed secrets, database backups, and monitoring.
 

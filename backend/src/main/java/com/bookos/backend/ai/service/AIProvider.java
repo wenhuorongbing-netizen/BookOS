@@ -6,5 +6,9 @@ public interface AIProvider {
 
     String providerName();
 
-    MockAIDraft generate(AISuggestionType type, String sourceText, String sourceTitle);
+    default boolean available() {
+        return true;
+    }
+
+    AIDraft generate(AISuggestionType type, String sourceText, String sourceTitle);
 }

@@ -1,6 +1,7 @@
 package com.bookos.backend.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -144,6 +145,134 @@ class SearchGraphAIIntegrationTest {
     }
 
     @Test
+    void graphFiltersAndManualEntityLinksAreOwnerScopedAndEditable() throws Exception {
+        String ownerToken = register("graph-link-owner-%s@bookos.local".formatted(UUID.randomUUID()), "Graph Link Owner");
+        String intruderToken = register("graph-link-intruder-%s@bookos.local".formatted(UUID.randomUUID()), "Graph Link Intruder");
+        Long bookId = createBookAndAddToLibrary(ownerToken, "Manual Graph Link Book " + UUID.randomUUID());
+        JsonNode capture = createCapture(ownerToken, bookId, "\\uD83D\\uDCA1 p.21 Manual graph curation source. [[Manual Link Concept]]");
+        Long sourceReferenceId = capture.path("sourceReferences").get(0).path("id").asLong();
+
+        String conceptResponse = mockMvc.perform(post("/api/concepts")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Manual Link Concept",
+                                  "description": "Original relationship curation test concept.",
+                                  "bookId": %d,
+                                  "sourceReferenceId": %d,
+                                  "visibility": "PRIVATE",
+                                  "tags": ["graph"]
+                                }
+                                """.formatted(bookId, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long conceptId = objectMapper.readTree(conceptResponse).path("data").path("id").asLong();
+
+        String linkResponse = mockMvc.perform(post("/api/entity-links")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "BOOK",
+                                  "sourceId": %d,
+                                  "targetType": "CONCEPT",
+                                  "targetId": %d,
+                                  "relationType": "RELATED_TO",
+                                  "sourceReferenceId": %d,
+                                  "note": "Manual curation note"
+                                }
+                                """.formatted(bookId, conceptId, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.createdBy").value("USER"))
+                .andExpect(jsonPath("$.data.systemCreated").value(false))
+                .andExpect(jsonPath("$.data.note").value("Manual curation note"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long linkId = objectMapper.readTree(linkResponse).path("data").path("id").asLong();
+
+        mockMvc.perform(put("/api/entity-links/{id}", linkId)
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "BOOK",
+                                  "sourceId": %d,
+                                  "targetType": "CONCEPT",
+                                  "targetId": %d,
+                                  "relationType": "APPLIES_TO",
+                                  "sourceReferenceId": %d,
+                                  "note": "Updated manual curation note"
+                                }
+                                """.formatted(bookId, conceptId, sourceReferenceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.relationType").value("APPLIES_TO"))
+                .andExpect(jsonPath("$.data.note").value("Updated manual curation note"));
+
+        JsonNode graph = objectMapper.readTree(mockMvc.perform(get("/api/graph")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .param("bookId", String.valueOf(bookId))
+                        .param("entityType", "CONCEPT")
+                        .param("relationshipType", "APPLIES_TO")
+                        .param("sourceConfidence", "HIGH")
+                        .param("depth", "2")
+                        .param("limit", "20"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).path("data");
+
+        assertThat(StreamSupport.stream(graph.path("edges").spliterator(), false)
+                        .anyMatch(edge -> edge.path("entityLinkId").asLong() == linkId
+                                && "USER".equals(edge.path("createdBy").asText())
+                                && !edge.path("systemCreated").asBoolean()))
+                .isTrue();
+        assertThat(StreamSupport.stream(graph.path("nodes").spliterator(), false)
+                        .anyMatch(node -> "CONCEPT".equals(node.path("type").asText())
+                                && node.path("entityId").asLong() == conceptId))
+                .isTrue();
+
+        mockMvc.perform(post("/api/entity-links")
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "BOOK",
+                                  "sourceId": %d,
+                                  "targetType": "CONCEPT",
+                                  "targetId": %d,
+                                  "relationType": "RELATED_TO"
+                                }
+                                """.formatted(bookId, conceptId)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/entity-links/{id}", linkId)
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isOk());
+
+        JsonNode systemLinks = objectMapper.readTree(mockMvc.perform(get("/api/entity-links")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .param("sourceType", "SOURCE_REFERENCE")
+                        .param("sourceId", String.valueOf(sourceReferenceId)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).path("data");
+        Long systemLinkId = StreamSupport.stream(systemLinks.spliterator(), false)
+                .filter(node -> "SYSTEM".equals(node.path("createdBy").asText()))
+                .map(node -> node.path("id").asLong())
+                .findFirst()
+                .orElseThrow();
+
+        mockMvc.perform(delete("/api/entity-links/{id}", systemLinkId)
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void mockAISuggestionDraftLifecycleDoesNotOverwriteSourceContent() throws Exception {
         String token = register("ai-owner-%s@bookos.local".formatted(UUID.randomUUID()), "AI Owner");
         Long bookId = createBookAndAddToLibrary(token, "Mock AI Book " + UUID.randomUUID());
@@ -176,7 +305,7 @@ class SearchGraphAIIntegrationTest {
                         .content("""
                                 {
                                   "draftText": "Edited draft text",
-                                  "draftJson": "{\\"summary\\":\\"Edited draft text\\",\\"provider\\":\\"MockAIProvider\\"}"
+                                  "draftJson": "{\\"provider\\":\\"MockAIProvider\\",\\"type\\":\\"NOTE_SUMMARY\\",\\"sourceTitle\\":\\"Mock AI Book\\",\\"summary\\":\\"Edited draft text\\"}"
                                 }
                                 """))
                 .andExpect(status().isOk())

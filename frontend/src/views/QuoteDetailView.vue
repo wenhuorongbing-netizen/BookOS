@@ -28,6 +28,7 @@
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
           </RouterLink>
+          <AppButton variant="accent" @click="applyProjectOpen = true">Apply to Project</AppButton>
           <AppButton variant="primary" @click="quoteDialogOpen = true">Edit</AppButton>
           <AppButton variant="text" @click="archiveCurrentQuote">Archive</AppButton>
         </template>
@@ -114,6 +115,17 @@
         :saving="savingQuote"
         @submit="saveQuote"
       />
+
+      <ApplyToProjectDialog
+        v-if="quote"
+        v-model="applyProjectOpen"
+        source-type="QUOTE"
+        :source-id="quote.id"
+        :source-reference="quote.sourceReference"
+        :source-label="quote.bookTitle"
+        :default-title="`Apply quote from ${quote.bookTitle}`"
+        :default-description="quote.text"
+      />
     </template>
   </div>
 </template>
@@ -124,6 +136,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getBooks } from '../api/books'
 import { archiveQuote, getQuote, updateQuote } from '../api/quotes'
+import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import QuoteFormDialog from '../components/quotes/QuoteFormDialog.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -148,6 +161,7 @@ const loading = ref(false)
 const savingQuote = ref(false)
 const errorMessage = ref('')
 const quoteDialogOpen = ref(false)
+const applyProjectOpen = ref(false)
 
 const forumThreadLink = computed(() => {
   if (!quote.value) return { name: 'forum-new' }

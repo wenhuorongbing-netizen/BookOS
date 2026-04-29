@@ -49,4 +49,10 @@ public class EntityLink extends BaseEntity {
     private String relationType;
 
     private Long sourceReferenceId;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String note;
+
+    @Column(nullable = false, length = 32)
+    private String createdBy = "SYSTEM";
 }

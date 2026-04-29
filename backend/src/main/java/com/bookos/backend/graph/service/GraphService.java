@@ -7,7 +7,10 @@ import com.bookos.backend.book.entity.UserBook;
 import com.bookos.backend.book.repository.UserBookRepository;
 import com.bookos.backend.book.service.BookService;
 import com.bookos.backend.common.enums.ForumThreadStatus;
+import com.bookos.backend.common.enums.SourceConfidence;
 import com.bookos.backend.common.enums.Visibility;
+import com.bookos.backend.capture.entity.RawCapture;
+import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.daily.entity.DailyDesignPrompt;
 import com.bookos.backend.daily.repository.DailyDesignPromptRepository;
 import com.bookos.backend.forum.entity.ForumThread;
@@ -22,13 +25,33 @@ import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
 import com.bookos.backend.link.entity.EntityLink;
 import com.bookos.backend.link.repository.EntityLinkRepository;
 import com.bookos.backend.note.entity.BookNote;
+import com.bookos.backend.note.entity.NoteBlock;
 import com.bookos.backend.note.repository.BookNoteRepository;
+import com.bookos.backend.note.repository.NoteBlockRepository;
+import com.bookos.backend.project.entity.DesignDecision;
+import com.bookos.backend.project.entity.GameProject;
+import com.bookos.backend.project.entity.PlaytestFinding;
+import com.bookos.backend.project.entity.ProjectApplication;
+import com.bookos.backend.project.entity.ProjectKnowledgeLink;
+import com.bookos.backend.project.entity.ProjectLensReview;
+import com.bookos.backend.project.entity.ProjectProblem;
+import com.bookos.backend.project.repository.DesignDecisionRepository;
+import com.bookos.backend.project.repository.GameProjectRepository;
+import com.bookos.backend.project.repository.PlaytestFindingRepository;
+import com.bookos.backend.project.repository.ProjectApplicationRepository;
+import com.bookos.backend.project.repository.ProjectKnowledgeLinkRepository;
+import com.bookos.backend.project.repository.ProjectLensReviewRepository;
+import com.bookos.backend.project.repository.ProjectProblemRepository;
 import com.bookos.backend.quote.entity.Quote;
 import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -53,18 +76,58 @@ public class GraphService {
     private final QuoteRepository quoteRepository;
     private final ActionItemRepository actionItemRepository;
     private final BookNoteRepository bookNoteRepository;
+    private final NoteBlockRepository noteBlockRepository;
+    private final RawCaptureRepository rawCaptureRepository;
     private final SourceReferenceRepository sourceReferenceRepository;
     private final EntityLinkRepository entityLinkRepository;
     private final ForumThreadRepository forumThreadRepository;
     private final DailyDesignPromptRepository dailyDesignPromptRepository;
+    private final GameProjectRepository projectRepository;
+    private final ProjectProblemRepository projectProblemRepository;
+    private final ProjectApplicationRepository projectApplicationRepository;
+    private final DesignDecisionRepository designDecisionRepository;
+    private final PlaytestFindingRepository playtestFindingRepository;
+    private final ProjectLensReviewRepository projectLensReviewRepository;
+    private final ProjectKnowledgeLinkRepository projectKnowledgeLinkRepository;
 
     @Transactional(readOnly = true)
-    public GraphResponse getWorkspaceGraph(String email, Long bookId, String entityType, String relationshipType) {
+    public GraphResponse getWorkspaceGraph(
+            String email,
+            Long bookId,
+            Long conceptId,
+            Long projectId,
+            String entityType,
+            String relationshipType,
+            SourceConfidence sourceConfidence,
+            Instant createdFrom,
+            Instant createdTo,
+            Integer depth,
+            Integer limit) {
         User user = userService.getByEmailRequired(email);
         GraphBuilder builder = new GraphBuilder();
+        GraphFilter filter = new GraphFilter(entityType, relationshipType, sourceConfidence, createdFrom, createdTo, depth, limit);
+        Set<String> roots = new LinkedHashSet<>();
+
+        if (projectId != null) {
+            GameProject project = projectRepository.findByIdAndOwnerIdAndArchivedAtIsNull(projectId, user.getId())
+                    .orElseThrow(() -> new java.util.NoSuchElementException("Project not found."));
+            addProjectGraph(builder, user.getId(), project);
+            roots.add(nodeId("PROJECT", project.getId()));
+            return builder.toResponse(filter, roots);
+        }
+
+        if (conceptId != null) {
+            Concept concept = conceptRepository.findByIdAndUserIdAndArchivedFalse(conceptId, user.getId())
+                    .orElseThrow(() -> new java.util.NoSuchElementException("Concept not found."));
+            addConceptNode(builder, concept);
+            addConceptSource(builder, user.getId(), nodeId("CONCEPT", concept.getId()), concept);
+            roots.add(nodeId("CONCEPT", concept.getId()));
+        }
 
         if (bookId != null) {
-            addBookNode(builder, bookService.getAccessibleBookEntity(email, bookId));
+            Book book = bookService.getAccessibleBookEntity(email, bookId);
+            addBookNode(builder, book);
+            roots.add(nodeId("BOOK", book.getId()));
         } else {
             userBookRepository.findByUserIdOrderByUpdatedAtDesc(user.getId()).stream()
                     .map(UserBook::getBook)
@@ -73,47 +136,99 @@ public class GraphService {
 
         addSourceReferences(builder, user.getId(), bookId);
         addNotes(builder, user.getId(), bookId);
+        addNoteBlocks(builder, user.getId(), bookId);
+        addCaptures(builder, user.getId(), bookId);
         addQuotes(builder, user.getId(), bookId);
         addActionItems(builder, user.getId(), bookId);
         addConcepts(builder, user.getId(), bookId);
         addKnowledgeObjects(builder, user.getId(), bookId);
         addDailyPrompts(builder, user.getId(), bookId);
         addForumThreads(builder, user, bookId);
+        addProjects(builder, user.getId(), bookId);
 
         entityLinkRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).forEach(link -> addEntityLink(builder, link));
 
-        return builder.toResponse(entityType, relationshipType);
+        return builder.toResponse(filter, roots);
     }
 
     @Transactional(readOnly = true)
-    public GraphResponse getBookGraph(String email, Long bookId) {
+    public GraphResponse getBookGraph(
+            String email,
+            Long bookId,
+            String entityType,
+            String relationshipType,
+            SourceConfidence sourceConfidence,
+            Instant createdFrom,
+            Instant createdTo,
+            Integer depth,
+            Integer limit) {
         User user = userService.getByEmailRequired(email);
         Book book = bookService.getAccessibleBookEntity(email, bookId);
         GraphBuilder builder = new GraphBuilder();
         addBookNode(builder, book);
+        GraphFilter filter = new GraphFilter(entityType, relationshipType, sourceConfidence, createdFrom, createdTo, depth, limit);
 
         addSourceReferences(builder, user.getId(), bookId);
         addNotes(builder, user.getId(), bookId);
+        addNoteBlocks(builder, user.getId(), bookId);
+        addCaptures(builder, user.getId(), bookId);
         addQuotes(builder, user.getId(), bookId);
         addActionItems(builder, user.getId(), bookId);
         addConcepts(builder, user.getId(), bookId);
         addKnowledgeObjects(builder, user.getId(), bookId);
         addDailyPrompts(builder, user.getId(), bookId);
         addForumThreads(builder, user, bookId);
+        addProjects(builder, user.getId(), bookId);
 
         entityLinkRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                 .filter(link -> touchesGraph(link, builder.nodes))
                 .forEach(link -> addEntityLink(builder, link));
 
-        return builder.toResponse();
+        return builder.toResponse(filter, Set.of(nodeId("BOOK", bookId)));
     }
 
     @Transactional(readOnly = true)
-    public GraphResponse getConceptGraph(String email, Long conceptId) {
+    public GraphResponse getProjectGraph(
+            String email,
+            Long projectId,
+            String entityType,
+            String relationshipType,
+            SourceConfidence sourceConfidence,
+            Instant createdFrom,
+            Instant createdTo,
+            Integer depth,
+            Integer limit) {
+        User user = userService.getByEmailRequired(email);
+        GameProject project = projectRepository.findByIdAndOwnerIdAndArchivedAtIsNull(projectId, user.getId())
+                .orElseThrow(() -> new java.util.NoSuchElementException("Project not found."));
+        GraphBuilder builder = new GraphBuilder();
+        GraphFilter filter = new GraphFilter(entityType, relationshipType, sourceConfidence, createdFrom, createdTo, depth, limit);
+        addProjectGraph(builder, user.getId(), project);
+
+        forumThreadRepository.findByAuthorIdAndStatusNotOrderByUpdatedAtDesc(user.getId(), ForumThreadStatus.ARCHIVED).stream()
+                .filter(thread -> thread.getRelatedProject() != null && Objects.equals(thread.getRelatedProject().getId(), projectId)
+                        || "GAME_PROJECT".equals(thread.getRelatedEntityType()) && Objects.equals(thread.getRelatedEntityId(), projectId))
+                .forEach(thread -> addForumThread(builder, user, thread));
+
+        return builder.toResponse(filter, Set.of(nodeId("PROJECT", projectId)));
+    }
+
+    @Transactional(readOnly = true)
+    public GraphResponse getConceptGraph(
+            String email,
+            Long conceptId,
+            String entityType,
+            String relationshipType,
+            SourceConfidence sourceConfidence,
+            Instant createdFrom,
+            Instant createdTo,
+            Integer depth,
+            Integer limit) {
         User user = userService.getByEmailRequired(email);
         Concept concept = conceptRepository.findByIdAndUserIdAndArchivedFalse(conceptId, user.getId())
                 .orElseThrow(() -> new java.util.NoSuchElementException("Concept not found."));
         GraphBuilder builder = new GraphBuilder();
+        GraphFilter filter = new GraphFilter(entityType, relationshipType, sourceConfidence, createdFrom, createdTo, depth, limit);
         addConceptNode(builder, concept);
 
         if (concept.getFirstBook() != null) {
@@ -135,7 +250,7 @@ public class GraphService {
         entityLinkRepository.findByUserIdAndTargetTypeAndTargetIdOrderByCreatedAtDesc(user.getId(), "CONCEPT", conceptId)
                 .forEach(link -> addEntityLink(builder, link));
 
-        return builder.toResponse();
+        return builder.toResponse(filter, Set.of(nodeId("CONCEPT", conceptId)));
     }
 
     private void addSourceReferences(GraphBuilder builder, Long userId, Long bookId) {
@@ -156,7 +271,7 @@ public class GraphService {
                 : bookNoteRepository.findByBookIdAndUserIdAndArchivedFalseOrderByUpdatedAtDesc(bookId, userId);
         notes.forEach(note -> {
             String noteNodeId = nodeId("NOTE", note.getId());
-            builder.node(noteNodeId, "NOTE", note.getTitle(), note.getId());
+            builder.node(noteNodeId, "NOTE", note.getTitle(), note.getId(), null, null, note.getCreatedAt());
             if (note.getBook() != null) {
                 addBookNode(builder, note.getBook());
                 builder.edge(nodeId("BOOK", note.getBook().getId()), noteNodeId, "SOURCE_OF");
@@ -164,6 +279,44 @@ public class GraphService {
             sourceReferenceRepository.findByNoteIdAndUserIdOrderByCreatedAtDesc(note.getId(), userId).stream()
                     .findFirst()
                     .ifPresent(source -> addSourceReference(builder, userId, noteNodeId, source.getId()));
+        });
+    }
+
+    private void addNoteBlocks(GraphBuilder builder, Long userId, Long bookId) {
+        noteBlockRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .filter(block -> bookId == null || block.getBook() != null && Objects.equals(block.getBook().getId(), bookId))
+                .forEach(block -> {
+                    String blockNodeId = nodeId("NOTE_BLOCK", block.getId());
+                    builder.node(blockNodeId, "NOTE_BLOCK", truncate(block.getPlainText()), block.getId(), null, null, block.getCreatedAt());
+                    if (block.getNote() != null) {
+                        String noteNodeId = nodeId("NOTE", block.getNote().getId());
+                        builder.node(noteNodeId, "NOTE", block.getNote().getTitle(), block.getNote().getId(), null, null, block.getNote().getCreatedAt());
+                        builder.edge(noteNodeId, blockNodeId, "SOURCE_OF");
+                    }
+                    if (block.getBook() != null) {
+                        addBookNode(builder, block.getBook());
+                        builder.edge(nodeId("BOOK", block.getBook().getId()), blockNodeId, "SOURCE_OF");
+                    }
+                    sourceReferenceRepository.findByNoteBlockIdAndUserIdOrderByCreatedAtDesc(block.getId(), userId).stream()
+                            .findFirst()
+                            .ifPresent(source -> addSourceReference(builder, userId, blockNodeId, source.getId()));
+                });
+    }
+
+    private void addCaptures(GraphBuilder builder, Long userId, Long bookId) {
+        List<RawCapture> captures = bookId == null
+                ? rawCaptureRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                : rawCaptureRepository.findByUserIdAndBookIdOrderByCreatedAtDesc(userId, bookId);
+        captures.forEach(capture -> {
+            String captureNodeId = nodeId("RAW_CAPTURE", capture.getId());
+            builder.node(captureNodeId, "RAW_CAPTURE", truncate(capture.getCleanText()), capture.getId(), null, null, capture.getCreatedAt());
+            if (capture.getBook() != null) {
+                addBookNode(builder, capture.getBook());
+                builder.edge(nodeId("BOOK", capture.getBook().getId()), captureNodeId, "SOURCE_OF");
+            }
+            sourceReferenceRepository.findByRawCaptureIdAndUserIdOrderByCreatedAtDesc(capture.getId(), userId).stream()
+                    .findFirst()
+                    .ifPresent(source -> addSourceReference(builder, userId, captureNodeId, source.getId()));
         });
     }
 
@@ -236,12 +389,127 @@ public class GraphService {
                 .forEach(thread -> addForumThread(builder, user, thread));
     }
 
+    private void addProjects(GraphBuilder builder, Long userId, Long bookId) {
+        projectRepository.findByOwnerIdAndArchivedAtIsNullOrderByUpdatedAtDesc(userId)
+                .forEach(project -> addProjectGraph(builder, userId, project, bookId));
+    }
+
+    private void addProjectGraph(GraphBuilder builder, Long userId, GameProject project) {
+        addProjectGraph(builder, userId, project, null);
+    }
+
+    private void addProjectGraph(GraphBuilder builder, Long userId, GameProject project, Long bookId) {
+        String projectNodeId = nodeId("PROJECT", project.getId());
+        boolean projectAdded = false;
+
+        for (ProjectProblem problem : projectProblemRepository.findByProjectIdAndProjectOwnerIdOrderByUpdatedAtDesc(project.getId(), userId)) {
+            if (bookId != null && !sourceBelongsToBook(problem.getRelatedSourceReference(), bookId)) {
+                continue;
+            }
+            addProjectNode(builder, project);
+            projectAdded = true;
+            String nodeId = nodeId("PROJECT_PROBLEM", problem.getId());
+            builder.node(nodeId, "PROJECT_PROBLEM", problem.getTitle(), problem.getId());
+            builder.edge(nodeId, projectNodeId, "EVIDENCE_FOR");
+            addSourceReference(builder, userId, nodeId, sourceReferenceId(problem.getRelatedSourceReference()));
+        }
+
+        for (ProjectApplication application : projectApplicationRepository.findByProjectIdAndProjectOwnerIdOrderByUpdatedAtDesc(project.getId(), userId)) {
+            if (bookId != null && !sourceBelongsToBook(application.getSourceReference(), bookId)) {
+                continue;
+            }
+            addProjectNode(builder, project);
+            projectAdded = true;
+            String nodeId = nodeId("PROJECT_APPLICATION", application.getId());
+            builder.node(nodeId, "PROJECT_APPLICATION", application.getTitle(), application.getId());
+            builder.edge(nodeId, projectNodeId, "APPLIES_TO");
+            addSourceReference(builder, userId, nodeId, sourceReferenceId(application.getSourceReference()));
+            addProjectTargetEdge(builder, nodeId, application.getSourceEntityType(), application.getSourceEntityId(), "RELATED_TO");
+        }
+
+        for (DesignDecision decision : designDecisionRepository.findByProjectIdAndProjectOwnerIdOrderByUpdatedAtDesc(project.getId(), userId)) {
+            if (bookId != null && !sourceBelongsToBook(decision.getSourceReference(), bookId)) {
+                continue;
+            }
+            addProjectNode(builder, project);
+            projectAdded = true;
+            String nodeId = nodeId("DESIGN_DECISION", decision.getId());
+            builder.node(nodeId, "DESIGN_DECISION", decision.getTitle(), decision.getId());
+            builder.edge(nodeId, projectNodeId, "DECISION_FOR");
+            addSourceReference(builder, userId, nodeId, sourceReferenceId(decision.getSourceReference()));
+        }
+
+        for (PlaytestFinding finding : playtestFindingRepository.findByProjectIdAndProjectOwnerIdOrderByUpdatedAtDesc(project.getId(), userId)) {
+            if (bookId != null && !sourceBelongsToBook(finding.getSourceReference(), bookId)) {
+                continue;
+            }
+            addProjectNode(builder, project);
+            projectAdded = true;
+            String nodeId = nodeId("PLAYTEST_FINDING", finding.getId());
+            builder.node(nodeId, "PLAYTEST_FINDING", finding.getTitle(), finding.getId());
+            builder.edge(nodeId, projectNodeId, "FINDING_FOR");
+            addSourceReference(builder, userId, nodeId, sourceReferenceId(finding.getSourceReference()));
+        }
+
+        for (ProjectLensReview review : projectLensReviewRepository.findByProjectIdAndProjectOwnerIdOrderByUpdatedAtDesc(project.getId(), userId)) {
+            if (bookId != null && !sourceBelongsToBook(review.getSourceReference(), bookId)) {
+                continue;
+            }
+            addProjectNode(builder, project);
+            projectAdded = true;
+            String nodeId = nodeId("PROJECT_LENS_REVIEW", review.getId());
+            builder.node(nodeId, "PROJECT_LENS_REVIEW", truncate(review.getQuestion()), review.getId());
+            builder.edge(nodeId, projectNodeId, "REVIEWS_WITH_LENS");
+            addSourceReference(builder, userId, nodeId, sourceReferenceId(review.getSourceReference()));
+            if (review.getKnowledgeObject() != null) {
+                addKnowledgeObject(builder, userId, null, review.getKnowledgeObject());
+                builder.edge(nodeId, nodeId("KNOWLEDGE_OBJECT", review.getKnowledgeObject().getId()), "REVIEWS_WITH_LENS");
+            }
+        }
+
+        for (ProjectKnowledgeLink link : projectKnowledgeLinkRepository.findByProjectIdAndProjectOwnerIdOrderByCreatedAtDesc(project.getId(), userId)) {
+            if (bookId != null && !sourceBelongsToBook(link.getSourceReference(), bookId)) {
+                continue;
+            }
+            addProjectNode(builder, project);
+            projectAdded = true;
+            String targetNodeId = nodeId(link.getTargetType(), link.getTargetId());
+            builder.node(targetNodeId, normalizeType(link.getTargetType()), targetNodeId, link.getTargetId());
+            builder.edge(projectNodeId, targetNodeId, link.getRelationshipType());
+            addSourceReference(builder, userId, projectNodeId, sourceReferenceId(link.getSourceReference()));
+        }
+
+        if (bookId == null && !projectAdded) {
+            addProjectNode(builder, project);
+        }
+    }
+
+    private void addProjectNode(GraphBuilder builder, GameProject project) {
+        builder.node(nodeId("PROJECT", project.getId()), "PROJECT", project.getTitle(), project.getId());
+    }
+
+    private void addProjectTargetEdge(GraphBuilder builder, String sourceNodeId, String targetType, Long targetId, String relationshipType) {
+        if (!StringUtils.hasText(targetType) || targetId == null) {
+            return;
+        }
+        String targetNodeId = nodeId(targetType, targetId);
+        builder.node(targetNodeId, normalizeType(targetType), targetNodeId, targetId);
+        builder.edge(sourceNodeId, targetNodeId, relationshipType);
+    }
+
     private void addBookNode(GraphBuilder builder, Book book) {
-        builder.node(nodeId("BOOK", book.getId()), "BOOK", book.getTitle(), book.getId());
+        builder.node(nodeId("BOOK", book.getId()), "BOOK", book.getTitle(), book.getId(), null, null, book.getCreatedAt());
     }
 
     private void addConceptNode(GraphBuilder builder, Concept concept) {
-        builder.node(nodeId("CONCEPT", concept.getId()), "CONCEPT", concept.getName(), concept.getId());
+        builder.node(
+                nodeId("CONCEPT", concept.getId()),
+                "CONCEPT",
+                concept.getName(),
+                concept.getId(),
+                concept.getFirstSourceReference() == null ? null : concept.getFirstSourceReference().getId(),
+                concept.getSourceConfidence(),
+                concept.getCreatedAt());
     }
 
     private void addKnowledgeObject(GraphBuilder builder, Long userId, String parentNodeId, KnowledgeObject object) {
@@ -290,6 +558,11 @@ public class GraphService {
             addConceptNode(builder, thread.getRelatedConcept());
             builder.edge(threadNodeId, nodeId("CONCEPT", thread.getRelatedConcept().getId()), "DISCUSSES");
         }
+        if (thread.getRelatedProject() != null
+                && projectRepository.findByIdAndOwnerIdAndArchivedAtIsNull(thread.getRelatedProject().getId(), user.getId()).isPresent()) {
+            addProjectNode(builder, thread.getRelatedProject());
+            builder.edge(threadNodeId, nodeId("PROJECT", thread.getRelatedProject().getId()), "DISCUSSES");
+        }
         if (StringUtils.hasText(thread.getRelatedEntityType()) && thread.getRelatedEntityId() != null) {
             String relatedNodeId = nodeId(thread.getRelatedEntityType(), thread.getRelatedEntityId());
             builder.node(relatedNodeId, normalizeType(thread.getRelatedEntityType()), relatedNodeId, thread.getRelatedEntityId());
@@ -310,8 +583,24 @@ public class GraphService {
         }
         sourceReferenceRepository.findByIdAndUserId(sourceReferenceId, userId).ifPresent(source -> {
             String sourceNodeId = nodeId("SOURCE_REFERENCE", source.getId());
-            builder.node(sourceNodeId, "SOURCE_REFERENCE", sourceLabel(source), source.getId());
-            builder.edge(ownerNodeId, sourceNodeId, "DERIVED_FROM");
+            builder.node(
+                    sourceNodeId,
+                    "SOURCE_REFERENCE",
+                    sourceLabel(source),
+                    source.getId(),
+                    source.getId(),
+                    source.getSourceConfidence(),
+                    source.getCreatedAt());
+            builder.edge(
+                    ownerNodeId,
+                    sourceNodeId,
+                    "DERIVED_FROM",
+                    null,
+                    source.getId(),
+                    source.getSourceConfidence(),
+                    "SYSTEM",
+                    null,
+                    source.getCreatedAt());
         });
     }
 
@@ -325,7 +614,19 @@ public class GraphService {
         String targetNodeId = nodeId(link.getTargetType(), link.getTargetId());
         builder.node(sourceNodeId, normalizeType(link.getSourceType()), sourceNodeId, link.getSourceId());
         builder.node(targetNodeId, normalizeType(link.getTargetType()), targetNodeId, link.getTargetId());
-        builder.edge(sourceNodeId, targetNodeId, normalizeType(link.getRelationType()));
+        SourceReference sourceReference = link.getSourceReferenceId() == null
+                ? null
+                : sourceReferenceRepository.findByIdAndUserId(link.getSourceReferenceId(), link.getUser().getId()).orElse(null);
+        builder.edge(
+                sourceNodeId,
+                targetNodeId,
+                normalizeType(link.getRelationType()),
+                link.getId(),
+                link.getSourceReferenceId(),
+                sourceReference == null ? null : sourceReference.getSourceConfidence(),
+                link.getCreatedBy(),
+                link.getNote(),
+                link.getCreatedAt());
     }
 
     private Book visibleForumBook(User user, ForumThread thread) {
@@ -341,6 +642,16 @@ public class GraphService {
                 || book.getVisibility() == Visibility.SHARED
                 || book.getOwner() != null && Objects.equals(book.getOwner().getId(), user.getId())
                 || userBookRepository.findByUserIdAndBookId(user.getId(), book.getId()).isPresent();
+    }
+
+    private boolean sourceBelongsToBook(SourceReference sourceReference, Long bookId) {
+        return sourceReference != null
+                && sourceReference.getBook() != null
+                && Objects.equals(sourceReference.getBook().getId(), bookId);
+    }
+
+    private Long sourceReferenceId(SourceReference sourceReference) {
+        return sourceReference == null ? null : sourceReference.getId();
     }
 
     private String sourceLabel(SourceReference source) {
@@ -377,40 +688,84 @@ public class GraphService {
         private final Map<String, GraphEdgeResponse> edges = new LinkedHashMap<>();
 
         void node(String id, String type, String label, Long entityId) {
+            node(id, type, label, entityId, null, null, null);
+        }
+
+        void node(
+                String id,
+                String type,
+                String label,
+                Long entityId,
+                Long sourceReferenceId,
+                SourceConfidence sourceConfidence,
+                Instant createdAt) {
             GraphNodeResponse existing = nodes.get(id);
             String resolvedLabel = StringUtils.hasText(label) ? label : id;
-            if (existing == null || Objects.equals(existing.label(), existing.id())) {
-                nodes.put(id, new GraphNodeResponse(id, normalizeType(type), resolvedLabel, entityId));
+            if (existing == null) {
+                nodes.put(id, new GraphNodeResponse(id, normalizeType(type), resolvedLabel, entityId, sourceReferenceId, sourceConfidence, createdAt));
+                return;
+            }
+
+            boolean betterLabel = Objects.equals(existing.label(), existing.id()) && !Objects.equals(resolvedLabel, id);
+            Long resolvedSourceReferenceId = existing.sourceReferenceId() == null ? sourceReferenceId : existing.sourceReferenceId();
+            SourceConfidence resolvedConfidence = existing.sourceConfidence() == null ? sourceConfidence : existing.sourceConfidence();
+            Instant resolvedCreatedAt = existing.createdAt() == null ? createdAt : existing.createdAt();
+            if (betterLabel || resolvedSourceReferenceId != null || resolvedConfidence != null || resolvedCreatedAt != null) {
+                nodes.put(id, new GraphNodeResponse(
+                        id,
+                        normalizeType(type),
+                        betterLabel ? resolvedLabel : existing.label(),
+                        entityId,
+                        resolvedSourceReferenceId,
+                        resolvedConfidence,
+                        resolvedCreatedAt));
             }
         }
 
         void edge(String source, String target, String type) {
+            edge(source, target, type, null, null, null, "SYSTEM", null, null);
+        }
+
+        void edge(
+                String source,
+                String target,
+                String type,
+                Long entityLinkId,
+                Long sourceReferenceId,
+                SourceConfidence sourceConfidence,
+                String createdBy,
+                String note,
+                Instant createdAt) {
             if (source == null || target == null || source.equals(target)) {
                 return;
             }
             String normalizedType = normalizeType(type);
-            edges.putIfAbsent(source + "->" + target + ":" + normalizedType, new GraphEdgeResponse(source, target, normalizedType));
+            String normalizedCreatedBy = StringUtils.hasText(createdBy) ? createdBy.trim().toUpperCase(Locale.ROOT) : "SYSTEM";
+            edges.putIfAbsent(
+                    source + "->" + target + ":" + normalizedType + ":" + (entityLinkId == null ? "system" : entityLinkId),
+                    new GraphEdgeResponse(
+                            source,
+                            target,
+                            normalizedType,
+                            entityLinkId,
+                            sourceReferenceId,
+                            sourceConfidence,
+                            normalizedCreatedBy,
+                            !"USER".equals(normalizedCreatedBy),
+                            note,
+                            createdAt));
         }
 
-        GraphResponse toResponse() {
-            return new GraphResponse(List.copyOf(nodes.values()), List.copyOf(edges.values()));
-        }
-
-        GraphResponse toResponse(String entityType, String relationshipType) {
-            String wantedEntityType = StringUtils.hasText(entityType) ? normalizeType(entityType) : null;
-            String wantedRelationshipType = StringUtils.hasText(relationshipType) ? normalizeType(relationshipType) : null;
+        GraphResponse toResponse(GraphFilter filter, Collection<String> rootNodeIds) {
+            GraphFilter activeFilter = filter == null ? GraphFilter.empty() : filter;
             List<GraphEdgeResponse> scopedEdges = edges.values().stream()
-                    .filter(edge -> wantedRelationshipType == null || wantedRelationshipType.equals(edge.type()))
+                    .filter(activeFilter::matchesEdge)
                     .toList();
 
-            if (wantedEntityType == null && wantedRelationshipType == null) {
-                return toResponse();
-            }
-
             Set<String> includedNodeIds = new LinkedHashSet<>();
-            if (wantedEntityType != null) {
+            if (activeFilter.wantedEntityType() != null) {
                 nodes.values().stream()
-                        .filter(node -> wantedEntityType.equals(node.type()))
+                        .filter(activeFilter::matchesNode)
                         .map(GraphNodeResponse::id)
                         .forEach(includedNodeIds::add);
                 scopedEdges.stream()
@@ -424,15 +779,129 @@ public class GraphService {
                     includedNodeIds.add(edge.source());
                     includedNodeIds.add(edge.target());
                 });
+                nodes.values().stream()
+                        .filter(activeFilter::matchesNode)
+                        .map(GraphNodeResponse::id)
+                        .forEach(includedNodeIds::add);
+            }
+
+            if (includedNodeIds.isEmpty() && activeFilter.isEmpty()) {
+                includedNodeIds.addAll(nodes.keySet());
+            }
+
+            Integer depth = activeFilter.normalizedDepth();
+            if (depth != null && rootNodeIds != null && !rootNodeIds.isEmpty()) {
+                includedNodeIds.retainAll(depthLimitedNodeIds(rootNodeIds, scopedEdges, depth));
             }
 
             List<GraphNodeResponse> filteredNodes = nodes.values().stream()
                     .filter(node -> includedNodeIds.contains(node.id()))
+                    .limit(activeFilter.normalizedLimit())
                     .toList();
+            Set<String> finalNodeIds = filteredNodes.stream()
+                    .map(GraphNodeResponse::id)
+                    .collect(LinkedHashSet::new, LinkedHashSet::add, LinkedHashSet::addAll);
             List<GraphEdgeResponse> filteredEdges = scopedEdges.stream()
-                    .filter(edge -> includedNodeIds.contains(edge.source()) && includedNodeIds.contains(edge.target()))
+                    .filter(edge -> finalNodeIds.contains(edge.source()) && finalNodeIds.contains(edge.target()))
+                    .limit(activeFilter.normalizedLimit() * 2L)
                     .toList();
             return new GraphResponse(filteredNodes, filteredEdges);
+        }
+
+        private Set<String> depthLimitedNodeIds(Collection<String> roots, List<GraphEdgeResponse> scopedEdges, int depth) {
+            Set<String> visited = new LinkedHashSet<>();
+            ArrayDeque<NodeDepth> queue = new ArrayDeque<>();
+            roots.stream().filter(nodes::containsKey).forEach(root -> {
+                visited.add(root);
+                queue.add(new NodeDepth(root, 0));
+            });
+
+            while (!queue.isEmpty()) {
+                NodeDepth current = queue.removeFirst();
+                if (current.depth >= depth) {
+                    continue;
+                }
+                neighbors(current.nodeId, scopedEdges).stream()
+                        .filter(visited::add)
+                        .forEach(neighbor -> queue.add(new NodeDepth(neighbor, current.depth + 1)));
+            }
+            return visited;
+        }
+
+        private List<String> neighbors(String nodeId, List<GraphEdgeResponse> scopedEdges) {
+            List<String> result = new ArrayList<>();
+            for (GraphEdgeResponse edge : scopedEdges) {
+                if (nodeId.equals(edge.source())) {
+                    result.add(edge.target());
+                }
+                if (nodeId.equals(edge.target())) {
+                    result.add(edge.source());
+                }
+            }
+            return result;
+        }
+    }
+
+    private record NodeDepth(String nodeId, int depth) {}
+
+    private record GraphFilter(
+            String entityType,
+            String relationshipType,
+            SourceConfidence sourceConfidence,
+            Instant createdFrom,
+            Instant createdTo,
+            Integer depth,
+            Integer limit) {
+
+        static GraphFilter empty() {
+            return new GraphFilter(null, null, null, null, null, null, null);
+        }
+
+        String wantedEntityType() {
+            return StringUtils.hasText(entityType) ? normalizeType(entityType) : null;
+        }
+
+        String wantedRelationshipType() {
+            return StringUtils.hasText(relationshipType) ? normalizeType(relationshipType) : null;
+        }
+
+        boolean matchesNode(GraphNodeResponse node) {
+            return wantedEntityType() == null || wantedEntityType().equals(node.type());
+        }
+
+        boolean matchesEdge(GraphEdgeResponse edge) {
+            if (wantedRelationshipType() != null && !wantedRelationshipType().equals(edge.type())) {
+                return false;
+            }
+            if (sourceConfidence != null && edge.sourceConfidence() != sourceConfidence) {
+                return false;
+            }
+            if (createdFrom != null && (edge.createdAt() == null || edge.createdAt().isBefore(createdFrom))) {
+                return false;
+            }
+            return createdTo == null || edge.createdAt() != null && !edge.createdAt().isAfter(createdTo);
+        }
+
+        Integer normalizedDepth() {
+            if (depth == null || depth < 1) {
+                return null;
+            }
+            return Math.min(depth, 4);
+        }
+
+        long normalizedLimit() {
+            if (limit == null || limit < 1) {
+                return 160;
+            }
+            return Math.min(limit, 500);
+        }
+
+        boolean isEmpty() {
+            return wantedEntityType() == null
+                    && wantedRelationshipType() == null
+                    && sourceConfidence == null
+                    && createdFrom == null
+                    && createdTo == null;
         }
     }
 }

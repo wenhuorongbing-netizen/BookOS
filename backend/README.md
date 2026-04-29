@@ -13,8 +13,8 @@ Spring Boot 3.5 backend for BookOS using Java 21, Spring Security, Spring Data J
 - `daily`: deterministic daily sentence and design prompt resurfacing.
 - `forum`: structured categories, threads, comments, likes, bookmarks, reports, templates.
 - `search`: global search across owned/visible records.
-- `graph`: real-data graph preview endpoints.
-- `ai`: MockAIProvider draft suggestions only.
+- `graph`: real-data graph exploration endpoints.
+- `ai`: draft-only suggestions through MockAIProvider by default or optional OpenAI-compatible provider configuration.
 - `admin`: local/dev ontology seed import and dry-run review.
 
 ## Environment
@@ -22,6 +22,11 @@ Spring Boot 3.5 backend for BookOS using Java 21, Spring Security, Spring Data J
 Use root `.env.example` or `backend/.env.example` as a starting point. Do not commit secrets.
 
 Seed accounts are disabled by default. Set `APP_SEED_ENABLED=true` only for local development.
+
+AI defaults to `AI_PROVIDER=mock` and requires no external key. To use an OpenAI-compatible provider, set
+`AI_PROVIDER=openai-compatible`, `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_API_KEY`,
+`OPENAI_COMPATIBLE_MODEL`, and optionally `OPENAI_COMPATIBLE_TIMEOUT_SECONDS`. Provider status is available at
+`GET /api/ai/status` and never exposes the API key.
 
 Flyway is enabled by default through `FLYWAY_ENABLED=true`. Keep `FLYWAY_BASELINE_ON_MIGRATE=false` for new databases. For an existing local database created before Flyway was introduced, back it up and start once with `FLYWAY_BASELINE_ON_MIGRATE=true`, then switch it back to `false`.
 
@@ -88,6 +93,7 @@ macOS/Linux:
 - Seed data must not include copyrighted book passages.
 - AI suggestions are drafts and never overwrite user content automatically.
 - MockAIProvider is local/deterministic and performs no external AI calls.
+- Optional OpenAI-compatible AI is disabled/fail-safe unless environment configuration is complete.
 - Private user content must remain scoped to the authenticated owner.
 
 ## Health And Logs

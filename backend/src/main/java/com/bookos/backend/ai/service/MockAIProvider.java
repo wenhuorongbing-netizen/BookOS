@@ -22,7 +22,7 @@ public class MockAIProvider implements AIProvider {
     }
 
     @Override
-    public MockAIDraft generate(AISuggestionType type, String sourceText, String sourceTitle) {
+    public AIDraft generate(AISuggestionType type, String sourceText, String sourceTitle) {
         String cleanSource = cleanSource(sourceText);
         String title = StringUtils.hasText(sourceTitle) ? sourceTitle : "selected BookOS source";
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -39,13 +39,26 @@ public class MockAIProvider implements AIProvider {
             String action = "Review and apply: " + excerpt(cleanSource, 160);
             draftText = action;
             payload.put("actions", List.of(Map.of("title", action, "priority", "MEDIUM")));
-        } else {
+        } else if (type == AISuggestionType.EXTRACT_CONCEPTS) {
             List<String> concepts = deterministicConcepts(cleanSource);
             draftText = "Draft concepts: " + String.join(", ", concepts);
             payload.put("concepts", concepts);
+        } else if (type == AISuggestionType.SUGGEST_DESIGN_LENSES) {
+            String lensName = "Lens of " + deterministicConcepts(cleanSource).getFirst();
+            draftText = "Draft design lens: " + lensName;
+            payload.put("lenses", List.of(Map.of("name", lensName, "question", "How does this source change the player's decision space?")));
+        } else if (type == AISuggestionType.SUGGEST_PROJECT_APPLICATIONS) {
+            String titleText = "Apply insight: " + excerpt(cleanSource, 120);
+            draftText = titleText;
+            payload.put("applications", List.of(Map.of("title", titleText, "applicationType", "PROJECT_APPLICATION")));
+        } else {
+            String titleText = "Discuss source-backed idea";
+            draftText = titleText + ": " + excerpt(cleanSource, 180);
+            payload.put("title", titleText);
+            payload.put("bodyMarkdown", "Source-backed discussion draft:\n\n" + excerpt(cleanSource, 480));
         }
 
-        return new MockAIDraft(draftText, writeJson(payload));
+        return new AIDraft(draftText, writeJson(payload));
     }
 
     private List<String> deterministicConcepts(String sourceText) {

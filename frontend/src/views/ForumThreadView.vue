@@ -51,6 +51,7 @@
               <AppBadge v-if="thread.relatedEntityType" variant="accent">{{ thread.relatedEntityType }}</AppBadge>
               <AppBadge v-if="thread.relatedBookTitle" variant="primary">{{ thread.relatedBookTitle }}</AppBadge>
               <AppBadge v-if="thread.relatedConceptName" variant="primary">[[{{ thread.relatedConceptName }}]]</AppBadge>
+              <AppBadge v-if="thread.relatedProjectTitle" variant="success">{{ thread.relatedProjectTitle }}</AppBadge>
               <AppBadge v-if="thread.sourceContextUnavailable" variant="warning">Private source context hidden</AppBadge>
               <AppBadge v-if="thread.canModerate && thread.reportCount" variant="danger">{{ thread.reportCount }} open reports</AppBadge>
             </div>
@@ -141,6 +142,10 @@
               <div>
                 <dt>Concept</dt>
                 <dd>{{ thread.relatedConceptName ?? 'Not visible or not attached' }}</dd>
+              </div>
+              <div>
+                <dt>Project</dt>
+                <dd>{{ thread.relatedProjectTitle ?? 'Not visible or not attached' }}</dd>
               </div>
               <div>
                 <dt>Source</dt>
@@ -238,6 +243,7 @@ const editForm = reactive<ForumThreadPayload>({
   relatedEntityId: null,
   relatedBookId: null,
   relatedConceptId: null,
+  relatedProjectId: null,
   sourceReferenceId: null,
   visibility: 'SHARED',
 })
@@ -245,6 +251,7 @@ const editForm = reactive<ForumThreadPayload>({
 const graphContextLink = computed(() => {
   if (thread.value?.relatedBookId) return { name: 'graph-book', params: { bookId: thread.value.relatedBookId } }
   if (thread.value?.relatedConceptId) return { name: 'graph-concept', params: { conceptId: thread.value.relatedConceptId } }
+  if (thread.value?.relatedProjectId) return { name: 'graph-project', params: { projectId: thread.value.relatedProjectId } }
   return { name: 'graph' }
 })
 
@@ -276,6 +283,7 @@ function syncEditForm(value: ForumThreadRecord) {
   editForm.relatedEntityId = value.relatedEntityId
   editForm.relatedBookId = value.relatedBookId
   editForm.relatedConceptId = value.relatedConceptId
+  editForm.relatedProjectId = value.relatedProjectId
   editForm.sourceReferenceId = value.sourceReferenceId
   editForm.visibility = value.visibility
 }

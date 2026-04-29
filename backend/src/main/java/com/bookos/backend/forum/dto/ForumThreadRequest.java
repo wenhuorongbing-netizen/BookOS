@@ -31,6 +31,9 @@ public record ForumThreadRequest(
         @Positive(message = "Related concept id must be positive.")
         Long relatedConceptId,
 
+        @Positive(message = "Related project id must be positive.")
+        Long relatedProjectId,
+
         @Positive(message = "Source reference id must be positive.")
         Long sourceReferenceId,
 

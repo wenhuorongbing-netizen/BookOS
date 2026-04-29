@@ -9,5 +9,20 @@ public record SearchResultResponse(
         String excerpt,
         Long bookId,
         String bookTitle,
+        Long projectId,
+        String projectTitle,
         Long sourceReferenceId,
-        Instant updatedAt) {}
+        Instant updatedAt) {
+
+    public SearchResultResponse(
+            String type,
+            Long id,
+            String title,
+            String excerpt,
+            Long bookId,
+            String bookTitle,
+            Long sourceReferenceId,
+            Instant updatedAt) {
+        this(type, id, title, excerpt, bookId, bookTitle, null, null, sourceReferenceId, updatedAt);
+    }
+}

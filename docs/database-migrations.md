@@ -23,6 +23,10 @@ Current migrations:
 - `V2__seed_core_roles_and_forum_defaults.sql`: seeds stable roles, default forum categories, and structured forum post templates.
 - `V3__add_ontology_seed_metadata.sql`: adds ontology layer, source confidence, created-by metadata, and concept tag JSON for source-aware ontology seeds.
 - `V4__forum_structured_moderation.sql`: adds OPEN/LOCKED/HIDDEN forum status support and report status for moderation workflows.
+- `V5__game_project_mode.sql`: adds game project, project problem, application, design decision, playtest, knowledge link, and lens review tables.
+- `V6__project_forum_links.sql`: adds project-linked forum context and source-link support for project discussions.
+- `V7__learning_analytics_review_mastery.sql`: adds reading sessions, review sessions/items, knowledge mastery, and analytics support tables.
+- `V8__entity_link_curation_metadata.sql`: adds curation metadata for entity links, including user/system provenance and curator notes.
 
 The seed migration does not include copyrighted book passages. Unknown source pages must remain `null`; source confidence must be explicit when source-backed knowledge is added later.
 
@@ -85,7 +89,7 @@ The tests still execute the same Flyway migration files. Hibernate schema valida
 
 ## Adding Future Migrations
 
-1. Add a new migration with the next integer version, for example `V3__add_reading_sessions.sql`.
+1. Add a new migration with the next integer version, for example `V9__add_release_audit_log.sql`.
 2. Keep migration names descriptive and lowercase with underscores.
 3. Do not edit already-shared migration files.
 4. Add indexes and foreign keys explicitly.

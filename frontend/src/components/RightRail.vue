@@ -56,18 +56,30 @@
 
     <ContextPanel eyebrow="AI Draft Suggestions" title="Draft assistance">
       <div class="draft-disabled">
-        <AppBadge variant="info" size="sm">MockAIProvider</AppBadge>
-        <p>Draft-only suggestions are generated from your existing BookOS content. They never overwrite notes, quotes, concepts, or actions.</p>
+        <div class="draft-disabled__status">
+          <AppBadge :variant="aiStatus?.available ? 'info' : 'warning'" size="sm">
+            {{ aiStatus?.activeProvider ?? 'AI provider' }}
+          </AppBadge>
+          <AppBadge v-if="aiStatus?.configuredProvider === 'openai-compatible'" variant="accent" size="sm">External configured</AppBadge>
+          <AppBadge v-else variant="neutral" size="sm">Local mock</AppBadge>
+        </div>
+        <p>{{ aiStatus?.message ?? 'Draft-only suggestions are generated from existing BookOS content.' }}</p>
+        <p>Accepting a draft records your decision only; it never overwrites notes, quotes, concepts, projects, forum posts, or actions.</p>
       </div>
-      <div class="right-rail__actions" aria-label="Generate mock AI draft suggestions">
-        <AppButton variant="secondary" :loading="aiGenerating === 'NOTE_SUMMARY'" @click="generateSuggestion('NOTE_SUMMARY')">
-          Summarize
-        </AppButton>
-        <AppButton variant="secondary" :loading="aiGenerating === 'EXTRACT_ACTIONS'" @click="generateSuggestion('EXTRACT_ACTIONS')">
-          Extract actions
-        </AppButton>
-        <AppButton variant="secondary" :loading="aiGenerating === 'EXTRACT_CONCEPTS'" @click="generateSuggestion('EXTRACT_CONCEPTS')">
-          Extract concepts
+      <div class="ai-task-row" aria-label="Generate AI draft suggestions">
+        <label class="ai-task-row__field">
+          <span>Generation task</span>
+          <el-select v-model="selectedAITask" aria-label="AI generation task">
+            <el-option v-for="task in aiTaskOptions" :key="task.value" :label="task.label" :value="task.value" />
+          </el-select>
+        </label>
+        <AppButton
+          variant="secondary"
+          :disabled="aiStatus ? !aiStatus.available : false"
+          :loading="aiGenerating === selectedAITask"
+          @click="generateSuggestion(selectedAITask)"
+        >
+          Generate draft
         </AppButton>
       </div>
 
@@ -79,6 +91,10 @@
           <div class="draft-card__topline">
             <AppBadge variant="warning" size="sm">Draft</AppBadge>
             <span>{{ draft.providerName || 'MockAIProvider' }} - {{ formatSuggestionType(draft.suggestionType) }} - {{ formatDate(draft.updatedAt) }}</span>
+          </div>
+          <div v-if="jsonValidationWarnings(draft).length" class="draft-card__warnings">
+            <strong>JSON validation warnings</strong>
+            <span v-for="warning in jsonValidationWarnings(draft)" :key="warning">{{ warning }}</span>
           </div>
 
           <label v-if="editingDraftId === draft.id" class="draft-card__editor">
@@ -159,10 +175,14 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import {
   acceptAISuggestion,
+  createDesignLensSuggestion,
   createExtractActionsSuggestion,
   createExtractConceptsSuggestion,
+  createForumThreadSuggestion,
   createNoteSummarySuggestion,
+  createProjectApplicationSuggestion,
   editAISuggestion,
+  getAIProviderStatus,
   getAISuggestions,
   rejectAISuggestion,
 } from '../api/ai'
@@ -173,16 +193,18 @@ import AppErrorState from './ui/AppErrorState.vue'
 import AppLoadingState from './ui/AppLoadingState.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore, type ActionItemPriority, type ExtractedActionItem, type RailSourceType } from '../stores/rightRail'
-import type { AISuggestionPayload, AISuggestionRecord, AISuggestionType } from '../types'
+import type { AIProviderStatusRecord, AISuggestionPayload, AISuggestionRecord, AISuggestionType } from '../types'
 
 const router = useRouter()
 const rail = useRightRailStore()
 const { openSource: openSourceDrawer } = useOpenSource()
 
 const aiSuggestions = ref<AISuggestionRecord[]>([])
+const aiStatus = ref<AIProviderStatusRecord | null>(null)
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiGenerating = ref<AISuggestionType | null>(null)
+const selectedAITask = ref<AISuggestionType>('NOTE_SUMMARY')
 const aiMutatingId = ref<number | null>(null)
 const editingDraftId = ref<number | null>(null)
 const draftEditText = ref('')
@@ -193,6 +215,14 @@ const togglingActionItemId = ref<string | null>(null)
 const source = computed(() => rail.sourceReference)
 const visibleDrafts = computed(() => aiSuggestions.value.filter((draft) => draft.status === 'DRAFT'))
 const actionItems = computed(() => rail.actionItems)
+const aiTaskOptions: { label: string; value: AISuggestionType }[] = [
+  { label: 'Summarize source', value: 'NOTE_SUMMARY' },
+  { label: 'Extract action items', value: 'EXTRACT_ACTIONS' },
+  { label: 'Extract concepts', value: 'EXTRACT_CONCEPTS' },
+  { label: 'Suggest design lenses', value: 'SUGGEST_DESIGN_LENSES' },
+  { label: 'Suggest project applications', value: 'SUGGEST_PROJECT_APPLICATIONS' },
+  { label: 'Draft forum thread', value: 'FORUM_THREAD_DRAFT' },
+]
 
 onMounted(loadAISuggestions)
 
@@ -250,7 +280,9 @@ async function loadAISuggestions() {
   aiLoading.value = true
   aiError.value = ''
   try {
-    aiSuggestions.value = await getAISuggestions()
+    const [status, suggestions] = await Promise.all([getAIProviderStatus(), getAISuggestions()])
+    aiStatus.value = status
+    aiSuggestions.value = suggestions
   } catch (error) {
     aiError.value = apiErrorMessage(error, 'AI drafts could not be loaded.')
   } finally {
@@ -262,19 +294,23 @@ async function generateSuggestion(type: AISuggestionType) {
   aiGenerating.value = type
   try {
     const payload = currentSuggestionPayload()
-    const suggestion =
-      type === 'NOTE_SUMMARY'
-        ? await createNoteSummarySuggestion(payload)
-        : type === 'EXTRACT_ACTIONS'
-        ? await createExtractActionsSuggestion(payload)
-        : await createExtractConceptsSuggestion(payload)
+    const suggestion = await createSuggestionByType(type, payload)
     upsertSuggestion(suggestion)
-    ElMessage.success('MockAIProvider draft created.')
+    ElMessage.success(`${aiStatus.value?.activeProvider ?? 'AI provider'} draft created.`)
   } catch (error) {
     ElMessage.error(apiErrorMessage(error, 'AI draft generation failed.'))
   } finally {
     aiGenerating.value = null
   }
+}
+
+function createSuggestionByType(type: AISuggestionType, payload: AISuggestionPayload) {
+  if (type === 'NOTE_SUMMARY') return createNoteSummarySuggestion(payload)
+  if (type === 'EXTRACT_ACTIONS') return createExtractActionsSuggestion(payload)
+  if (type === 'EXTRACT_CONCEPTS') return createExtractConceptsSuggestion(payload)
+  if (type === 'SUGGEST_DESIGN_LENSES') return createDesignLensSuggestion(payload)
+  if (type === 'SUGGEST_PROJECT_APPLICATIONS') return createProjectApplicationSuggestion(payload)
+  return createForumThreadSuggestion(payload)
 }
 
 function startDraftEdit(draft: AISuggestionRecord) {
@@ -417,7 +453,19 @@ function apiErrorMessage(error: unknown, fallback: string) {
 function formatSuggestionType(type: AISuggestionType) {
   if (type === 'NOTE_SUMMARY') return 'Note summary'
   if (type === 'EXTRACT_ACTIONS') return 'Extract actions'
-  return 'Extract concepts'
+  if (type === 'EXTRACT_CONCEPTS') return 'Extract concepts'
+  if (type === 'SUGGEST_DESIGN_LENSES') return 'Design lenses'
+  if (type === 'SUGGEST_PROJECT_APPLICATIONS') return 'Project applications'
+  return 'Forum thread draft'
+}
+
+function jsonValidationWarnings(draft: AISuggestionRecord) {
+  try {
+    const parsed = JSON.parse(draft.draftJson) as { validationWarnings?: string[]; warnings?: string[] }
+    return parsed.validationWarnings ?? parsed.warnings ?? []
+  } catch {
+    return ['Draft JSON could not be parsed in the browser.']
+  }
 }
 
 function priorityLabel(priority: ActionItemPriority) {
@@ -454,6 +502,9 @@ function formatDate(value: string | null | undefined) {
 .draft-list,
 .draft-card,
 .draft-disabled,
+.draft-disabled__status,
+.draft-card__warnings,
+.ai-task-row,
 .action-list,
 .rail-empty {
   display: grid;
@@ -578,11 +629,46 @@ function formatDate(value: string | null | undefined) {
   color: var(--bookos-text-secondary);
 }
 
+.draft-disabled__status {
+  grid-template-columns: repeat(auto-fit, minmax(130px, max-content));
+  align-items: center;
+}
+
+.ai-task-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.ai-task-row__field {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  font-weight: 800;
+}
+
+.ai-task-row__field :deep(.el-select) {
+  width: 100%;
+}
+
 .draft-card__editor {
   display: grid;
   gap: var(--space-2);
   color: var(--bookos-text-secondary);
   font-weight: 800;
+}
+
+.draft-card__warnings {
+  padding: var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--bookos-warning) 28%, var(--bookos-border));
+  border-radius: var(--radius-md);
+  background: var(--bookos-warning-soft);
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
+.draft-card__warnings strong {
+  color: var(--bookos-text-primary);
 }
 
 .right-rail__actions {
@@ -673,6 +759,10 @@ function formatDate(value: string | null | undefined) {
 
 @media (max-width: 900px) {
   .right-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-task-row {
     grid-template-columns: 1fr;
   }
 }
