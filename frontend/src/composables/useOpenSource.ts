@@ -2,6 +2,7 @@ import { computed, nextTick, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getSourceReference, getSourceReferences } from '../api/sourceReferences'
+import { recordUseCaseEvent } from '../api/useCaseProgress'
 import type { SourceConfidence, SourceReferenceRecord } from '../types'
 
 export interface OpenSourceTarget {
@@ -18,6 +19,7 @@ export interface OpenSourceTarget {
   locationLabel?: string | null
   sourceText?: string | null
   sourceConfidence?: SourceConfidence | null
+  navigate?: boolean
 }
 
 const drawerOpen = ref(false)
@@ -46,7 +48,10 @@ export function useOpenSource() {
     drawerSource.value = target.sourceReference ?? null
 
     await loadDrawerSource(target)
-    await navigateToSource(target)
+    recordSourceOpened(target)
+    if (target.navigate !== false) {
+      await navigateToSource(target)
+    }
   }
 
   function closeSourceDrawer() {
@@ -62,7 +67,7 @@ export function useOpenSource() {
       try {
         drawerSource.value = await getSourceReference(sourceReferenceId)
       } catch {
-        drawerError.value = 'Source reference could not be loaded.'
+        drawerError.value = 'Source link could not be loaded.'
       } finally {
         drawerLoading.value = false
       }
@@ -77,10 +82,10 @@ export function useOpenSource() {
       const references = await getSourceReferences(entityLookup)
       drawerSource.value = references[0] ?? null
       if (!drawerSource.value) {
-        drawerError.value = 'No source reference exists for this entity yet.'
+        drawerError.value = 'No source link exists for this entity yet.'
       }
     } catch {
-      drawerError.value = 'Source references could not be loaded.'
+      drawerError.value = 'Source links could not be loaded.'
     } finally {
       drawerLoading.value = false
     }
@@ -166,4 +171,12 @@ function highlightCurrentSource() {
   if (!target) return
   target.classList.add('bookos-source-highlight')
   window.setTimeout(() => target.classList.remove('bookos-source-highlight'), 1600)
+}
+
+function recordSourceOpened(target: OpenSourceTarget) {
+  void recordUseCaseEvent({
+    eventType: 'SOURCE_OPENED',
+    contextType: target.sourceType.toUpperCase(),
+    contextId: target.sourceReferenceId ?? target.sourceId,
+  }).catch(() => undefined)
 }

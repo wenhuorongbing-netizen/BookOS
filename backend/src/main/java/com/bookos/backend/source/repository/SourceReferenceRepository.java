@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SourceReferenceRepository extends JpaRepository<SourceReference, Long> {
 
+    long countByUserId(Long userId);
+
     @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
     Optional<SourceReference> findByIdAndUserId(Long id, Long userId);
 

@@ -3,7 +3,7 @@
     <AppSectionHeader
       eyebrow="Reading Analytics"
       title="Knowledge Activity"
-      description="Computed from real BookOS records: books, notes, captures, quotes, actions, projects, reviews, and mastery."
+      description="Computed from real BookOS records: books, notes, captures, quotes, actions, projects, reviews, and learning progress."
       :level="1"
     />
 
@@ -40,10 +40,10 @@
         </AppCard>
 
         <AppCard class="analytics-card" as="section">
-          <AppSectionHeader title="Knowledge Mastery" eyebrow="Review signal" compact />
+          <AppSectionHeader title="Learning Progress" eyebrow="Review signal" compact />
           <dl class="metric-list">
-            <div><dt>Knowledge objects</dt><dd>{{ knowledge.knowledgeObjectsCount }}</dd></div>
-            <div><dt>Mastery targets</dt><dd>{{ knowledge.masteryTargets }}</dd></div>
+            <div><dt>Design knowledge</dt><dd>{{ knowledge.knowledgeObjectsCount }}</dd></div>
+            <div><dt>Progress targets</dt><dd>{{ knowledge.masteryTargets }}</dd></div>
             <div><dt>Due for review</dt><dd>{{ knowledge.dueForReview }}</dd></div>
             <div><dt>Review sessions</dt><dd>{{ reading.completedReviewSessions }}/{{ reading.reviewSessionsCount }}</dd></div>
           </dl>

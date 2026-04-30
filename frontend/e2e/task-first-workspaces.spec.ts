@@ -29,7 +29,7 @@ test('core workspaces present one obvious first action without fake data', async
   await expect(page.getByRole('button', { name: 'Add first book' }).first()).toBeVisible()
 
   await page.goto('/captures/inbox')
-  await expect(page.getByRole('heading', { name: 'Capture Inbox' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Process Captures' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Capture one reading thought first' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Open Library' }).first()).toBeVisible()
 

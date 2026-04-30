@@ -62,7 +62,7 @@
       </div>
 
       <label class="field">
-        <span>Source reference</span>
+        <span>Source link</span>
         <el-select
           v-model="form.sourceReferenceId"
           clearable
@@ -92,7 +92,7 @@
       </div>
 
       <p v-if="form.sourceReferenceId" class="helper-text">
-        Page values are inherited from the selected source reference. Manual page fields are disabled to avoid conflicting source data.
+        Page values are inherited from the selected source link. Manual page fields are disabled to avoid conflicting source data.
       </p>
 
       <p class="helper-text">
@@ -150,8 +150,8 @@ const form = reactive({
 
 const sourceReferences = ref<SourceReferenceRecord[]>([])
 
-const dialogTitle = computed(() => props.title || (props.actionItem ? 'Edit Action Item' : 'Create Action Item'))
-const submitLabel = computed(() => (props.actionItem ? 'Save Action Item' : 'Create Action Item'))
+const dialogTitle = computed(() => props.title || (props.actionItem ? 'Edit Action' : 'Create Action'))
+const submitLabel = computed(() => (props.actionItem ? 'Save Action' : 'Create Action'))
 const libraryBooks = computed(() => props.books.filter((book) => book.inLibrary || book.id === props.actionItem?.bookId))
 
 watch(
@@ -186,13 +186,13 @@ async function loadSourceReferences(bookId: number | string) {
   try {
     sourceReferences.value = await getBookSourceReferences(bookId)
   } catch {
-    ElMessage.warning('Source references for this book could not be loaded.')
+    ElMessage.warning('Source links for this book could not be loaded.')
   }
 }
 
 function submitForm() {
   if (!form.bookId) {
-    ElMessage.warning('Choose a book before saving the action item.')
+    ElMessage.warning('Choose a book before saving the action.')
     return
   }
 

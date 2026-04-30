@@ -25,7 +25,7 @@
             <AppButton variant="ghost" @click="navigate">Open Book</AppButton>
           </RouterLink>
           <RouterLink :to="{ name: 'graph-book', params: { bookId: note.bookId } }" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+            <AppButton variant="secondary" @click="navigate">Knowledge Graph</AppButton>
           </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
@@ -94,7 +94,7 @@
           <AppSectionHeader
             title="Add Parsed Block"
             eyebrow="Atomic block"
-            description="Blocks preserve their own parser result and source reference."
+            description="Blocks preserve their own parser result and source link."
             :level="2"
             compact
           />
@@ -120,7 +120,7 @@
       <AppCard class="blocks-panel" as="section">
         <AppSectionHeader
           title="Parsed Note Blocks"
-          eyebrow="Source references"
+          eyebrow="Source links"
           description="Each block keeps raw text, parsed type, page data, concepts, tags, and source linkage."
           :level="2"
           compact
@@ -170,7 +170,7 @@
               <pre>{{ block.rawText }}</pre>
               <dl>
                 <div v-for="source in block.sourceReferences" :key="source.id">
-                  <dt>{{ source.locationLabel ?? 'Source reference' }}</dt>
+                  <dt>{{ source.locationLabel ?? 'Source link' }}</dt>
                   <dd>{{ source.sourceText ?? 'No source text stored.' }}</dd>
                 </div>
               </dl>
@@ -429,7 +429,7 @@ async function saveNoteConceptReview(payload: ConceptReviewPayload) {
   if (!note.value || !selectedConceptBlock.value) return
   const sourceReference = selectedConceptBlock.value.sourceReferences[0] ?? null
   if (!sourceReference) {
-    ElMessage.warning('This note block has no source reference to attach concepts to.')
+    ElMessage.warning('This note block has no source link to attach concepts to.')
     return
   }
 

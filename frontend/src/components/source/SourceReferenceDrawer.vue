@@ -1,13 +1,13 @@
 <template>
   <el-drawer
     :model-value="sourceDrawerOpen"
-    title="Source Reference"
+    title="Source Link"
     size="min(420px, 100vw)"
     direction="rtl"
     @update:model-value="handleVisibilityChange"
   >
     <div class="source-drawer">
-      <AppLoadingState v-if="sourceDrawerLoading" label="Loading source reference" />
+      <AppLoadingState v-if="sourceDrawerLoading" label="Loading source link" />
 
       <AppErrorState
         v-else-if="sourceDrawerError && !sourceDrawerSource"
@@ -26,7 +26,7 @@
           <HelpTooltip topic="source-reference" placement="left" />
         </div>
 
-        <dl class="source-drawer__meta" aria-label="Source reference metadata">
+        <dl class="source-drawer__meta" aria-label="Source link metadata">
           <div>
             <dt>Book</dt>
             <dd>{{ bookLabel }}</dd>
@@ -121,7 +121,7 @@ const relatedEntityLabel = computed(() => {
 const confidence = computed(() => sourceDrawerSource.value?.sourceConfidence ?? sourceDrawerTarget.value?.sourceConfidence ?? null)
 const sourceText = computed(() => sourceDrawerSource.value?.sourceText ?? sourceDrawerTarget.value?.sourceText ?? 'No source text stored for this reference.')
 const sourceProjectLabel = computed(() => {
-  if (!sourceDrawerSource.value) return 'Source reference'
+  if (!sourceDrawerSource.value) return 'Source link'
   return sourceDrawerSource.value.locationLabel ?? `Source #${sourceDrawerSource.value.id}`
 })
 const sourceProjectTitle = computed(() => `Apply ${sourceProjectLabel.value}`)
@@ -132,7 +132,7 @@ function handleVisibilityChange(value: boolean) {
 
 async function reopenSource() {
   if (!sourceDrawerTarget.value) return
-  await openSource(sourceDrawerTarget.value)
+  await openSource({ ...sourceDrawerTarget.value, navigate: true })
 }
 
 async function createForumThread() {

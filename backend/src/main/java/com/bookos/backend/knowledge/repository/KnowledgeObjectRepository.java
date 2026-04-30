@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface KnowledgeObjectRepository extends JpaRepository<KnowledgeObject, Long> {
 
+    long countByUserIdAndArchivedFalse(Long userId);
+
     @EntityGraph(attributePaths = {"book", "note", "concept"})
     List<KnowledgeObject> findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(Long userId);
 

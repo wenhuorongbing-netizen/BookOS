@@ -11,20 +11,30 @@
     <div class="use-case-card__meta">
       <span>{{ useCase.steps.length }} steps</span>
       <span>{{ useCase.creates.length }} outputs</span>
+      <span v-if="progress">{{ completedCount }}/{{ useCase.steps.length }} complete</span>
     </div>
-    <RouterLink class="use-case-card__link" :to="`/use-cases/${useCase.slug}`" @click.stop>Open use case</RouterLink>
+    <RouterLink class="use-case-card__link" :to="`/use-cases/${useCase.slug}`" @click.stop>
+      {{ progress?.status === 'IN_PROGRESS' ? 'Continue use case' : 'Open use case' }}
+    </RouterLink>
   </AppCard>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { UseCaseTemplate } from '../../data/useCases'
+import type { UserUseCaseProgressRecord } from '../../types'
 import AppBadge from '../ui/AppBadge.vue'
 import AppCard from '../ui/AppCard.vue'
 
-defineProps<{
+const props = defineProps<{
   useCase: UseCaseTemplate
+  progress?: UserUseCaseProgressRecord | null
 }>()
+
+const completedCount = computed(() =>
+  Math.min(props.progress?.effectiveCompletedStepKeys.length ?? 0, props.useCase.steps.length),
+)
 </script>
 
 <style scoped>

@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ForumCommentRepository extends JpaRepository<ForumComment, Long> {
 
+    long countByAuthorIdAndArchivedFalse(Long authorId);
+
     @EntityGraph(attributePaths = {"author", "author.profile"})
     List<ForumComment> findByThreadIdAndArchivedFalseOrderByCreatedAtAsc(Long threadId);
 

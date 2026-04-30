@@ -404,6 +404,164 @@ class ProjectModeIntegrationTest {
                 .andExpect(jsonPath("$.data[0].projectId").value(projectId));
     }
 
+    @Test
+    void wizardApplyKnowledgeCreatesRecordsTransactionallyAndIdempotently() throws Exception {
+        String token = register("project-wizard-%s@bookos.local".formatted(UUID.randomUUID()), "Project Wizard");
+        Long projectId = createProject(token, "Wizard Transaction Project");
+        Long bookId = createBookAndAddToLibrary(token);
+        QuoteFixture quote = createSourceBackedQuote(token, bookId, "Source-backed wizard decisions stay traceable.");
+        String idempotencyKey = UUID.randomUUID().toString();
+        String payload = """
+                {
+                  "sourceType": "QUOTE",
+                  "sourceId": %d,
+                  "sourceReferenceId": %d,
+                  "clientStepIntent": "finish",
+                  "idempotencyKey": "%s",
+                  "projectProblem": {
+                    "title": "Players miss the source-backed cue",
+                    "description": "The project needs a readable feedback cue.",
+                    "status": "OPEN",
+                    "priority": "HIGH"
+                  },
+                  "projectApplication": {
+                    "title": "Apply the source-backed cue",
+                    "description": "Turn the quote into a project application.",
+                    "applicationType": "MECHANIC_TEST",
+                    "status": "OPEN"
+                  },
+                  "designDecision": {
+                    "title": "Use a stronger cue",
+                    "decision": "Add anticipation feedback before the player action.",
+                    "rationale": "The source-backed quote supports readable intent.",
+                    "tradeoffs": "More feedback may reduce difficulty.",
+                    "status": "PROPOSED"
+                  },
+                  "playtestPlan": {
+                    "title": "Test the stronger cue",
+                    "hypothesis": "Players understand the action timing.",
+                    "tasks": "Run the opening room twice.",
+                    "successCriteria": "Players explain the timing rule.",
+                    "status": "DRAFT"
+                  },
+                  "playtestFinding": {
+                    "title": "Cue readability finding",
+                    "observation": "Players should notice the cue earlier.",
+                    "recommendation": "Compare before and after feedback.",
+                    "severity": "MEDIUM",
+                    "status": "OPEN"
+                  },
+                  "projectKnowledgeLink": {
+                    "targetType": "QUOTE",
+                    "targetId": %d,
+                    "relationshipType": "ITERATION_NOTE",
+                    "note": "Use this source as the iteration evidence."
+                  }
+                }
+                """.formatted(quote.quoteId(), quote.sourceReferenceId(), idempotencyKey, quote.quoteId());
+
+        String response = mockMvc.perform(post("/api/projects/{projectId}/wizard/apply-knowledge", projectId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.duplicate").value(false))
+                .andExpect(jsonPath("$.data.projectProblem.relatedSourceReference.id").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.projectApplication.sourceReference.id").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.designDecision.sourceReference.id").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.playtestFinding.sourceReference.id").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.projectKnowledgeLink.sourceReference.id").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.createdRecords.length()").value(6))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long applicationId = data(response).path("projectApplication").path("id").asLong();
+
+        mockMvc.perform(post("/api/projects/{projectId}/wizard/apply-knowledge", projectId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.duplicate").value(true))
+                .andExpect(jsonPath("$.data.projectApplication.id").value(applicationId))
+                .andExpect(jsonPath("$.data.createdRecords.length()").value(6));
+
+        mockMvc.perform(get("/api/projects/{projectId}/applications", projectId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    @Test
+    void wizardValidationFailureCreatesNothing() throws Exception {
+        String token = register("project-wizard-fail-%s@bookos.local".formatted(UUID.randomUUID()), "Project Wizard Failure");
+        Long projectId = createProject(token, "Wizard Validation Project");
+        Long bookId = createBookAndAddToLibrary(token);
+        QuoteFixture quote = createSourceBackedQuote(token, bookId, "Validation failure should not create partial records.");
+
+        mockMvc.perform(post("/api/projects/{projectId}/wizard/apply-knowledge", projectId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "QUOTE",
+                                  "sourceId": %d,
+                                  "sourceReferenceId": %d,
+                                  "idempotencyKey": "%s",
+                                  "projectProblem": {
+                                    "title": "This should roll back",
+                                    "status": "OPEN",
+                                    "priority": "HIGH"
+                                  },
+                                  "projectApplication": {
+                                    "title": " ",
+                                    "applicationType": "MECHANIC_TEST"
+                                  }
+                                }
+                                """.formatted(quote.quoteId(), quote.sourceReferenceId(), UUID.randomUUID())))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/projects/{projectId}/problems", projectId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(get("/api/projects/{projectId}/applications", projectId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void wizardBlocksCrossUserSourceReferenceBeforeCreatingRecords() throws Exception {
+        String ownerToken = register("project-wizard-owner-%s@bookos.local".formatted(UUID.randomUUID()), "Project Wizard Owner");
+        String intruderToken = register("project-wizard-source-%s@bookos.local".formatted(UUID.randomUUID()), "Project Wizard Source");
+        Long projectId = createProject(ownerToken, "Wizard Ownership Project");
+        Long intruderBookId = createBookAndAddToLibrary(intruderToken);
+        QuoteFixture intruderQuote = createSourceBackedQuote(intruderToken, intruderBookId, "Private source should not leak.");
+
+        mockMvc.perform(post("/api/projects/{projectId}/wizard/apply-knowledge", projectId)
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "SOURCE_REFERENCE",
+                                  "sourceId": %d,
+                                  "idempotencyKey": "%s",
+                                  "projectProblem": {
+                                    "title": "Should not be created",
+                                    "status": "OPEN",
+                                    "priority": "HIGH"
+                                  }
+                                }
+                                """.formatted(intruderQuote.sourceReferenceId(), UUID.randomUUID())))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/projects/{projectId}/problems", projectId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
     private Long createProject(String token, String title) throws Exception {
         String response = mockMvc.perform(post("/api/projects")
                         .header("Authorization", bearer(token))

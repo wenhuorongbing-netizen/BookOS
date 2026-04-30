@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface QuoteRepository extends JpaRepository<Quote, Long> {
 
+    long countByUserIdAndArchivedFalse(Long userId);
+
     @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
     List<Quote> findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(Long userId);
 

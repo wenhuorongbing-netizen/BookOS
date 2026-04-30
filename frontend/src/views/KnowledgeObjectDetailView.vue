@@ -1,22 +1,22 @@
 <template>
   <div class="page-shell knowledge-detail-page">
-    <AppLoadingState v-if="loading" label="Loading knowledge object" />
-    <AppErrorState v-else-if="errorMessage" title="Knowledge object could not load" :description="errorMessage" retry-label="Retry" @retry="loadObject" />
+    <AppLoadingState v-if="loading" label="Loading design knowledge" />
+    <AppErrorState v-else-if="errorMessage" title="Design knowledge could not load" :description="errorMessage" retry-label="Retry" @retry="loadObject" />
 
     <template v-else-if="object">
       <AppSectionHeader
         :title="object.title"
-        eyebrow="Knowledge object"
+        eyebrow="Design knowledge"
         :description="typeLabel(object.type)"
         :level="1"
       >
         <template #actions>
           <RouterLink to="/knowledge" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">All Knowledge</AppButton>
+            <AppButton variant="secondary" @click="navigate">All Design Knowledge</AppButton>
           </RouterLink>
           <AppButton variant="ghost" :disabled="!object.sourceReference" @click="openObjectSource">Open Source</AppButton>
           <RouterLink :to="graphContextLink" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+            <AppButton variant="secondary" @click="navigate">Knowledge Graph</AppButton>
           </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
@@ -128,7 +128,7 @@ async function loadObject() {
   try {
     object.value = await getKnowledgeObject(String(route.params.id))
   } catch {
-    errorMessage.value = 'Check backend availability and permissions, then try opening this knowledge object again.'
+    errorMessage.value = 'Check backend availability and permissions, then try opening this design knowledge record again.'
   } finally {
     loading.value = false
   }

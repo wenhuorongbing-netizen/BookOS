@@ -3,7 +3,7 @@
     <AppSectionHeader
       eyebrow="Review Sessions"
       title="Source-backed review"
-      description="Review real notes, concepts, projects, and source references so useful knowledge does not disappear."
+      description="Review real notes, concepts, projects, and source links so useful knowledge does not disappear."
       :level="1"
     >
       <template #actions>

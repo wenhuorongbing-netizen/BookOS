@@ -4,7 +4,7 @@ Last reviewed: 2026-04-30.
 
 Reviewed branch: `main`.
 
-Reviewed SHA: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
+Reviewed SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
 
 ## Purpose
 
@@ -190,4 +190,3 @@ Success metric:
 - Project applications created from quotes/concepts.
 - Review sessions completed per week.
 - Search-to-open success rate.
-

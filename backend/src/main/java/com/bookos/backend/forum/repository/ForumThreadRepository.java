@@ -21,6 +21,8 @@ public interface ForumThreadRepository extends JpaRepository<ForumThread, Long> 
     @EntityGraph(attributePaths = {"category", "author", "author.profile", "relatedBook", "relatedConcept", "relatedProject"})
     List<ForumThread> findByAuthorIdAndStatusNotOrderByUpdatedAtDesc(Long authorId, ForumThreadStatus status);
 
+    long countByAuthorIdAndStatusNot(Long authorId, ForumThreadStatus status);
+
     long countByCategoryIdAndStatusNot(Long categoryId, ForumThreadStatus status);
 
     long countByStatusNotAndSourceReferenceIdIsNotNull(ForumThreadStatus status);

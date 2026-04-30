@@ -35,7 +35,7 @@
       </label>
 
       <label class="field">
-        <span>Source reference</span>
+        <span>Source link</span>
         <el-select
           v-model="form.sourceReferenceId"
           clearable
@@ -79,7 +79,7 @@
       </div>
 
       <p v-if="form.sourceReferenceId" class="helper-text">
-        Page values are inherited from the selected source reference. Manual page fields are disabled to avoid conflicting source data.
+        Page values are inherited from the selected source link. Manual page fields are disabled to avoid conflicting source data.
       </p>
 
       <label class="field">
@@ -183,7 +183,7 @@ async function loadSourceReferences(bookId: number | string) {
   try {
     sourceReferences.value = await getBookSourceReferences(bookId)
   } catch {
-    ElMessage.warning('Source references for this book could not be loaded.')
+    ElMessage.warning('Source links for this book could not be loaded.')
   }
 }
 

@@ -17,20 +17,38 @@ async function createHelpSession(page: Page, request: APIRequestContext) {
   })
 
   await setSession(page, { token: auth.token, user })
+  return { token: auth.token, runId }
 }
 
 test('help glossary and contextual drawer explain advanced BookOS terms', async ({ page, request }) => {
-  await createHelpSession(page, request)
+  const { token, runId } = await createHelpSession(page, request)
 
   await page.goto('/help')
   await expect(page.getByRole('heading', { name: 'Learn BookOS terms' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /Source Reference/ })).toBeVisible()
-  await expect(page.getByRole('link', { name: /AI Draft/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Source Link/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Draft Assistant/ })).toBeVisible()
 
-  await page.getByRole('link', { name: /Source Reference/ }).click()
+  await page.getByRole('link', { name: /Source Link/ }).click()
   await expect(page).toHaveURL(/\/help\/source-reference/)
-  await expect(page.getByRole('heading', { name: 'Source Reference' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Source Link' })).toBeVisible()
   await expect(page.getByText('If a page is unknown, BookOS should say page unknown')).toBeVisible()
+
+  const book = await apiPost<{ id: number }>(request, '/books', token, {
+    title: `Help Dashboard Book ${runId}`,
+    subtitle: null,
+    description: 'Original E2E metadata for help tooltip visibility.',
+    isbn: null,
+    publisher: null,
+    publicationYear: null,
+    coverUrl: null,
+    category: 'E2E',
+    visibility: 'PRIVATE',
+    authors: ['QA Automation'],
+    tags: ['help'],
+  })
+  await apiPost(request, `/books/${book.id}/add-to-library`, token, {
+    readingStatus: 'CURRENTLY_READING',
+  })
 
   await page.goto('/dashboard')
   const quickCaptureHelp = page.getByRole('button', { name: 'Help: Quick Capture' })

@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserBookRepository extends JpaRepository<UserBook, Long> {
 
+    long countByUserId(Long userId);
+
     @EntityGraph(attributePaths = {"book", "book.bookAuthors", "book.bookAuthors.author", "book.bookTags", "book.bookTags.tag"})
     List<UserBook> findByUserIdOrderByUpdatedAtDesc(Long userId);
 

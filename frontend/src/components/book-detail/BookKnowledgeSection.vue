@@ -15,7 +15,7 @@
             <div class="eyebrow">Knowledge Graph Preview</div>
             <h3>Current book network</h3>
           </div>
-          <AppIconButton label="About this knowledge graph preview" tooltip="Derived from source references, concepts, notes, quotes, actions, and entity links" variant="ghost">
+          <AppIconButton label="About this Knowledge Graph preview" tooltip="Derived from source links, concepts, notes, quotes, actions, and relationships" variant="ghost">
             i
           </AppIconButton>
         </div>
@@ -52,7 +52,7 @@
         <AppEmptyState
           v-else
           title="No graph nodes yet"
-          description="Add source-backed notes, concepts, quotes, or action items to build a graph preview."
+          description="Add source-backed notes, concepts, quotes, or actions to build a Knowledge Graph preview."
           compact
         />
 

@@ -27,6 +27,8 @@ The route `/projects/:id/wizard/apply-knowledge` teaches a practical source-back
 ## Safety Rules
 
 - No project records are created until the final confirmation step.
+- Final confirmation uses a backend transaction. If validation fails, ownership checks fail, or the network request fails before completion, BookOS does not create a confusing partial set.
+- The final submit includes an idempotency key. Retrying the same final step returns the previous result instead of creating duplicate records.
 - Users can skip optional steps.
 - Users can save a local draft without writing server records.
 - Source references are passed into project problems, applications, decisions, findings, and iteration-note links where available.

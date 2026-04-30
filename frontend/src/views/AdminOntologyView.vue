@@ -64,8 +64,8 @@
       <dl class="result-grid">
         <div><dt>Books</dt><dd>{{ result.booksCreated }} created, {{ result.booksExisting }} existing</dd></div>
         <div><dt>Concepts</dt><dd>{{ result.conceptsCreated }} created, {{ result.conceptsUpdated }} updated, {{ result.conceptsExisting }} existing</dd></div>
-        <div><dt>Knowledge Objects</dt><dd>{{ result.knowledgeObjectsCreated }} created, {{ result.knowledgeObjectsUpdated }} updated, {{ result.knowledgeObjectsExisting }} existing</dd></div>
-        <div><dt>Source References</dt><dd>{{ result.sourceReferencesCreated }} created</dd></div>
+        <div><dt>Design Knowledge</dt><dd>{{ result.knowledgeObjectsCreated }} created, {{ result.knowledgeObjectsUpdated }} updated, {{ result.knowledgeObjectsExisting }} existing</dd></div>
+        <div><dt>Source Links</dt><dd>{{ result.sourceReferencesCreated }} created</dd></div>
       </dl>
       <div v-if="result.warnings.length" class="warnings">
         <strong>Warnings</strong>

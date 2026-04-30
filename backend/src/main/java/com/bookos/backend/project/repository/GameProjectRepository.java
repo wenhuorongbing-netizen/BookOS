@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface GameProjectRepository extends JpaRepository<GameProject, Long> {
 
+    long countByOwnerIdAndArchivedAtIsNull(Long ownerId);
+
     List<GameProject> findByOwnerIdAndArchivedAtIsNullOrderByUpdatedAtDesc(Long ownerId);
 
     Optional<GameProject> findByIdAndOwnerIdAndArchivedAtIsNull(Long id, Long ownerId);

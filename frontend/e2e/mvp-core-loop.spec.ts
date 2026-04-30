@@ -72,7 +72,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await apiPut(request, `/user-books/${userBookId}/progress`, token, { progressPercent: 42 })
     await apiPut(request, `/user-books/${userBookId}/rating`, token, { rating: 5 })
     await page.goto(`/books/${bookId}`)
-    await expect(page.getByText('CURRENTLY_READING').first()).toBeVisible()
+    await expect(page.getByText('Currently Reading').first()).toBeVisible()
     await expect(page.getByText('42%').first()).toBeVisible()
   })
 
@@ -122,7 +122,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await page.goto(`/captures/inbox?bookId=${bookId}`)
     const actionCard = page.locator('article').filter({ hasText: actionText }).first()
     await actionCard.getByRole('button', { name: 'Convert to Action' }).first().click()
-    const actionDialog = page.getByRole('dialog', { name: 'Convert to Action Item' })
+    const actionDialog = page.getByRole('dialog', { name: 'Convert to Action' })
     await expect(actionDialog).toBeVisible()
     await actionDialog.getByRole('button', { name: 'Convert' }).click()
     await expect(page).toHaveURL(/\/action-items/)
@@ -168,9 +168,9 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await expect(page.getByText(actionText).first()).toBeVisible()
     const actionCard = page.locator('article').filter({ hasText: actionText }).first()
     await actionCard.getByRole('button', { name: 'Complete' }).first().click()
-    await expect(page.getByText('Action item completed.').first()).toBeVisible()
+    await expect(page.getByText('Action completed.').first()).toBeVisible()
     await actionCard.getByRole('button', { name: 'Reopen' }).first().click()
-    await expect(page.getByText('Action item reopened.').first()).toBeVisible()
+    await expect(page.getByText('Action reopened.').first()).toBeVisible()
   })
 
   let conceptId = 0
@@ -186,7 +186,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await conceptCard.getByRole('button', { name: 'Review Concepts' }).click()
     await expect(page.getByRole('dialog', { name: 'Review Parsed Concepts' })).toBeVisible()
     await page.getByRole('button', { name: 'Save Reviewed Concepts' }).click()
-    await expect(page.getByText('Parsed concepts reviewed and source references preserved.').first()).toBeVisible()
+    await expect(page.getByText('Parsed concepts reviewed and source links preserved.').first()).toBeVisible()
 
     const concepts = await apiGet<Array<{ id: number; name: string }>>(request, `/concepts?q=${encodeURIComponent(conceptName)}`, token)
     conceptId = concepts.find((item) => item.name === conceptName)?.id ?? 0
@@ -268,12 +268,12 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await expect(page).toHaveURL(new RegExp(`/books/${bookId}`))
 
     await page.goto(`/graph/book/${bookId}`)
-    await expect(page.getByRole('heading', { name: 'Knowledge Graph' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Knowledge Graph', exact: true })).toBeVisible()
     await expect(page.getByText(/Real data only|No graph links yet/)).toBeVisible()
 
     await page.goto(`/graph/project/${projectId}`)
-    await expect(page.getByRole('heading', { name: 'Knowledge Graph' })).toBeVisible()
-    await expect(page.getByText(/PROJECT|Real data only|No graph links yet/).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Knowledge Graph', exact: true })).toBeVisible()
+    await expect(page.getByText(/PROJECT|Real data only|No Knowledge Graph links/).first()).toBeVisible()
   })
 
   await test.step('MockAIProvider draft workflow remains draft-only', async () => {
@@ -289,7 +289,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await expect(page.getByText('Draft suggestion updated.').first()).toBeVisible()
 
     await rightRail.getByRole('button', { name: 'Accept' }).first().click()
-    await expect(page.getByRole('dialog', { name: 'Accept AI draft?' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Accept assistant draft?' })).toBeVisible()
     await page.getByRole('button', { name: 'Accept draft' }).click()
     await expect(page.getByText('Draft suggestion accepted. No user content was overwritten.').first()).toBeVisible()
 

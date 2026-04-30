@@ -11,13 +11,30 @@
       </template>
     </AppSectionHeader>
 
-    <UseCaseSuggestionPanel
-      title="Export or import without losing source rules"
-      description="Start with the export workflow before using import preview. Unknown pages stay unknown and private exports should be handled carefully."
-      :slugs="importExportUseCaseSlugs"
+    <DetailNextStepCard
+      :title="transferNextStep.title"
+      :description="transferNextStep.description"
+      :primary-label="transferNextStep.primaryLabel"
+      :primary-loading="transferNextStep.primaryLoading"
+      :secondary-label="transferNextStep.secondaryLabel"
+      :loop="transferWorkflowLoop"
+      @primary="handleTransferPrimaryAction"
+      @secondary="clearImportState"
     />
 
-    <section class="transfer-grid">
+    <details class="transfer-disclosure">
+      <summary>
+        <span>Workflow guides</span>
+        <small>Use when import/export feels risky</small>
+      </summary>
+      <UseCaseSuggestionPanel
+        title="Export or import without losing source rules"
+        description="Start with the export workflow before using import preview. Unknown pages stay unknown and private exports should be handled carefully."
+        :slugs="importExportUseCaseSlugs"
+      />
+    </details>
+
+    <section class="transfer-grid transfer-grid--primary">
       <AppCard class="transfer-card" as="section">
         <AppSectionHeader title="Export" eyebrow="Your data only" compact>
           <template #actions>
@@ -27,93 +44,109 @@
 
         <p class="transfer-copy">
           Exports are scoped to the current authenticated user. Book exports include notes, captures, quotes, action
-          items, concepts, source references, and backlink summary where available.
+          items, concepts, source links, and related-link summary where available.
         </p>
 
-        <div class="export-actions">
-          <AppButton :loading="exporting" variant="primary" @click="downloadAllJson">Export All JSON</AppButton>
-          <AppButton :loading="exporting" variant="secondary" @click="downloadCsv('/export/quotes/csv', 'bookos-quotes.csv')">
-            Quotes CSV
-          </AppButton>
-          <AppButton :loading="exporting" variant="secondary" @click="downloadCsv('/export/action-items/csv', 'bookos-action-items.csv')">
-            Action Items CSV
-          </AppButton>
-          <AppButton :loading="exporting" variant="secondary" @click="downloadCsv('/export/concepts/csv', 'bookos-concepts.csv')">
-            Concepts CSV
-          </AppButton>
-        </div>
-
-        <AppDivider />
-
-        <label class="field">
-          <span>Single book export</span>
-          <el-select v-model="selectedBookId" filterable clearable placeholder="Choose a book">
-            <el-option v-for="book in books" :key="book.id" :label="book.title" :value="book.id" />
-          </el-select>
-        </label>
-        <div class="export-actions">
-          <AppButton :disabled="!selectedBookId" :loading="exporting" variant="secondary" @click="downloadBookJson">
-            Book JSON
-          </AppButton>
-          <AppButton :disabled="!selectedBookId" :loading="exporting" variant="secondary" @click="downloadBookMarkdown">
-            Book Markdown
-          </AppButton>
-        </div>
-      </AppCard>
-
-      <AppCard class="transfer-card" as="section">
-        <AppSectionHeader title="Import" eyebrow="Preview before write" compact>
-          <template #actions>
-            <AppBadge variant="warning" size="sm">No overwrite</AppBadge>
-          </template>
-        </AppSectionHeader>
-
-        <p class="transfer-copy">
-          Import preview validates records, duplicate risk, unsupported fields, source-reference issues, and malformed
-          page numbers. Unknown pages stay null.
+        <p class="transfer-hint">
+          Use the primary action above for the full JSON backup. Keep CSV and single-book exports collapsed until you
+          need a narrower format.
         </p>
 
-        <label class="field">
-          <span>Import type</span>
-          <el-select v-model="importType" placeholder="Choose import type">
-            <el-option label="BookOS JSON backup" value="BOOKOS_JSON" />
-            <el-option label="Markdown notes" value="MARKDOWN_NOTES" />
-            <el-option label="Quotes CSV" value="QUOTES_CSV" />
-            <el-option label="Action Items CSV" value="ACTION_ITEMS_CSV" />
-          </el-select>
-        </label>
+        <details class="transfer-disclosure transfer-disclosure--nested">
+          <summary>
+            <span>CSV and single-book exports</span>
+            <small>Advanced formats</small>
+          </summary>
+          <div class="export-actions">
+            <AppButton :loading="exporting" variant="secondary" @click="downloadCsv('/export/quotes/csv', 'bookos-quotes.csv')">
+              Quotes CSV
+            </AppButton>
+            <AppButton :loading="exporting" variant="secondary" @click="downloadCsv('/export/action-items/csv', 'bookos-action-items.csv')">
+              Actions CSV
+            </AppButton>
+            <AppButton :loading="exporting" variant="secondary" @click="downloadCsv('/export/concepts/csv', 'bookos-concepts.csv')">
+              Concepts CSV
+            </AppButton>
+          </div>
 
-        <label v-if="importType === 'MARKDOWN_NOTES'" class="field">
-          <span>Book title fallback</span>
-          <el-input v-model="bookTitle" placeholder="Used if the Markdown has no # heading" />
-        </label>
+          <AppDivider />
 
-        <label class="field">
-          <span>Upload file</span>
-          <input class="file-input" type="file" accept=".json,.md,.markdown,.csv,.txt" @change="handleFile" />
-        </label>
-
-        <label class="field">
-          <span>Import content</span>
-          <el-input
-            v-model="importContent"
-            type="textarea"
-            :rows="12"
-            maxlength="1000000"
-            show-word-limit
-            placeholder="Paste BookOS JSON, Markdown notes, or CSV content..."
-          />
-        </label>
-
-        <div class="export-actions">
-          <AppButton :disabled="!canPreview" :loading="previewing" variant="primary" @click="runPreview">
-            Preview Import
-          </AppButton>
-          <AppButton :disabled="!preview || !preview.recordsToCreate" :loading="committing" variant="secondary" @click="runCommit">
-            Confirm Import
-          </AppButton>
-        </div>
+          <label class="field">
+            <span>Single book export</span>
+            <el-select v-model="selectedBookId" filterable clearable placeholder="Choose a book">
+              <el-option v-for="book in books" :key="book.id" :label="book.title" :value="book.id" />
+            </el-select>
+          </label>
+          <div class="export-actions">
+            <AppButton :disabled="!selectedBookId" :loading="exporting" variant="secondary" @click="downloadBookJson">
+              Book JSON
+            </AppButton>
+            <AppButton :disabled="!selectedBookId" :loading="exporting" variant="secondary" @click="downloadBookMarkdown">
+              Book Markdown
+            </AppButton>
+          </div>
+        </details>
       </AppCard>
+
+      <details class="transfer-disclosure import-panel" :open="importPanelOpen">
+        <summary>
+          <span>Import data</span>
+          <small>Preview before anything is written</small>
+        </summary>
+        <AppCard class="transfer-card" as="section">
+          <AppSectionHeader title="Import" eyebrow="Preview before write" compact>
+            <template #actions>
+              <AppBadge variant="warning" size="sm">No overwrite</AppBadge>
+            </template>
+          </AppSectionHeader>
+
+          <p class="transfer-copy">
+            Import preview validates records, duplicate risk, unsupported fields, source-reference issues, and malformed
+            page numbers. Unknown pages stay null.
+          </p>
+
+          <label class="field">
+            <span>Import type</span>
+            <el-select v-model="importType" placeholder="Choose import type">
+              <el-option label="BookOS JSON backup" value="BOOKOS_JSON" />
+              <el-option label="Markdown notes" value="MARKDOWN_NOTES" />
+              <el-option label="Quotes CSV" value="QUOTES_CSV" />
+              <el-option label="Actions CSV" value="ACTION_ITEMS_CSV" />
+            </el-select>
+          </label>
+
+          <label v-if="importType === 'MARKDOWN_NOTES'" class="field">
+            <span>Book title fallback</span>
+            <el-input v-model="bookTitle" placeholder="Used if the Markdown has no # heading" />
+          </label>
+
+          <label class="field">
+            <span>Upload file</span>
+            <input class="file-input" type="file" accept=".json,.md,.markdown,.csv,.txt" @change="handleFile" />
+          </label>
+
+          <label class="field">
+            <span>Import content</span>
+            <el-input
+              v-model="importContent"
+              type="textarea"
+              :rows="12"
+              maxlength="1000000"
+              show-word-limit
+              placeholder="Paste BookOS JSON, Markdown notes, or CSV content..."
+            />
+          </label>
+
+          <div class="export-actions">
+            <AppButton :disabled="!canPreview" :loading="previewing" variant="primary" @click="runPreview">
+              Preview Import
+            </AppButton>
+            <AppButton :disabled="!preview || !preview.recordsToCreate" :loading="committing" variant="secondary" @click="runCommit">
+              Confirm Import
+            </AppButton>
+          </div>
+        </AppCard>
+      </details>
     </section>
 
     <AppErrorState
@@ -196,9 +229,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getBooks } from '../api/books'
 import { commitImport, downloadExport, exportAllJson, exportBookJson, previewImport } from '../api/importExport'
+import { recordUseCaseEvent } from '../api/useCaseProgress'
 import HelpTooltip from '../components/help/HelpTooltip.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -209,14 +244,17 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import AppStat from '../components/ui/AppStat.vue'
 import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import type { BookRecord, ImportCommitRecord, ImportPreviewRecord, ImportRequestPayload, ImportType } from '../types'
 
+const route = useRoute()
 const books = ref<BookRecord[]>([])
 const importExportUseCaseSlugs = [
   'export-reading-knowledge',
   'search-rediscover-knowledge',
   'mock-ai-draft-helper',
 ]
+const transferWorkflowLoop = ['Export backup', 'Preview import', 'Review warnings', 'Confirm intentionally']
 const selectedBookId = ref<number | null>(null)
 const exporting = ref(false)
 const previewing = ref(false)
@@ -230,6 +268,36 @@ const commitResult = ref<ImportCommitRecord | null>(null)
 const errorMessage = ref('')
 
 const canPreview = computed(() => importContent.value.trim().length > 0)
+const importPanelOpen = computed(() => route.name === 'import-data' || Boolean(importContent.value || preview.value || commitResult.value))
+const transferNextStep = computed(() => {
+  if (preview.value) {
+    return {
+      title: 'Review import preview before writing',
+      description: 'Check duplicates, source-reference warnings, and page-number issues. Preview has not written any records.',
+      primaryLabel: 'Confirm Import',
+      primaryLoading: committing.value,
+      secondaryLabel: 'Clear Preview',
+    }
+  }
+
+  if (commitResult.value) {
+    return {
+      title: 'Export a fresh backup after import',
+      description: 'A new JSON export gives you a portable snapshot after the explicit import commit.',
+      primaryLabel: 'Export All JSON',
+      primaryLoading: exporting.value,
+      secondaryLabel: 'Clear Result',
+    }
+  }
+
+  return {
+    title: 'Export a safe backup first',
+    description: 'Start with a complete JSON export. Import stays collapsed until you intentionally open preview-before-write.',
+    primaryLabel: 'Export All JSON',
+    primaryLoading: exporting.value,
+    secondaryLabel: null,
+  }
+})
 
 const allPreviewIssues = computed(() => {
   if (!preview.value) return []
@@ -255,6 +323,7 @@ async function downloadAllJson() {
   try {
     const data = await exportAllJson()
     saveJson(data, 'bookos-export.json')
+    recordExportStarted('BOOKOS_JSON', 'all')
   } catch {
     errorMessage.value = 'Full JSON export failed. Check backend availability and permissions.'
   } finally {
@@ -269,6 +338,7 @@ async function downloadBookJson() {
   try {
     const data = await exportBookJson(selectedBookId.value)
     saveJson(data, `bookos-book-${selectedBookId.value}.json`)
+    recordExportStarted('BOOK_JSON', selectedBookId.value)
   } catch {
     errorMessage.value = 'Book JSON export failed. Confirm the book is in your library.'
   } finally {
@@ -286,6 +356,7 @@ async function downloadCsv(path: string, filename: string) {
   errorMessage.value = ''
   try {
     await downloadExport(path, filename)
+    recordExportStarted(exportContextType(filename), filename)
   } catch {
     errorMessage.value = 'Download failed. Check backend availability and permissions.'
   } finally {
@@ -351,6 +422,20 @@ async function runCommit() {
   }
 }
 
+function handleTransferPrimaryAction() {
+  if (preview.value) {
+    void runCommit()
+    return
+  }
+  void downloadAllJson()
+}
+
+function clearImportState() {
+  preview.value = null
+  commitResult.value = null
+  errorMessage.value = ''
+}
+
 function buildPayload(): ImportRequestPayload {
   return {
     importType: importType.value,
@@ -371,12 +456,29 @@ function saveJson(data: Record<string, unknown>, filename: string) {
   link.remove()
   window.URL.revokeObjectURL(url)
 }
+
+function recordExportStarted(contextType: string, contextId: string | number) {
+  void recordUseCaseEvent({
+    eventType: 'EXPORT_STARTED',
+    contextType,
+    contextId,
+  }).catch(() => undefined)
+}
+
+function exportContextType(filename: string) {
+  if (filename.endsWith('.md')) return 'BOOK_MARKDOWN'
+  if (filename.includes('quotes')) return 'QUOTES_CSV'
+  if (filename.includes('action-items')) return 'ACTION_ITEMS_CSV'
+  if (filename.includes('concepts')) return 'CONCEPTS_CSV'
+  return 'EXPORT'
+}
 </script>
 
 <style scoped>
 .transfer-page,
 .transfer-card,
-.preview-card {
+.preview-card,
+.transfer-disclosure {
   display: grid;
   gap: var(--space-5);
 }
@@ -387,15 +489,74 @@ function saveJson(data: Record<string, unknown>, filename: string) {
   gap: var(--space-5);
 }
 
+.transfer-grid--primary {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .transfer-card,
 .preview-card {
   padding: var(--space-5);
+}
+
+.transfer-disclosure summary {
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bookos-surface) 86%, var(--bookos-primary-soft));
+  color: var(--bookos-text-primary);
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+
+.transfer-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.transfer-disclosure summary::after {
+  content: "+";
+  color: var(--bookos-primary);
+}
+
+.transfer-disclosure[open] summary::after {
+  content: "-";
+}
+
+.transfer-disclosure summary small {
+  margin-left: auto;
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
+.transfer-disclosure--nested {
+  gap: var(--space-4);
+}
+
+.transfer-disclosure--nested summary {
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface-muted);
+}
+
+.import-panel {
+  margin-top: var(--space-2);
 }
 
 .transfer-copy {
   margin: 0;
   color: var(--bookos-text-secondary);
   line-height: 1.65;
+}
+
+.transfer-hint {
+  margin: 0;
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  line-height: 1.55;
 }
 
 .export-actions {

@@ -23,13 +23,6 @@ async function createSessionWithOnboardingComplete(page: Page, request: APIReque
 test('quick capture guide teaches syntax without saving examples automatically', async ({ page, request }) => {
   const { token, runId } = await createSessionWithOnboardingComplete(page, request)
 
-  await page.goto('/dashboard')
-  const captureHeading = page.getByRole('heading', { name: 'Capture one reading thought' })
-  await captureHeading.scrollIntoViewIfNeeded()
-  await expect(captureHeading).toBeVisible()
-  await page.getByRole('combobox', { name: 'Current book' }).selectOption('0')
-  await expect(page.getByText('Choose a book before saving so BookOS can preserve the source reference.')).toBeVisible()
-
   const book = await apiPost<{ id: number }>(request, '/books', token, {
     title: `Capture Guide Book ${runId}`,
     subtitle: null,
@@ -47,6 +40,14 @@ test('quick capture guide teaches syntax without saving examples automatically',
     readingStatus: 'CURRENTLY_READING',
   })
 
+  await page.goto('/dashboard')
+  const captureHeading = page.getByRole('heading', { name: 'Capture one reading thought' })
+  await captureHeading.scrollIntoViewIfNeeded()
+  await expect(captureHeading).toBeVisible()
+  await expect(page.getByLabel('Parser examples')).toBeVisible()
+  await page.getByRole('combobox', { name: 'Current book' }).selectOption('0')
+  await expect(page.getByText('Choose a book before saving so BookOS can preserve the source link.')).toBeVisible()
+
   await page.goto(`/books/${book.id}`)
   await expect(page.getByRole('heading', { name: 'Learn the parser by trying safe examples' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Insert quote example' })).toBeVisible()
@@ -55,7 +56,7 @@ test('quick capture guide teaches syntax without saving examples automatically',
   await expect(page.getByLabel('Quick capture text')).toHaveValue(/Readable feedback matters in a prototype\./)
   await expect(page.getByText('Example inserted. Edit it if needed, then press Capture to save it.')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'What BookOS will preserve' })).toBeVisible()
-  await expect(page.getByText('Source reference preview')).toBeVisible()
+  await expect(page.getByText('Source link preview')).toBeVisible()
   await expect(page.getByText('Game Feel').first()).toBeVisible()
 
   const capturesAfterExample = await apiGet<unknown[]>(request, `/captures/inbox?bookId=${book.id}`, token)

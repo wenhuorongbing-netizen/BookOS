@@ -159,8 +159,18 @@ public class DemoWorkspaceService {
         List<DemoRecord> records = demoRecordRepository.findByUserIdOrderByCreatedAtAsc(user.getId());
         Map<String, Long> counts = records.stream()
                 .collect(Collectors.groupingBy(DemoRecord::getEntityType, LinkedHashMap::new, Collectors.counting()));
+        Instant lastResetAt = records.stream()
+                .map(DemoRecord::getCreatedAt)
+                .min(Instant::compareTo)
+                .orElse(null);
+        List<String> includedRecordTypes = records.stream()
+                .map(DemoRecord::getEntityType)
+                .distinct()
+                .sorted()
+                .toList();
         return new DemoWorkspaceStatusResponse(
                 !records.isEmpty(),
+                lastResetAt,
                 firstId(records, "BOOK"),
                 firstId(records, "GAME_PROJECT"),
                 firstId(records, "QUOTE"),
@@ -171,6 +181,8 @@ public class DemoWorkspaceService {
                         .map(DemoRecord::getEntityId)
                         .toList(),
                 counts,
+                includedRecordTypes,
+                true,
                 "Demo Workspace",
                 SAFETY_NOTE);
     }

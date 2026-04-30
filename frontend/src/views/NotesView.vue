@@ -58,7 +58,7 @@
     <AppEmptyState
       v-else-if="!book"
       title="Choose a book first"
-      description="Notes are attached to a specific book so every block can preserve source references."
+      description="Notes are attached to a specific book so every block can preserve source links."
       eyebrow="Source required"
     >
       <template #actions>
@@ -117,7 +117,7 @@
           </label>
 
           <p id="notes-parser-help" class="helper-text">
-            Supported markers include quote, action item, question, inspiration, concept, warning, experiment, and reflection.
+            Supported markers include quote, action, question, inspiration, concept, warning, experiment, and reflection.
           </p>
 
           <div class="note-composer__actions">
@@ -169,7 +169,7 @@
           <AppEmptyState
             v-if="!notes.length"
             title="No notes yet"
-            description="Create your first markdown note to generate parsed note blocks and source references."
+            description="Create your first markdown note to generate parsed note blocks and source links."
             compact
           />
           <template v-else>
@@ -255,7 +255,7 @@ const noteTask = computed(() => {
   if (!book.value) {
     return {
       title: 'Choose a source book',
-      description: 'Notes are most useful when attached to a real book, page, and source reference.',
+      description: 'Notes are most useful when attached to a real book, page, and source link.',
       primaryLabel: 'Open Library',
       routeName: 'my-library',
       routeParams: {},
@@ -265,7 +265,7 @@ const noteTask = computed(() => {
   if (latestNote.value) {
     return {
       title: `Review ${latestNote.value.title}`,
-      description: 'Open the latest note to inspect parsed blocks, backlinks, and source references.',
+      description: 'Open the latest note to inspect parsed blocks, related links, and source links.',
       primaryLabel: 'Open latest note',
       routeName: 'note-detail',
       routeParams: { id: latestNote.value.id },
@@ -345,7 +345,7 @@ async function handleCreateNote() {
     noteForm.markdown = ''
     noteForm.threeSentenceSummary = ''
     parsedPreview.value = null
-    ElMessage.success('Note saved with parsed source reference.')
+    ElMessage.success('Note saved with parsed source link.')
   } catch {
     ElMessage.error('Note could not be saved. Add this book to your library first if needed.')
   } finally {

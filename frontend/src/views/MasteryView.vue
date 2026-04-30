@@ -1,9 +1,9 @@
 <template>
   <div class="page-shell mastery-page">
     <AppSectionHeader
-      eyebrow="Knowledge Mastery"
+      eyebrow="Learning Progress"
       title="What Needs Review"
-      description="Mastery scores are user-owned and updated from review sessions or source-backed daily reflections."
+      description="Learning progress is user-owned and updated from review sessions or source-backed daily reflections."
       :level="1"
     >
       <template #actions>
@@ -11,20 +11,20 @@
       </template>
     </AppSectionHeader>
 
-    <AppLoadingState v-if="loading" label="Loading mastery targets" />
-    <AppErrorState v-else-if="errorMessage" title="Mastery could not load" :description="errorMessage" retry-label="Retry" @retry="loadMastery" />
-    <AppEmptyState v-else-if="!items.length" title="No mastery targets yet" description="Complete review items or save source-backed daily reflections to create mastery records. Mastery is not invented from empty activity." >
+    <AppLoadingState v-if="loading" label="Loading learning progress" />
+    <AppErrorState v-else-if="errorMessage" title="Learning progress could not load" :description="errorMessage" retry-label="Retry" @retry="loadMastery" />
+    <AppEmptyState v-else-if="!items.length" title="No learning progress yet" description="Complete review items or save source-backed daily reflections to create progress records. BookOS does not invent progress from empty activity." >
       <template #actions>
         <RouterLink to="/review" custom v-slot="{ navigate }">
           <AppButton variant="primary" @click="navigate">Start Review</AppButton>
         </RouterLink>
         <RouterLink to="/help/mastery" custom v-slot="{ navigate }">
-          <AppButton variant="secondary" @click="navigate">Learn mastery</AppButton>
+          <AppButton variant="secondary" @click="navigate">Learn Learning Progress</AppButton>
         </RouterLink>
       </template>
     </AppEmptyState>
 
-    <section v-else class="mastery-list" aria-label="Mastery target list">
+    <section v-else class="mastery-list" aria-label="Learning progress target list">
       <AppCard v-for="item in items" :key="item.id" class="mastery-card" as="article">
         <div class="mastery-card__topline">
           <AppBadge variant="primary">{{ item.targetType }}</AppBadge>

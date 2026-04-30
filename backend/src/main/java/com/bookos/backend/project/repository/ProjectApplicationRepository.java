@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProjectApplicationRepository extends JpaRepository<ProjectApplication, Long> {
 
+    long countByProjectOwnerId(Long ownerId);
+
     @EntityGraph(attributePaths = {"project", "sourceReference"})
     List<ProjectApplication> findByProjectIdAndProjectOwnerIdOrderByUpdatedAtDesc(Long projectId, Long ownerId);
 

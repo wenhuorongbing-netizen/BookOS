@@ -73,7 +73,7 @@
         </label>
 
         <label class="form-field">
-          <span>Source reference ID</span>
+          <span>Source link ID</span>
           <el-input-number v-model="form.sourceReferenceId" :min="1" controls-position="right" placeholder="Optional" />
         </label>
 

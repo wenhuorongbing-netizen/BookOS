@@ -9,6 +9,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RawCaptureRepository extends JpaRepository<RawCapture, Long> {
 
+    long countByUserId(Long userId);
+
+    long countByUserIdAndStatus(Long userId, CaptureStatus status);
+
     @EntityGraph(attributePaths = {"book"})
     Optional<RawCapture> findByIdAndUserId(Long id, Long userId);
 

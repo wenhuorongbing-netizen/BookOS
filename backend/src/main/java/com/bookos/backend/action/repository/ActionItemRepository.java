@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ActionItemRepository extends JpaRepository<ActionItem, Long> {
 
+    long countByUserIdAndArchivedFalse(Long userId);
+
     @EntityGraph(attributePaths = {"book", "note", "noteBlock"})
     List<ActionItem> findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(Long userId);
 

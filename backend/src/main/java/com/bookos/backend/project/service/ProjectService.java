@@ -21,6 +21,8 @@ import com.bookos.backend.project.dto.PlaytestFindingRequest;
 import com.bookos.backend.project.dto.PlaytestFindingResponse;
 import com.bookos.backend.project.dto.PlaytestPlanRequest;
 import com.bookos.backend.project.dto.PlaytestPlanResponse;
+import com.bookos.backend.project.dto.ProjectApplyKnowledgeWizardRequest;
+import com.bookos.backend.project.dto.ProjectApplyKnowledgeWizardResponse;
 import com.bookos.backend.project.dto.ProjectApplicationRequest;
 import com.bookos.backend.project.dto.ProjectApplicationResponse;
 import com.bookos.backend.project.dto.ProjectKnowledgeLinkRequest;
@@ -30,6 +32,7 @@ import com.bookos.backend.project.dto.ProjectLensReviewResponse;
 import com.bookos.backend.project.dto.ProjectProblemRequest;
 import com.bookos.backend.project.dto.ProjectProblemResponse;
 import com.bookos.backend.project.dto.ProjectPrototypeTaskFromDailyRequest;
+import com.bookos.backend.project.dto.ProjectWizardCreatedRecordResponse;
 import com.bookos.backend.project.entity.DesignDecision;
 import com.bookos.backend.project.entity.GameProject;
 import com.bookos.backend.project.entity.PlaytestFinding;
@@ -39,6 +42,7 @@ import com.bookos.backend.project.entity.ProjectApplication;
 import com.bookos.backend.project.entity.ProjectKnowledgeLink;
 import com.bookos.backend.project.entity.ProjectLensReview;
 import com.bookos.backend.project.entity.ProjectProblem;
+import com.bookos.backend.project.entity.ProjectWizardSubmission;
 import com.bookos.backend.project.repository.DesignDecisionRepository;
 import com.bookos.backend.project.repository.GameProjectRepository;
 import com.bookos.backend.project.repository.PlaytestFindingRepository;
@@ -48,6 +52,7 @@ import com.bookos.backend.project.repository.ProjectApplicationRepository;
 import com.bookos.backend.project.repository.ProjectKnowledgeLinkRepository;
 import com.bookos.backend.project.repository.ProjectLensReviewRepository;
 import com.bookos.backend.project.repository.ProjectProblemRepository;
+import com.bookos.backend.project.repository.ProjectWizardSubmissionRepository;
 import com.bookos.backend.quote.entity.Quote;
 import com.bookos.backend.quote.service.QuoteService;
 import com.bookos.backend.source.dto.SourceReferenceResponse;
@@ -55,8 +60,11 @@ import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.service.SourceReferenceService;
 import com.bookos.backend.user.entity.User;
 import com.bookos.backend.user.service.UserService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.text.Normalizer;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
@@ -87,6 +95,8 @@ public class ProjectService {
     private final PlaytestFindingRepository findingRepository;
     private final ProjectKnowledgeLinkRepository knowledgeLinkRepository;
     private final ProjectLensReviewRepository lensReviewRepository;
+    private final ProjectWizardSubmissionRepository wizardSubmissionRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<GameProjectResponse> listProjects(String email) {
@@ -436,6 +446,361 @@ public class ProjectService {
                 defaultText(request.title(), "Prototype task from daily prompt"),
                 defaultText(request.description(), prompt.getQuestion()));
     }
+
+    @Transactional
+    public ProjectApplyKnowledgeWizardResponse applyKnowledgeWizard(
+            String email,
+            Long projectId,
+            ProjectApplyKnowledgeWizardRequest request) {
+        User user = userService.getByEmailRequired(email);
+        GameProject project = getOwnedProject(user, projectId);
+        String idempotencyKey = request.idempotencyKey().trim();
+
+        return wizardSubmissionRepository
+                .findByProjectIdAndOwnerIdAndIdempotencyKey(project.getId(), user.getId(), idempotencyKey)
+                .map(this::cachedWizardResponse)
+                .orElseGet(() -> createWizardRecords(user, project, request, idempotencyKey));
+    }
+
+    private ProjectApplyKnowledgeWizardResponse createWizardRecords(
+            User user,
+            GameProject project,
+            ProjectApplyKnowledgeWizardRequest request,
+            String idempotencyKey) {
+        WizardSource source = resolveWizardSource(user, request);
+        SourceReference sourceReference = resolveWizardSourceReference(user, request, source);
+        validateWizardPayload(user, project, request);
+
+        List<ProjectWizardCreatedRecordResponse> createdRecords = new ArrayList<>();
+        ProjectProblemResponse problemResponse = null;
+        ProjectApplicationResponse applicationResponse = null;
+        DesignDecisionResponse decisionResponse = null;
+        PlaytestPlanResponse planResponse = null;
+        PlaytestFindingResponse findingResponse = null;
+        ProjectLensReviewResponse lensReviewResponse = null;
+        ProjectKnowledgeLinkResponse knowledgeLinkResponse = null;
+
+        if (request.projectProblem() != null) {
+            ProjectProblem problem = new ProjectProblem();
+            problem.setProject(project);
+            applyProblemRequest(user, problem, withSource(request.projectProblem(), sourceReference));
+            problemResponse = toProblemResponse(problemRepository.save(problem));
+            createdRecords.add(createdRecord("PROJECT_PROBLEM", problemResponse.id(), problemResponse.title(), problemResponse.relatedSourceReference() != null));
+        }
+
+        if (request.projectApplication() != null) {
+            ProjectApplication application = new ProjectApplication();
+            application.setProject(project);
+            applyApplicationRequest(user, application, withSource(request.projectApplication(), source, sourceReference));
+            applicationResponse = toApplicationResponse(applicationRepository.save(application));
+            createdRecords.add(createdRecord("PROJECT_APPLICATION", applicationResponse.id(), applicationResponse.title(), applicationResponse.sourceReference() != null));
+            createOrUpdateKnowledgeLink(project, application.getSourceEntityType(), application.getSourceEntityId(), "APPLIES_TO", null, application.getSourceReference());
+        }
+
+        if (request.designDecision() != null) {
+            DesignDecision decision = new DesignDecision();
+            decision.setProject(project);
+            applyDecisionRequest(user, decision, withSource(request.designDecision(), sourceReference));
+            decisionResponse = toDecisionResponse(decisionRepository.save(decision));
+            createdRecords.add(createdRecord("DESIGN_DECISION", decisionResponse.id(), decisionResponse.title(), decisionResponse.sourceReference() != null));
+        }
+
+        if (request.playtestPlan() != null) {
+            PlaytestPlan plan = new PlaytestPlan();
+            plan.setProject(project);
+            applyPlanRequest(plan, request.playtestPlan());
+            planResponse = toPlanResponse(planRepository.save(plan));
+            createdRecords.add(createdRecord("PLAYTEST_PLAN", planResponse.id(), planResponse.title(), false));
+        }
+
+        if (request.playtestFinding() != null) {
+            PlaytestFinding finding = new PlaytestFinding();
+            finding.setProject(project);
+            applyFindingRequest(user, finding, withSource(request.playtestFinding(), sourceReference));
+            findingResponse = toFindingResponse(findingRepository.save(finding));
+            createdRecords.add(createdRecord("PLAYTEST_FINDING", findingResponse.id(), findingResponse.title(), findingResponse.sourceReference() != null));
+        }
+
+        if (request.lensReview() != null) {
+            ProjectLensReview review = new ProjectLensReview();
+            review.setProject(project);
+            applyLensReviewRequest(user, review, withSource(request.lensReview(), sourceReference));
+            lensReviewResponse = toLensReviewResponse(lensReviewRepository.save(review));
+            createdRecords.add(createdRecord("PROJECT_LENS_REVIEW", lensReviewResponse.id(), lensReviewResponse.question(), lensReviewResponse.sourceReference() != null));
+        }
+
+        if (request.projectKnowledgeLink() != null) {
+            ProjectKnowledgeLink link = createOrUpdateKnowledgeLink(
+                    project,
+                    normalizeType(request.projectKnowledgeLink().targetType()),
+                    request.projectKnowledgeLink().targetId(),
+                    defaultText(request.projectKnowledgeLink().relationshipType(), "APPLIES_TO"),
+                    request.projectKnowledgeLink().note(),
+                    sourceReferenceOrPayload(user, request.projectKnowledgeLink().sourceReferenceId(), sourceReference));
+            knowledgeLinkResponse = toKnowledgeLinkResponse(link);
+            createdRecords.add(createdRecord("PROJECT_KNOWLEDGE_LINK", knowledgeLinkResponse.id(), knowledgeLinkResponse.note(), knowledgeLinkResponse.sourceReference() != null));
+        }
+
+        if (createdRecords.isEmpty()) {
+            throw new IllegalArgumentException("Wizard request must include at least one record to create.");
+        }
+
+        ProjectApplyKnowledgeWizardResponse response = new ProjectApplyKnowledgeWizardResponse(
+                project.getId(),
+                idempotencyKey,
+                false,
+                trimToNull(request.clientStepIntent()),
+                problemResponse,
+                applicationResponse,
+                decisionResponse,
+                planResponse,
+                findingResponse,
+                lensReviewResponse,
+                knowledgeLinkResponse,
+                createdRecords);
+
+        ProjectWizardSubmission submission = new ProjectWizardSubmission();
+        submission.setOwner(user);
+        submission.setProject(project);
+        submission.setIdempotencyKey(idempotencyKey);
+        submission.setClientStepIntent(trimToNull(request.clientStepIntent()));
+        submission.setResponseJson(writeWizardResponse(response));
+        wizardSubmissionRepository.save(submission);
+        return response;
+    }
+
+    private ProjectApplyKnowledgeWizardResponse cachedWizardResponse(ProjectWizardSubmission submission) {
+        try {
+            return objectMapper.readValue(submission.getResponseJson(), ProjectApplyKnowledgeWizardResponse.class).asDuplicate();
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Stored project wizard response is unreadable.", exception);
+        }
+    }
+
+    private String writeWizardResponse(ProjectApplyKnowledgeWizardResponse response) {
+        try {
+            return objectMapper.writeValueAsString(response);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Project wizard response could not be stored.", exception);
+        }
+    }
+
+    private ProjectWizardCreatedRecordResponse createdRecord(String type, Long id, String title, boolean sourcePreserved) {
+        return new ProjectWizardCreatedRecordResponse(type, id, defaultText(title, type), sourcePreserved);
+    }
+
+    private void validateWizardPayload(User user, GameProject project, ProjectApplyKnowledgeWizardRequest request) {
+        sourceReferenceOrPayload(user, request.sourceReferenceId(), null);
+        validateSourceReferenceId(user, request.projectProblem() == null ? null : request.projectProblem().relatedSourceReferenceId());
+        validateApplicationRequest(user, request.projectApplication());
+        validateSourceReferenceId(user, request.designDecision() == null ? null : request.designDecision().sourceReferenceId());
+        validateFindingRequest(user, project, request.playtestFinding());
+        validateLensReviewRequest(user, request.lensReview());
+        validateKnowledgeLinkRequest(user, request.projectKnowledgeLink());
+    }
+
+    private void validateApplicationRequest(User user, ProjectApplicationRequest request) {
+        if (request == null) {
+            return;
+        }
+        if (StringUtils.hasText(request.sourceEntityType()) != (request.sourceEntityId() != null)) {
+            throw new IllegalArgumentException("Application source entity type and id must be supplied together.");
+        }
+        if (StringUtils.hasText(request.sourceEntityType())) {
+            validateTarget(user, request.sourceEntityType(), request.sourceEntityId());
+        }
+        validateSourceReferenceId(user, request.sourceReferenceId());
+    }
+
+    private void validateFindingRequest(User user, GameProject project, PlaytestFindingRequest request) {
+        if (request == null) {
+            return;
+        }
+        validateSourceReferenceId(user, request.sourceReferenceId());
+        if (request.sessionId() != null) {
+            PlaytestSession session = sessionRepository.findByIdAndProjectOwnerId(request.sessionId(), user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Playtest session not found."));
+            if (!Objects.equals(session.getProject().getId(), project.getId())) {
+                throw new IllegalArgumentException("Playtest session belongs to a different project.");
+            }
+        }
+    }
+
+    private void validateLensReviewRequest(User user, ProjectLensReviewRequest request) {
+        if (request == null) {
+            return;
+        }
+        validateSourceReferenceId(user, request.sourceReferenceId());
+        if (request.knowledgeObjectId() != null) {
+            knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(request.knowledgeObjectId(), user.getId())
+                    .orElseThrow(() -> new NoSuchElementException("Knowledge object not found."));
+        }
+    }
+
+    private void validateKnowledgeLinkRequest(User user, ProjectKnowledgeLinkRequest request) {
+        if (request == null) {
+            return;
+        }
+        validateTarget(user, request.targetType(), request.targetId());
+        validateSourceReferenceId(user, request.sourceReferenceId());
+    }
+
+    private void validateSourceReferenceId(User user, Long sourceReferenceId) {
+        if (sourceReferenceId != null) {
+            sourceReferenceService.getOwnedSourceReference(user, sourceReferenceId);
+        }
+    }
+
+    private WizardSource resolveWizardSource(User user, ProjectApplyKnowledgeWizardRequest request) {
+        String sourceType = normalizeTypeOrNull(request.sourceType());
+        Long sourceId = request.sourceId();
+        if (!StringUtils.hasText(sourceType) && sourceId == null && request.sourceReferenceId() != null) {
+            sourceType = "SOURCE_REFERENCE";
+            sourceId = request.sourceReferenceId();
+        }
+        if (!StringUtils.hasText(sourceType) && sourceId == null) {
+            return null;
+        }
+        if (!StringUtils.hasText(sourceType) || sourceId == null) {
+            throw new IllegalArgumentException("Wizard source type and id must be supplied together.");
+        }
+
+        return switch (sourceType) {
+            case "QUOTE" -> {
+                Quote quote = quoteService.getOwnedQuote(user, sourceId);
+                yield new WizardSource("QUOTE", quote.getId(), ownedSourceOrNull(user, quote.getSourceReferenceId()), "Apply quote", quote.getText());
+            }
+            case "CONCEPT" -> {
+                Concept concept = conceptRepository.findByIdAndUserIdAndArchivedFalse(sourceId, user.getId())
+                        .orElseThrow(() -> new NoSuchElementException("Concept not found."));
+                yield new WizardSource("CONCEPT", concept.getId(), concept.getFirstSourceReference(), "Apply concept: " + concept.getName(), concept.getDescription());
+            }
+            case "KNOWLEDGE_OBJECT" -> {
+                KnowledgeObject object = knowledgeObjectRepository.findByIdAndUserIdAndArchivedFalse(sourceId, user.getId())
+                        .orElseThrow(() -> new NoSuchElementException("Knowledge object not found."));
+                yield new WizardSource("KNOWLEDGE_OBJECT", object.getId(), ownedSourceOrNull(user, object.getSourceReferenceId()), "Apply knowledge: " + object.getTitle(), object.getDescription());
+            }
+            case "SOURCE_REFERENCE" -> {
+                SourceReference sourceReference = sourceReferenceService.getOwnedSourceReference(user, sourceId);
+                yield new WizardSource("SOURCE_REFERENCE", sourceReference.getId(), sourceReference, "Apply source reference", sourceReference.getSourceText());
+            }
+            case "DAILY_PROMPT", "DAILY_DESIGN_PROMPT" -> {
+                DailyDesignPrompt prompt = dailyDesignPromptRepository.findByIdAndUserId(sourceId, user.getId())
+                        .orElseThrow(() -> new NoSuchElementException("Daily design prompt not found."));
+                yield new WizardSource("DAILY_DESIGN_PROMPT", prompt.getId(), ownedSourceOrNull(user, prompt.getSourceReferenceId()), "Prototype task from daily prompt", prompt.getQuestion());
+            }
+            default -> throw new IllegalArgumentException("Unsupported wizard source type: " + sourceType);
+        };
+    }
+
+    private SourceReference resolveWizardSourceReference(User user, ProjectApplyKnowledgeWizardRequest request, WizardSource source) {
+        SourceReference explicitSourceReference = sourceReferenceOrPayload(user, request.sourceReferenceId(), null);
+        if (explicitSourceReference != null) {
+            return explicitSourceReference;
+        }
+        return source == null ? null : source.sourceReference();
+    }
+
+    private ProjectProblemRequest withSource(ProjectProblemRequest request, SourceReference sourceReference) {
+        return new ProjectProblemRequest(
+                request.title(),
+                request.description(),
+                request.status(),
+                request.priority(),
+                request.relatedSourceReferenceId() == null ? sourceReferenceId(sourceReference) : request.relatedSourceReferenceId());
+    }
+
+    private ProjectApplicationRequest withSource(ProjectApplicationRequest request, WizardSource source, SourceReference sourceReference) {
+        return new ProjectApplicationRequest(
+                StringUtils.hasText(request.sourceEntityType()) ? request.sourceEntityType() : source == null ? null : source.type(),
+                request.sourceEntityId() == null && source != null ? source.id() : request.sourceEntityId(),
+                request.sourceReferenceId() == null ? sourceReferenceId(sourceReference) : request.sourceReferenceId(),
+                defaultText(request.applicationType(), source == null ? "PROJECT_APPLICATION" : defaultApplicationType(source.type())),
+                request.title(),
+                defaultText(request.description(), source == null ? null : source.fallbackDescription()),
+                request.status());
+    }
+
+    private DesignDecisionRequest withSource(DesignDecisionRequest request, SourceReference sourceReference) {
+        return new DesignDecisionRequest(
+                request.title(),
+                request.decision(),
+                request.rationale(),
+                request.tradeoffs(),
+                request.sourceReferenceId() == null ? sourceReferenceId(sourceReference) : request.sourceReferenceId(),
+                request.status());
+    }
+
+    private PlaytestFindingRequest withSource(PlaytestFindingRequest request, SourceReference sourceReference) {
+        return new PlaytestFindingRequest(
+                request.sessionId(),
+                request.title(),
+                request.observation(),
+                request.severity(),
+                request.recommendation(),
+                request.sourceReferenceId() == null ? sourceReferenceId(sourceReference) : request.sourceReferenceId(),
+                request.status());
+    }
+
+    private ProjectLensReviewRequest withSource(ProjectLensReviewRequest request, SourceReference sourceReference) {
+        return new ProjectLensReviewRequest(
+                request.knowledgeObjectId(),
+                request.question(),
+                request.answer(),
+                request.score(),
+                request.status(),
+                request.sourceReferenceId() == null ? sourceReferenceId(sourceReference) : request.sourceReferenceId());
+    }
+
+    private ProjectKnowledgeLink createOrUpdateKnowledgeLink(
+            GameProject project,
+            String targetType,
+            Long targetId,
+            String relationshipType,
+            String note,
+            SourceReference sourceReference) {
+        if (!StringUtils.hasText(targetType) || targetId == null) {
+            return null;
+        }
+        String normalizedTargetType = normalizeType(targetType);
+        String normalizedRelationship = defaultText(relationshipType, "APPLIES_TO");
+        ProjectKnowledgeLink link = knowledgeLinkRepository
+                .findByProjectIdAndTargetTypeAndTargetIdAndRelationshipType(project.getId(), normalizedTargetType, targetId, normalizedRelationship)
+                .orElseGet(ProjectKnowledgeLink::new);
+        link.setProject(project);
+        link.setTargetType(normalizedTargetType);
+        link.setTargetId(targetId);
+        link.setRelationshipType(normalizedRelationship);
+        link.setNote(trimToNull(note));
+        link.setSourceReference(sourceReference);
+        return knowledgeLinkRepository.save(link);
+    }
+
+    private SourceReference sourceReferenceOrPayload(User user, Long payloadSourceReferenceId, SourceReference defaultSourceReference) {
+        return payloadSourceReferenceId == null ? defaultSourceReference : sourceReferenceService.getOwnedSourceReference(user, payloadSourceReferenceId);
+    }
+
+    private Long sourceReferenceId(SourceReference sourceReference) {
+        return sourceReference == null ? null : sourceReference.getId();
+    }
+
+    private String defaultApplicationType(String sourceType) {
+        return switch (normalizeType(sourceType)) {
+            case "QUOTE" -> "QUOTE_APPLICATION";
+            case "CONCEPT" -> "CONCEPT_APPLICATION";
+            case "KNOWLEDGE_OBJECT" -> "KNOWLEDGE_APPLICATION";
+            case "SOURCE_REFERENCE" -> "SOURCE_APPLICATION";
+            case "DAILY_PROMPT", "DAILY_DESIGN_PROMPT" -> "PROTOTYPE_TASK";
+            default -> "PROJECT_APPLICATION";
+        };
+    }
+
+    private record WizardSource(
+            String type,
+            Long id,
+            SourceReference sourceReference,
+            String fallbackTitle,
+            String fallbackDescription) {}
 
     private ProjectApplicationResponse createDerivedApplication(
             User user,

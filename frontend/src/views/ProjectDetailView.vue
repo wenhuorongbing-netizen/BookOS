@@ -18,21 +18,26 @@
       >
         <template #actions>
           <HelpTooltip topic="project-application" placement="left" />
-          <RouterLink :to="{ name: 'projects' }" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">All Projects</AppButton>
-          </RouterLink>
-          <RouterLink
-            :to="{ name: 'forum-new', query: { relatedEntityType: 'GAME_PROJECT', relatedEntityId: String(project.id), projectId: String(project.id), title: `Critique ${project.title}` } }"
-            custom
-            v-slot="{ navigate }"
-          >
-            <AppButton variant="secondary" @click="navigate">Start Project Critique</AppButton>
-          </RouterLink>
           <RouterLink :to="{ name: 'project-apply-knowledge-wizard', params: { id: project.id } }" custom v-slot="{ navigate }">
-            <AppButton variant="accent" @click="navigate">Apply Knowledge Guided Flow</AppButton>
+            <AppButton variant="primary" @click="navigate">Apply Knowledge Guided Flow</AppButton>
           </RouterLink>
-          <AppButton variant="primary" @click="editOpen = true">Edit Project</AppButton>
-          <AppButton variant="text" @click="archiveCurrentProject">Archive</AppButton>
+          <details class="header-more-actions">
+            <summary>More</summary>
+            <div class="header-more-actions__menu">
+              <RouterLink :to="{ name: 'projects' }" custom v-slot="{ navigate }">
+                <AppButton variant="secondary" @click="navigate">All Projects</AppButton>
+              </RouterLink>
+              <RouterLink
+                :to="{ name: 'forum-new', query: { relatedEntityType: 'GAME_PROJECT', relatedEntityId: String(project.id), projectId: String(project.id), title: `Critique ${project.title}` } }"
+                custom
+                v-slot="{ navigate }"
+              >
+                <AppButton variant="secondary" @click="navigate">Start Project Critique</AppButton>
+              </RouterLink>
+              <AppButton variant="secondary" @click="editOpen = true">Edit Project</AppButton>
+              <AppButton variant="text" @click="archiveCurrentProject">Archive</AppButton>
+            </div>
+          </details>
         </template>
       </AppSectionHeader>
 
@@ -48,11 +53,17 @@
         :loop="projectWorkflowLoop"
       />
 
-      <UseCaseSuggestionPanel
-        title="Turn reading into project action"
-        description="Use source-backed applications, lens reviews, playtest findings, and forum critique to keep this project practical."
-        :slugs="projectUseCaseSlugs"
-      />
+      <details class="progressive-section">
+        <summary>
+          <span>Project workflow guides</span>
+          <small>Show hands-on project paths</small>
+        </summary>
+        <UseCaseSuggestionPanel
+          title="Turn reading into project action"
+          description="Use source-backed applications, lens reviews, playtest findings, and forum critique to keep this project practical."
+          :slugs="projectUseCaseSlugs"
+        />
+      </details>
 
       <section class="project-cockpit">
         <main class="project-cockpit__main">
@@ -96,7 +107,7 @@
               <ProjectMiniList :items="openProblems" empty-title="No open problems" />
             </AppCard>
 
-            <AppCard class="project-section-card">
+            <AppCard v-if="showApplicationsCard" class="project-section-card">
               <AppSectionHeader title="Source-backed Applications" eyebrow="Applications" :level="2" compact>
                 <template #actions>
                   <RouterLink :to="{ name: 'project-applications', params: { id: project.id } }" custom v-slot="{ navigate }">
@@ -107,7 +118,7 @@
               <ProjectMiniList :items="activeApplications" empty-title="No applications yet" />
             </AppCard>
 
-            <AppCard class="project-section-card">
+            <AppCard v-if="showDecisionsCard" class="project-section-card">
               <AppSectionHeader title="Recent Design Decisions" eyebrow="Decisions" :level="2" compact>
                 <template #actions>
                   <RouterLink :to="{ name: 'project-decisions', params: { id: project.id } }" custom v-slot="{ navigate }">
@@ -118,7 +129,7 @@
               <ProjectMiniList :items="decisions" empty-title="No decisions recorded" />
             </AppCard>
 
-            <AppCard class="project-section-card">
+            <AppCard v-if="showFindingsCard" class="project-section-card">
               <AppSectionHeader title="Playtest Findings" eyebrow="Playtests" :level="2" compact>
                 <template #actions>
                   <RouterLink :to="{ name: 'project-playtests', params: { id: project.id } }" custom v-slot="{ navigate }">
@@ -128,46 +139,45 @@
               </AppSectionHeader>
               <ProjectMiniList :items="findings" empty-title="No playtest findings yet" />
             </AppCard>
-
-            <AppCard class="project-section-card">
-              <AppSectionHeader title="Active Lens Reviews" eyebrow="Lenses" :level="2" compact>
-                <template #actions>
-                  <RouterLink :to="{ name: 'project-lens-reviews', params: { id: project.id } }" custom v-slot="{ navigate }">
-                    <AppButton variant="text" @click="navigate">Manage</AppButton>
-                  </RouterLink>
-                </template>
-              </AppSectionHeader>
-              <ProjectMiniList :items="lensReviews" empty-title="No lens reviews yet" />
-            </AppCard>
-
-            <AppCard class="project-section-card">
-              <AppSectionHeader title="Linked Knowledge Objects" eyebrow="Knowledge" :level="2" compact />
-              <ProjectMiniList :items="knowledgeLinks" empty-title="No linked knowledge yet" />
-            </AppCard>
           </section>
+
+          <details class="progressive-section" :open="Boolean(lensReviews.length || knowledgeLinks.length)">
+            <summary>
+              <span>Advanced project context</span>
+              <small>{{ lensReviews.length }} lens reviews / {{ knowledgeLinks.length }} knowledge links</small>
+            </summary>
+            <section class="project-card-grid" aria-label="Advanced project sections">
+              <AppCard class="project-section-card">
+                <AppSectionHeader title="Active Lens Reviews" eyebrow="Lenses" :level="2" compact>
+                  <template #actions>
+                    <RouterLink :to="{ name: 'project-lens-reviews', params: { id: project.id } }" custom v-slot="{ navigate }">
+                      <AppButton variant="text" @click="navigate">Manage</AppButton>
+                    </RouterLink>
+                  </template>
+                </AppSectionHeader>
+                <ProjectMiniList :items="lensReviews" empty-title="No lens reviews yet" />
+              </AppCard>
+
+              <AppCard class="project-section-card">
+                <AppSectionHeader title="Linked Design Knowledge" eyebrow="Design knowledge" :level="2" compact />
+                <ProjectMiniList :items="knowledgeLinks" empty-title="No linked knowledge yet" />
+              </AppCard>
+            </section>
+          </details>
         </main>
 
         <aside class="project-cockpit__rail" aria-label="Project context">
           <AppCard class="rail-card">
             <AppSectionHeader title="Active Source" eyebrow="Traceability" :level="2" compact />
             <template v-if="latestSource">
-              <p>{{ latestSource.sourceText ?? latestSource.locationLabel ?? 'Source reference attached.' }}</p>
+              <p>{{ latestSource.sourceText ?? latestSource.locationLabel ?? 'Source link attached.' }}</p>
               <AppBadge variant="warning">{{ latestSource.sourceConfidence }} confidence</AppBadge>
               <AppButton variant="secondary" @click="openSource(latestSource)">Open Source</AppButton>
             </template>
             <AppEmptyState
               v-else
               title="No selected source"
-              description="Apply a quote, concept, knowledge object, or source reference to populate this rail."
-              compact
-            />
-          </AppCard>
-
-          <AppCard class="rail-card">
-            <AppSectionHeader title="Project Action Items" eyebrow="Tasks" :level="2" compact />
-            <AppEmptyState
-              title="Project-specific actions are not implemented"
-              description="Use source-backed applications and playtest findings as the MVP task surface for now."
+              description="Apply a quote, concept, design knowledge record, or source link to populate this rail."
               compact
             />
           </AppCard>
@@ -179,21 +189,36 @@
             </ul>
           </AppCard>
 
-          <AppCard class="rail-card">
-            <AppSectionHeader title="Graph Context" eyebrow="Real project links" :level="2" compact />
-            <p v-if="projectGraph.nodes.length">
-              {{ projectGraph.nodes.length }} nodes and {{ projectGraph.edges.length }} edges connect this project to source-backed records.
-            </p>
-            <AppEmptyState
-              v-else
-              title="No project graph links yet"
-              description="Create applications, decisions, findings, or lens reviews to grow the project graph."
-              compact
-            />
-            <RouterLink :to="{ name: 'graph-project', params: { projectId: project.id } }" custom v-slot="{ navigate }">
-              <AppButton variant="secondary" @click="navigate">Open Project Graph</AppButton>
-            </RouterLink>
-          </AppCard>
+          <details class="rail-disclosure" :open="projectGraph.nodes.length > 0">
+            <summary>Graph context</summary>
+            <AppCard class="rail-card">
+              <AppSectionHeader title="Knowledge Graph" eyebrow="Real project links" :level="2" compact />
+              <p v-if="projectGraph.nodes.length">
+                {{ projectGraph.nodes.length }} nodes and {{ projectGraph.edges.length }} edges connect this project to source-backed records.
+              </p>
+              <AppEmptyState
+                v-else
+                title="No project graph links yet"
+                description="Create applications, decisions, findings, or lens reviews to grow the project graph."
+                compact
+              />
+              <RouterLink :to="{ name: 'graph-project', params: { projectId: project.id } }" custom v-slot="{ navigate }">
+                <AppButton variant="secondary" @click="navigate">Open Project Graph</AppButton>
+              </RouterLink>
+            </AppCard>
+          </details>
+
+          <details class="rail-disclosure">
+            <summary>Future task surface</summary>
+            <AppCard class="rail-card">
+              <AppSectionHeader title="Project Actions" eyebrow="Tasks" :level="2" compact />
+              <AppEmptyState
+                title="Project-specific actions are not implemented"
+                description="Use source-backed applications and playtest findings as the MVP task surface for now."
+                compact
+              />
+            </AppCard>
+          </details>
         </aside>
       </section>
 
@@ -301,6 +326,9 @@ const projectWorkflowLoop = ['Project problem', 'Source-backed application', 'De
 
 const openProblems = computed(() => problems.value.filter((problem) => problem.status !== 'RESOLVED' && problem.status !== 'CLOSED'))
 const activeApplications = computed(() => applications.value.filter((application) => application.status !== 'DONE' && application.status !== 'ARCHIVED'))
+const showApplicationsCard = computed(() => Boolean(openProblems.value.length || activeApplications.value.length))
+const showDecisionsCard = computed(() => Boolean(activeApplications.value.length || decisions.value.length))
+const showFindingsCard = computed(() => Boolean(decisions.value.length || findings.value.length))
 const latestSource = computed<SourceReferenceRecord | null>(() => {
   return (
     applications.value.find((application) => application.sourceReference)?.sourceReference ??
@@ -349,7 +377,7 @@ const projectNextStep = computed(() => {
       description: 'Turn a quote, concept, or knowledge object into a project application so the project is connected to the reading system.',
       primaryLabel: 'Add Application',
       primaryTo: { name: 'project-applications', params: { id: currentProject.id } },
-      secondaryLabel: 'Open Graph',
+      secondaryLabel: 'Open Knowledge Graph',
       secondaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
     }
   }
@@ -371,7 +399,7 @@ const projectNextStep = computed(() => {
       description: 'Create a finding that turns the current decision into observable evidence for the next iteration.',
       primaryLabel: 'Add Finding',
       primaryTo: { name: 'project-playtests', params: { id: currentProject.id } },
-      secondaryLabel: 'Open Graph',
+      secondaryLabel: 'Open Knowledge Graph',
       secondaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
     }
   }
@@ -485,6 +513,96 @@ function openSource(source: SourceReferenceRecord) {
 </script>
 
 <style scoped>
+.header-more-actions {
+  position: relative;
+}
+
+.header-more-actions summary,
+.progressive-section summary,
+.rail-disclosure summary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--bookos-border);
+  border-radius: 999px;
+  background: var(--bookos-surface);
+  color: var(--bookos-text-primary);
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+
+.header-more-actions summary {
+  padding: 0 var(--space-4);
+}
+
+.header-more-actions summary::-webkit-details-marker,
+.progressive-section summary::-webkit-details-marker,
+.rail-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.header-more-actions summary::after,
+.progressive-section summary::after,
+.rail-disclosure summary::after {
+  content: "+";
+  color: var(--bookos-primary);
+}
+
+.header-more-actions[open] summary::after,
+.progressive-section[open] summary::after,
+.rail-disclosure[open] summary::after {
+  content: "-";
+}
+
+.header-more-actions__menu {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  min-width: 240px;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background: var(--bookos-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.progressive-section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.progressive-section summary {
+  width: 100%;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bookos-surface) 86%, var(--bookos-accent-soft));
+}
+
+.progressive-section summary small {
+  margin-left: auto;
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
+.rail-disclosure {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.rail-disclosure summary {
+  width: 100%;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bookos-surface) 86%, var(--bookos-primary-soft));
+}
+
 .project-detail-page,
 .project-cockpit__main,
 .project-section-card,
@@ -588,6 +706,17 @@ function openSource(source: SourceReferenceRecord) {
 }
 
 @media (max-width: 720px) {
+  .header-more-actions,
+  .header-more-actions__menu {
+    position: static;
+    width: 100%;
+  }
+
+  .header-more-actions summary {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .project-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -1,12 +1,17 @@
-# BookOS E2E Smoke Tests
+# BookOS E2E Browser Tests
 
-Last updated: 2026-04-29.
+Last updated: 2026-05-01.
 
-BookOS uses Playwright for browser-level MVP smoke tests. The tests are intentionally separate from the normal CI workflow until they have enough runtime history to be reliable in GitHub Actions.
+BookOS uses Playwright for browser-level MVP and usability-path tests. These tests remain outside the required push/pull-request CI workflow because they start both backend and frontend processes and take longer than the compile/test gate.
 
-## Scope
+The E2E workflow is a manual release gate through `.github/workflows/e2e.yml`. It can run either:
 
-The E2E smoke suite covers:
+- `full`: all Playwright browser tests.
+- `usability`: only first-15-minutes usability paths across user modes.
+
+## Full Suite Scope
+
+The full E2E suite covers:
 
 - Fresh user registration through the browser.
 - Dashboard load.
@@ -23,6 +28,20 @@ The E2E smoke suite covers:
 - MockAIProvider draft generation, edit, accept, and reject.
 - Source-linked forum thread creation and comments.
 - Admin ontology default JSON load and dry-run import.
+- First-15-minutes usability paths for Reader, Note-Taker, Game Designer, Researcher, Community, and Advanced modes.
+
+## Usability Suite Scope
+
+`npm run e2e:usability` focuses on whether a new user can complete meaningful first-session workflows:
+
+- Reader Mode: add a book, set reading state, capture, convert to quote, and open source.
+- Note-Taker Mode: create a note, use the capture guide, convert to action, and process captures.
+- Game Designer Mode: create a project, apply a quote, create a design decision, and open the project cockpit.
+- Researcher Mode: review a concept marker, open concept detail/graph, and start a review session.
+- Community Mode: create a source-linked thread, add a comment, and open source context.
+- Advanced Mode: open graph, export data, and use MockAIProvider drafts safely.
+
+These tests are automated usability-path checks, not human user research.
 
 ## Test Environment
 
@@ -57,6 +76,12 @@ From `frontend/`:
 npm run e2e
 ```
 
+First-15-minutes usability suite only:
+
+```powershell
+npm run e2e:usability
+```
+
 Headed mode:
 
 ```powershell
@@ -83,13 +108,23 @@ Failure artifacts are written under ignored frontend folders:
 
 Do not commit generated Playwright artifacts.
 
-## Latest Public Beta Verification
+## GitHub Actions Release Gate
 
-Run date: 2026-04-29.
+The manual `BookOS E2E Release Gate` workflow supports a `suite` input:
 
-Command:
+- `full` runs `npm run e2e`.
+- `usability` runs `npm run e2e:usability`.
+
+Do not make this workflow required for every PR until runtime and flake history are acceptable for the team.
+
+## Latest Local Verification
+
+Run date: 2026-05-01.
+
+Commands:
 
 ```powershell
+npm run e2e:usability
 npm run e2e
 ```
 
@@ -97,8 +132,8 @@ Result: PASS.
 
 Summary:
 
-- 2 Playwright tests passed.
-- Runtime was 32.1 seconds on the local Windows development machine.
+- Usability suite: 6 Playwright tests passed in 45.8 seconds.
+- Full suite: 31 Playwright tests passed in 2.0 minutes.
 - Backend used the `test` profile on port `18080`.
 - Frontend preview used port `5174`.
 - No external AI provider or production secret was required.

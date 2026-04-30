@@ -5,6 +5,35 @@ export interface ApiResponse<T> {
   timestamp: string
 }
 
+export type UseCaseProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'
+export type UseCaseEventType = 'SOURCE_OPENED' | 'SEARCH_USED' | 'GRAPH_OPENED' | 'EXPORT_STARTED'
+
+export interface UserUseCaseProgressRecord {
+  useCaseSlug: string
+  status: UseCaseProgressStatus
+  currentStep: number
+  completedStepKeys: string[]
+  automaticCompletedStepKeys: string[]
+  effectiveCompletedStepKeys: string[]
+  startedAt: string | null
+  completedAt: string | null
+  updatedAt: string | null
+}
+
+export interface UseCaseEventPayload {
+  eventType: UseCaseEventType
+  contextType?: string | null
+  contextId?: string | number | null
+}
+
+export interface UserUseCaseEventRecord {
+  id: number
+  eventType: UseCaseEventType
+  contextType: string | null
+  contextId: string | null
+  createdAt: string
+}
+
 export type RoleName = 'ADMIN' | 'MODERATOR' | 'USER'
 export type OnboardingUseCase =
   | 'TRACK_READING'
@@ -137,6 +166,7 @@ export interface AuthPayload {
 
 export interface DemoWorkspaceStatus {
   active: boolean
+  lastResetAt: string | null
   bookId: number | null
   projectId: number | null
   quoteId: number | null
@@ -144,6 +174,8 @@ export interface DemoWorkspaceStatus {
   forumThreadId: number | null
   conceptIds: number[]
   recordCounts: Record<string, number>
+  includedRecordTypes: string[]
+  excludedFromAnalyticsByDefault: boolean
   label: string
   safetyNote: string
 }
@@ -484,6 +516,43 @@ export interface ProjectPrototypeTaskFromDailyPayload {
   dailyDesignPromptId: number
   title?: string | null
   description?: string | null
+}
+
+export interface ProjectWizardApplyKnowledgePayload {
+  sourceType?: string | null
+  sourceId?: number | null
+  sourceReferenceId?: number | null
+  projectProblem?: ProjectProblemPayload | null
+  projectApplication?: ProjectApplicationPayload | null
+  designDecision?: DesignDecisionPayload | null
+  playtestPlan?: PlaytestPlanPayload | null
+  playtestFinding?: PlaytestFindingPayload | null
+  lensReview?: ProjectLensReviewPayload | null
+  projectKnowledgeLink?: ProjectKnowledgeLinkPayload | null
+  clientStepIntent?: string | null
+  idempotencyKey: string
+}
+
+export interface ProjectWizardCreatedRecord {
+  type: string
+  id: number
+  title: string
+  sourcePreserved: boolean
+}
+
+export interface ProjectWizardApplyKnowledgeRecord {
+  projectId: number
+  idempotencyKey: string
+  duplicate: boolean
+  clientStepIntent: string | null
+  projectProblem: ProjectProblemRecord | null
+  projectApplication: ProjectApplicationRecord | null
+  designDecision: DesignDecisionRecord | null
+  playtestPlan: PlaytestPlanRecord | null
+  playtestFinding: PlaytestFindingRecord | null
+  lensReview: ProjectLensReviewRecord | null
+  projectKnowledgeLink: ProjectKnowledgeLinkRecord | null
+  createdRecords: ProjectWizardCreatedRecord[]
 }
 
 export interface AISuggestionPayload {

@@ -61,9 +61,34 @@ The Demo Workspace page provides:
 - Start Demo Workspace
 - Reset Demo
 - Delete Demo Data
+- Graduate to Real Book
+- Delete Demo and Start Real Workflow
+- Training tutorial cards linked to executable use-case checklists
 - Exit Demo
 - Links into the demo book, project, quote, action item, graph, and forum thread when those records exist
 - A safety panel explaining that demo records are labeled and isolated from normal analytics
+
+The demo status panel shows:
+
+- Active or inactive state
+- Scoped demo record count
+- Last reset time, based on the current demo record set creation time
+- Included demo record types
+- Analytics behavior, including that demo records are excluded from analytics by default
+
+## Training Tutorials
+
+The Demo Workspace is the recommended place to practice workflows before using real records. Tutorial cards on `/demo` link to executable use-case checklists:
+
+- Demo: Capture and Convert -> `/use-cases/note-taker-capture-convert`
+- Demo: Open Source -> `/use-cases/open-source-from-quote-or-action`
+- Demo: Apply Quote to Project -> `/use-cases/apply-quote-to-game-project`
+- Demo: Review Concept -> `/use-cases/review-concept-marker`
+- Demo: Explore Graph -> `/use-cases/inspect-knowledge-graph`
+- Demo: Forum Discussion -> `/use-cases/source-linked-forum-discussion`
+- Demo: Export Demo Data -> `/use-cases/export-reading-knowledge`
+
+Starting a tutorial does not create fake checklist completion. It opens the checklist and guides the user toward real demo records created only after the user explicitly starts Demo Workspace.
 
 ## Analytics Behavior
 

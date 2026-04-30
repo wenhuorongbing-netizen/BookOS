@@ -37,10 +37,13 @@
           @click="bookMenuOpen = !bookMenuOpen"
         >
           <span class="book-title">{{ currentBookTitle }}</span>
-          <AppBadge variant="accent" size="sm">Select</AppBadge>
+          <AppBadge :variant="currentBookBadgeVariant" size="sm">{{ currentBookBadgeLabel }}</AppBadge>
         </button>
         <div v-if="bookMenuOpen" id="current-book-menu" class="top-nav__popover" role="dialog" aria-label="Current book selector">
-          <p v-if="currentBookId">Pinned source context is currently set to {{ currentBookTitle }}.</p>
+          <p v-if="currentBookSource === 'PINNED_SOURCE'">Pinned source context is currently set to {{ currentBookTitle }}.</p>
+          <p v-else-if="currentBookSource === 'CURRENTLY_READING'">Defaulting to your currently-reading book: {{ currentBookTitle }}.</p>
+          <p v-else-if="currentBookLoading">Looking for a currently-reading book.</p>
+          <p v-else-if="currentBookSource === 'UNAVAILABLE'">Current book context is unavailable because the reading shelf could not be loaded.</p>
           <p v-else>No active book is selected.</p>
           <RouterLink v-if="currentBookId" :to="`/books/${currentBookId}`" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigateTo(navigate)">Open current book</AppButton>
@@ -100,11 +103,16 @@ import AppBadge from './ui/AppBadge.vue'
 import AppButton from './ui/AppButton.vue'
 import AppIconButton from './ui/AppIconButton.vue'
 
+type CurrentBookSource = 'PINNED_SOURCE' | 'CURRENTLY_READING' | 'NONE' | 'UNAVAILABLE'
+type BadgeVariant = 'neutral' | 'primary' | 'accent' | 'success' | 'warning' | 'danger' | 'info'
+
 const props = defineProps<{
   title: string
   userName: string
   currentBookTitle: string
   currentBookId?: number | null
+  currentBookSource?: CurrentBookSource
+  currentBookLoading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -120,6 +128,21 @@ const currentMode = computed(() =>
   normalizeNavigationMode(auth.user?.preferredDashboardMode, auth.user?.startingMode),
 )
 const currentModeLabel = computed(() => navigationModeLabel(currentMode.value))
+const currentBookSource = computed<CurrentBookSource>(() => props.currentBookSource ?? 'NONE')
+const currentBookLoading = computed(() => props.currentBookLoading ?? false)
+const currentBookBadgeLabel = computed(() => {
+  if (currentBookSource.value === 'PINNED_SOURCE') return 'Pinned'
+  if (currentBookSource.value === 'CURRENTLY_READING') return 'Reading'
+  if (currentBookLoading.value) return 'Loading'
+  if (currentBookSource.value === 'UNAVAILABLE') return 'Retry'
+  return 'Select'
+})
+const currentBookBadgeVariant = computed<BadgeVariant>(() => {
+  if (currentBookSource.value === 'PINNED_SOURCE') return 'accent'
+  if (currentBookSource.value === 'CURRENTLY_READING') return 'primary'
+  if (currentBookSource.value === 'UNAVAILABLE') return 'warning'
+  return 'neutral'
+})
 const initials = computed(() => {
   const value = props.userName
     .split(/\s+/)

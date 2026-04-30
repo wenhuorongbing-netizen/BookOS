@@ -1,10 +1,10 @@
 <template>
   <div class="page-shell action-detail-page">
-    <AppLoadingState v-if="loading" label="Loading action item" />
+    <AppLoadingState v-if="loading" label="Loading action" />
 
     <AppErrorState
       v-else-if="errorMessage"
-      title="Action item could not load"
+      title="Action could not load"
       :description="errorMessage"
       retry-label="Retry"
       @retry="loadActionItem"
@@ -12,18 +12,18 @@
 
     <template v-else-if="item">
       <AppSectionHeader
-        title="Action Item Detail"
+        title="Action Detail"
         eyebrow="Source-backed task"
         :description="`Attached to ${item.bookTitle}.`"
         :level="1"
       >
         <template #actions>
           <RouterLink to="/action-items" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">All Action Items</AppButton>
+            <AppButton variant="secondary" @click="navigate">All Actions</AppButton>
           </RouterLink>
           <AppButton variant="ghost" @click="openSource">Open Source</AppButton>
           <RouterLink :to="{ name: 'graph-book', params: { bookId: item.bookId } }" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+            <AppButton variant="secondary" @click="navigate">Knowledge Graph</AppButton>
           </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
@@ -42,12 +42,12 @@
         :primary-label="item.completed ? 'Reopen Action' : 'Complete Action'"
         secondary-label="Open Source"
         :primary-loading="toggling"
-        :loop="['Source', 'Action item', 'Done work', 'Review source']"
+        :loop="['Source', 'Action', 'Done work', 'Review source']"
         @primary="toggleCompletion"
         @secondary="openSource"
       />
 
-      <section class="action-detail-grid" aria-label="Action item detail and source">
+      <section class="action-detail-grid" aria-label="Action detail and source">
         <AppCard class="action-main" as="article">
           <div class="action-main__badges">
             <AppBadge :variant="item.completed ? 'success' : 'primary'">{{ item.completed ? 'Completed' : 'Open' }}</AppBadge>
@@ -61,7 +61,7 @@
           <AppEmptyState
             v-else
             title="No description"
-            description="This action item only has a title. Add context when you edit it."
+            description="This action only has a title. Add context when you edit it."
             compact
           />
 
@@ -86,7 +86,7 @@
         </AppCard>
 
         <AppCard class="action-source" as="aside">
-          <AppSectionHeader title="Source Reference" eyebrow="Traceability" :level="2" compact />
+          <AppSectionHeader title="Source Link" eyebrow="Traceability" :level="2" compact />
 
           <dl v-if="item.sourceReference" class="action-meta">
             <div>
@@ -109,8 +109,8 @@
 
           <AppEmptyState
             v-else
-            title="No source reference"
-            description="This action item was created manually or without a note/capture source reference."
+            title="No source link"
+            description="This action was created manually or without a note/capture source link."
             compact
           />
         </AppCard>
@@ -193,7 +193,7 @@ async function loadActionItem() {
     rightRail.setSourceFromActionItem(itemResult, booksResult.find((book) => book.id === itemResult.bookId))
   } catch {
     item.value = null
-    errorMessage.value = 'Check your connection or permissions and try opening the action item again.'
+    errorMessage.value = 'Check your connection or permissions and try opening the action again.'
   } finally {
     loading.value = false
   }
@@ -206,9 +206,9 @@ async function saveActionItem(payload: ActionItemPayload) {
     item.value = await updateActionItem(item.value.id, payload)
     actionDialogOpen.value = false
     rightRail.setSourceFromActionItem(item.value, books.value.find((book) => book.id === item.value?.bookId))
-    ElMessage.success('Action item updated.')
+    ElMessage.success('Action updated.')
   } catch {
-    ElMessage.error('Action item update failed.')
+    ElMessage.error('Action update failed.')
   } finally {
     savingItem.value = false
   }
@@ -220,9 +220,9 @@ async function toggleCompletion() {
   try {
     item.value = item.value.completed ? await reopenActionItem(item.value.id) : await completeActionItem(item.value.id)
     rightRail.setSourceFromActionItem(item.value, books.value.find((book) => book.id === item.value?.bookId))
-    ElMessage.success(item.value.completed ? 'Action item completed.' : 'Action item reopened.')
+    ElMessage.success(item.value.completed ? 'Action completed.' : 'Action reopened.')
   } catch {
-    ElMessage.error('Action item status update failed.')
+    ElMessage.error('Action status update failed.')
   } finally {
     toggling.value = false
   }
@@ -231,17 +231,17 @@ async function toggleCompletion() {
 async function archiveCurrentItem() {
   if (!item.value) return
   try {
-    await ElMessageBox.confirm('Archive this action item? It will be removed from active action item views.', 'Archive Action Item', {
+    await ElMessageBox.confirm('Archive this action? It will be removed from active action views.', 'Archive Action', {
       confirmButtonText: 'Archive',
       cancelButtonText: 'Cancel',
       type: 'warning',
     })
     await archiveActionItem(item.value.id)
-    ElMessage.success('Action item archived.')
+    ElMessage.success('Action archived.')
     await router.push({ name: 'action-items' })
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error('Action item archive failed.')
+      ElMessage.error('Action archive failed.')
     }
   }
 }

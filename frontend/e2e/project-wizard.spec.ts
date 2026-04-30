@@ -69,6 +69,7 @@ test('project wizard turns a source-backed quote into project action only after 
   await test.step('canceling the wizard before final confirmation creates no project records', async () => {
     await page.goto(`/projects/${project.id}/wizard/apply-knowledge?sourceType=QUOTE&sourceId=${quote.id}&sourceReferenceId=${sourceReferenceId}`)
     await expect(page.getByRole('heading', { name: `Apply reading knowledge to ${projectTitle}` })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Help: Project Guided Flow' })).toBeVisible()
     await expect(page.getByText(quoteText).first()).toBeVisible()
 
     await page.getByRole('button', { name: 'Next', exact: true }).click()
@@ -112,8 +113,12 @@ test('project wizard turns a source-backed quote into project action only after 
     await page.getByRole('textbox', { name: 'Iteration note', exact: true }).fill(iterationNote)
 
     await page.getByRole('button', { name: 'Next', exact: true }).click()
-    await expect(page.getByText('Nothing has been created yet')).toBeVisible()
-    await page.getByRole('button', { name: 'Confirm and Create Records' }).click()
+    await expect(page.getByRole('heading', { name: 'Review before creating' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Records that will be created' })).toBeVisible()
+    await expect(page.getByText(`Project Application: ${applicationTitle}`)).toBeVisible()
+    await expect(page.getByText(`Design Decision: ${decisionTitle}`)).toBeVisible()
+    await expect(page.getByText('one transactional request')).toBeVisible()
+    await page.getByRole('button', { name: 'Confirm Transaction' }).click()
     await expect(page.getByRole('heading', { name: 'Guided project records created' })).toBeVisible()
     await expect(page.getByText('Source preserved').first()).toBeVisible()
 

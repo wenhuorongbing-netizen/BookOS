@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AISuggestionRepository extends JpaRepository<AISuggestion, Long> {
 
+    long countByUserId(Long userId);
+
     @EntityGraph(attributePaths = {"book", "interaction"})
     List<AISuggestion> findByUserIdOrderByUpdatedAtDesc(Long userId);
 

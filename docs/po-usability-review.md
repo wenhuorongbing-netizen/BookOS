@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-04-30.
 
-Reviewed SHA: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
+Reviewed SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
 
 ## Executive Summary
 
@@ -98,7 +98,7 @@ None found.
 ## P1 Usability Issues
 
 - Researcher and community paths need stronger contextual "start here" CTAs.
-- Project wizard should eventually use a backend transaction to avoid partial creation on network failure.
+- Project wizard now uses a backend transaction and idempotency key; remaining work is usability validation of the final review and retry states.
 - "Capture Inbox" should be renamed consistently to "Process Captures" in UI copy where safe.
 - Knowledge Object terminology should be replaced with user-facing labels like "Design Knowledge."
 
@@ -126,6 +126,6 @@ Product Slimming 0.2:
 1. Rename remaining implementation-heavy labels.
 2. Make "Process Captures" the central workflow.
 3. Collapse advanced empty states by default.
-4. Add transactional Project Wizard command endpoint.
+4. Validate transactional Project Wizard copy with hands-on users.
 5. Add per-mode first-task checklist.
 6. Run real moderated usability sessions with 3-5 target users.

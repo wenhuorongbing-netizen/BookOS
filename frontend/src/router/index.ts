@@ -10,6 +10,7 @@ const OnboardingView = () => import('../views/OnboardingView.vue')
 const DashboardView = () => import('../views/DashboardView.vue')
 const UseCasesView = () => import('../views/UseCasesView.vue')
 const UseCaseDetailView = () => import('../views/UseCaseDetailView.vue')
+const GuidedFirstLoopView = () => import('../views/GuidedFirstLoopView.vue')
 const HelpView = () => import('../views/HelpView.vue')
 const DemoWorkspaceView = () => import('../views/DemoWorkspaceView.vue')
 const MyLibraryView = () => import('../views/MyLibraryView.vue')
@@ -115,6 +116,12 @@ const router = createRouter({
           meta: { requiresAuth: true, title: 'Use Case' },
         },
         {
+          path: 'guided/first-loop',
+          name: 'guided-first-loop',
+          component: GuidedFirstLoopView,
+          meta: { requiresAuth: true, title: 'First Valuable Loop' },
+        },
+        {
           path: 'help',
           name: 'help',
           component: HelpView,
@@ -177,8 +184,9 @@ const router = createRouter({
         {
           path: 'captures/inbox',
           name: 'capture-inbox',
+          alias: ['/capture'],
           component: CaptureInboxView,
-          meta: { requiresAuth: true, title: 'Capture Inbox' },
+          meta: { requiresAuth: true, title: 'Process Captures' },
         },
         {
           path: 'quotes',
@@ -195,14 +203,16 @@ const router = createRouter({
         {
           path: 'action-items',
           name: 'action-items',
+          alias: ['/actions'],
           component: ActionItemsView,
-          meta: { requiresAuth: true, title: 'Action Items' },
+          meta: { requiresAuth: true, title: 'Actions' },
         },
         {
           path: 'action-items/:id',
           name: 'action-item-detail',
+          alias: ['/actions/:id'],
           component: ActionItemDetailView,
-          meta: { requiresAuth: true, title: 'Action Item Detail' },
+          meta: { requiresAuth: true, title: 'Action Detail' },
         },
         {
           path: 'concepts',
@@ -220,13 +230,13 @@ const router = createRouter({
           path: 'knowledge',
           name: 'knowledge',
           component: KnowledgeObjectsView,
-          meta: { requiresAuth: true, title: 'Knowledge Objects' },
+          meta: { requiresAuth: true, title: 'Design Knowledge' },
         },
         {
           path: 'knowledge/:id',
           name: 'knowledge-detail',
           component: KnowledgeObjectDetailView,
-          meta: { requiresAuth: true, title: 'Knowledge Object Detail' },
+          meta: { requiresAuth: true, title: 'Design Knowledge Detail' },
         },
         {
           path: 'daily',
@@ -255,8 +265,9 @@ const router = createRouter({
         {
           path: 'mastery',
           name: 'mastery',
+          alias: ['/learning-progress'],
           component: MasteryView,
-          meta: { requiresAuth: true, title: 'Mastery' },
+          meta: { requiresAuth: true, title: 'Learning Progress' },
         },
         {
           path: 'import-export',
@@ -340,25 +351,26 @@ const router = createRouter({
           path: 'graph/book/:bookId',
           name: 'graph-book',
           component: GraphView,
-          meta: { requiresAuth: true, title: 'Book Graph' },
+          meta: { requiresAuth: true, title: 'Book Knowledge Graph' },
         },
         {
           path: 'graph/concept/:conceptId',
           name: 'graph-concept',
           component: GraphView,
-          meta: { requiresAuth: true, title: 'Concept Graph' },
+          meta: { requiresAuth: true, title: 'Concept Knowledge Graph' },
         },
         {
           path: 'graph/project/:projectId',
           name: 'graph-project',
           component: GraphView,
-          meta: { requiresAuth: true, title: 'Project Graph' },
+          meta: { requiresAuth: true, title: 'Project Knowledge Graph' },
         },
         {
           path: 'admin/ontology',
           name: 'admin-ontology',
+          alias: ['/admin/ontology-import'],
           component: AdminOntologyView,
-          meta: { requiresAuth: true, title: 'Ontology Admin', role: 'ADMIN' },
+          meta: { requiresAuth: true, title: 'Ontology Import', role: 'ADMIN' },
         },
         {
           path: 'forum',

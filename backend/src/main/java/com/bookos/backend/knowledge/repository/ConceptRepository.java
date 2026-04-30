@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ConceptRepository extends JpaRepository<Concept, Long> {
 
+    long countByUserIdAndArchivedFalse(Long userId);
+
     @EntityGraph(attributePaths = {"firstBook", "firstSourceReference"})
     List<Concept> findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(Long userId);
 

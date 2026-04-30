@@ -89,6 +89,7 @@ Demo content is created as normal domain records so users can practice real flow
 - `IterationLog`: project iteration record with summary, changes made, and evidence. This entity is present in the model; no dedicated controller endpoints are exposed in the current API inventory.
 - `ProjectKnowledgeLink`: project-owned link to a target entity such as book, note, quote, action item, concept, knowledge object, source reference, or forum thread.
 - `ProjectLensReview`: project review using a design lens/knowledge object with question, answer, optional score, status, and optional source reference.
+- `ProjectWizardSubmission`: project/user/idempotency-key ledger for the guided apply-knowledge transaction. It stores the prior response payload so repeated final submissions return the same result instead of duplicating project records.
 
 Project Mode data is user-owned. Project applications, decisions, findings, links, and lens reviews preserve source references when derived from reading material. Unknown pages remain `null`.
 

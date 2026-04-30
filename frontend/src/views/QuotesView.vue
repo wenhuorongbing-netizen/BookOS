@@ -11,6 +11,17 @@
       </template>
     </AppSectionHeader>
 
+    <DetailNextStepCard
+      :title="quotesNextStep.title"
+      :description="quotesNextStep.description"
+      :primary-label="quotesNextStep.primaryLabel"
+      :primary-to="quotesNextStep.primaryTo"
+      :secondary-label="quotesNextStep.secondaryLabel"
+      :secondary-to="quotesNextStep.secondaryTo"
+      :loop="quotesWorkflowLoop"
+      @primary="handleQuotesPrimary"
+    />
+
     <AppCard class="quote-filter" as="section">
       <label class="field">
         <span>Search quotes, authors, source text, tags, or concepts</span>
@@ -37,7 +48,7 @@
     <AppEmptyState
       v-else-if="!filteredQuotes.length"
       title="No quotes found"
-      description="Create a quote manually or convert a quote capture from the Capture Inbox."
+      description="Create a quote manually or convert a quote capture from Process Captures."
       eyebrow="Quotes"
     >
       <template #actions>
@@ -100,6 +111,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
 import type { BookRecord, QuotePayload, QuoteRecord } from '../types'
@@ -116,6 +128,7 @@ const searchText = ref('')
 const bookFilter = ref<number | null>(null)
 const quoteDialogOpen = ref(false)
 const editingQuote = ref<QuoteRecord | null>(null)
+const quotesWorkflowLoop = ['Capture quote', 'Preserve source', 'Review or apply']
 
 const filteredQuotes = computed(() => {
   const query = searchText.value.trim().toLowerCase()
@@ -133,6 +146,29 @@ const filteredQuotes = computed(() => {
     ]
     return values.some((value) => value.toLowerCase().includes(query))
   })
+})
+
+const quotesNextStep = computed(() => {
+  const quote = filteredQuotes.value[0] ?? quotes.value[0]
+  if (quote) {
+    return {
+      title: 'Open one source-backed quote',
+      description: 'Start with a single quote, then open its source or apply it to a project. Filters stay secondary.',
+      primaryLabel: 'Open Quote',
+      primaryTo: { name: 'quote-detail', params: { id: quote.id } },
+      secondaryLabel: 'Process Captures',
+      secondaryTo: '/captures/inbox',
+    }
+  }
+
+  return {
+    title: 'Create your first quote',
+    description: 'Add a quote manually or convert a quote capture. Unknown pages remain unknown.',
+    primaryLabel: 'Create Quote',
+    primaryTo: null,
+    secondaryLabel: 'Process Captures',
+    secondaryTo: '/captures/inbox',
+  }
 })
 
 onMounted(loadPage)
@@ -157,6 +193,10 @@ async function loadQuotes() {
 function openCreateDialog() {
   editingQuote.value = null
   quoteDialogOpen.value = true
+}
+
+function handleQuotesPrimary() {
+  openCreateDialog()
 }
 
 function openEditDialog(quote: QuoteRecord) {

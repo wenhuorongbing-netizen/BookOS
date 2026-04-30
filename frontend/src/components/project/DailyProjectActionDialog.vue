@@ -18,7 +18,7 @@
       <template v-else>
         <p class="daily-project-action__source">
           Using daily prompt <strong>{{ prompt.question }}</strong>
-          <span v-if="prompt.sourceReference">with source reference #{{ prompt.sourceReference.id }}</span>
+          <span v-if="prompt.sourceReference">with source link #{{ prompt.sourceReference.id }}</span>
           <span v-else>as a template prompt. No source page is implied.</span>
         </p>
 

@@ -4,7 +4,7 @@ Last reviewed: 2026-04-30.
 
 Reviewed branch: `main`.
 
-Reviewed SHA: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
+Reviewed SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
 
 Status: audit and plan only. No navigation implementation has been applied in this prompt.
 
@@ -102,19 +102,19 @@ The navigation should reflect user tasks, not backend modules.
 ### Show After Data Exists
 
 - Quotes after first quote.
-- Actions after first action item.
+- Actions after first action.
 - Concepts after first parsed or reviewed concept.
 - Daily after first source-backed quote/capture/note, with template prompt clearly labeled if no source exists.
 - Analytics after first reading/capture/note activity.
-- Mastery after first review item is completed.
+- Learning Progress after first review item is completed.
 
 ### Always Contextual
 
 - Open Source.
 - Apply to Project.
 - Discuss this.
-- Open Graph for this.
-- Generate AI Draft from this source.
+- Open Knowledge Graph for this.
+- Generate Draft Assistant output from this source.
 
 ### Admin Only
 
@@ -202,7 +202,7 @@ Inside More:
 - Knowledge.
 - Daily.
 - Forum.
-- Graph.
+- Knowledge Graph.
 - Analytics.
 - Import/Export.
 
@@ -251,7 +251,7 @@ Steps:
 
 1. Open Process Captures.
 2. Convert to note/quote/action.
-3. Open source reference.
+3. Open source link.
 
 ### Onboarding D: First Project Application
 
@@ -292,7 +292,7 @@ Acceptance: a new user has one clear CTA.
 
 ### Phase 3: Contextual Entry Points
 
-- Make Open Source, Apply to Project, Discuss This, Open Graph visible on detail pages.
+- Make Open Source, Apply to Project, Discuss This, Open Knowledge Graph visible on detail pages.
 - Reduce need to visit advanced pages cold.
 
 Acceptance: advanced features are entered through context.
@@ -310,4 +310,3 @@ Acceptance: no page feels like a blank database table.
 - Keep Capture one tap away.
 
 Acceptance: capture remains fast on phone/tablet.
-

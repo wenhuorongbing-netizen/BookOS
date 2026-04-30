@@ -16,7 +16,7 @@
           </RouterLink>
           <AppButton variant="ghost" :disabled="!thread.sourceReference" @click="openThreadSource">Open Source</AppButton>
           <RouterLink :to="graphContextLink" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+            <AppButton variant="secondary" @click="navigate">Knowledge Graph</AppButton>
           </RouterLink>
           <AppButton variant="secondary" :loading="busy" @click="toggleLike">
             {{ thread.likedByCurrentUser ? 'Unlike' : 'Like' }} ({{ thread.likeCount }})

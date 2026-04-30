@@ -28,15 +28,68 @@
           <h2>{{ status?.active ? 'Demo workspace is ready' : 'Start a safe practice workspace' }}</h2>
           <p>{{ status?.safetyNote ?? safetyFallback }}</p>
         </div>
+        <div class="demo-status__summary" role="region" aria-label="Demo workspace status">
+          <span>
+            <strong>Status</strong>
+            {{ status?.active ? 'Active' : 'Inactive' }}
+          </span>
+          <span>
+            <strong>Scoped records</strong>
+            {{ recordCount }}
+          </span>
+          <span>
+            <strong>Last reset</strong>
+            {{ lastResetLabel }}
+          </span>
+          <span>
+            <strong>Analytics</strong>
+            {{ status?.excludedFromAnalyticsByDefault ? 'Excluded by default' : 'Not confirmed' }}
+          </span>
+          <span class="demo-status__wide">
+            <strong>Included record types</strong>
+            {{ includedRecordTypesLabel }}
+          </span>
+        </div>
         <div class="demo-status__actions">
           <AppButton v-if="!status?.active" variant="primary" :loading="working" @click="startDemo">Start Demo Workspace</AppButton>
           <AppButton v-else variant="primary" :loading="working" @click="resetDemo">Reset Demo</AppButton>
           <AppButton v-if="status?.active" variant="secondary" :loading="working" @click="deleteDemo">Delete Demo Data</AppButton>
+          <RouterLink to="/books/new" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Graduate to Real Book</AppButton>
+          </RouterLink>
+          <AppButton v-if="status?.active" variant="accent" :loading="working" @click="deleteAndStartRealWorkflow">
+            Delete Demo and Start Real Workflow
+          </AppButton>
+          <RouterLink to="/guided/first-loop" custom v-slot="{ navigate }">
+            <AppButton variant="accent" @click="navigate">Start real first loop</AppButton>
+          </RouterLink>
           <RouterLink to="/dashboard" custom v-slot="{ navigate }">
             <AppButton variant="ghost" @click="navigate">Exit Demo</AppButton>
           </RouterLink>
         </div>
       </AppCard>
+
+      <section class="demo-section" aria-label="Demo tutorials">
+        <AppSectionHeader
+          eyebrow="Training ground"
+          title="Pick a tutorial and practice with safe demo records"
+          description="Each tutorial opens an executable use-case checklist. Starting the tutorial never creates fake completion; it only guides you to real demo routes."
+          compact
+        />
+        <div class="demo-tutorial-grid">
+          <RouterLink
+            v-for="tutorial in tutorialCards"
+            :key="tutorial.title"
+            class="demo-tutorial"
+            :to="tutorial.route"
+          >
+            <span class="demo-tutorial__kicker">{{ tutorial.kicker }}</span>
+            <h3>{{ tutorial.title }}</h3>
+            <p>{{ tutorial.description }}</p>
+            <span class="demo-tutorial__meta">{{ tutorial.time }} - Use case checklist</span>
+          </RouterLink>
+        </div>
+      </section>
 
       <section class="demo-section" aria-label="Safe original sample records">
         <AppSectionHeader
@@ -102,8 +155,11 @@
       <AppCard class="demo-safety" as="section">
         <p class="eyebrow">Safety rules</p>
         <ul>
+          <li>Demo records are not your real reading.</li>
+          <li>Demo pages are unknown unless explicitly labeled as fictional demo.</li>
+          <li>Demo content is original BookOS training material.</li>
           <li>No copyrighted passages are included.</li>
-          <li>No page numbers are invented; demo source references use page unknown.</li>
+          <li>No page numbers are invented; demo source links use page unknown.</li>
           <li>Demo records are user-owned and scoped in `demo_records` for reset/delete.</li>
           <li>Normal analytics excludes demo records unless the backend request explicitly asks to include them.</li>
         </ul>
@@ -114,6 +170,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { deleteDemoWorkspace, getDemoStatus, resetDemoWorkspace, startDemoWorkspace } from '../api/demo'
 import type { DemoWorkspaceStatus } from '../types'
@@ -126,15 +183,83 @@ import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 
 const safetyFallback = 'Demo mode uses original sample content and keeps unknown pages null.'
+const router = useRouter()
 const status = ref<DemoWorkspaceStatus | null>(null)
 const loading = ref(true)
 const working = ref(false)
 const error = ref('')
+const tutorialCards = [
+  {
+    kicker: 'Demo',
+    title: 'Capture and Convert',
+    description: 'Practice turning demo captures into notes, quotes, and actions without touching real reading records.',
+    route: '/use-cases/note-taker-capture-convert',
+    time: '8-12 min',
+  },
+  {
+    kicker: 'Demo',
+    title: 'Open Source',
+    description: 'Open a demo quote or action and verify its source link, confidence, and unknown-page behavior.',
+    route: '/use-cases/open-source-from-quote-or-action',
+    time: '2-3 min',
+  },
+  {
+    kicker: 'Demo',
+    title: 'Apply Quote to Project',
+    description: 'Use the demo quote as source-backed project evidence inside the demo game project workflow.',
+    route: '/use-cases/apply-quote-to-game-project',
+    time: '5-8 min',
+  },
+  {
+    kicker: 'Demo',
+    title: 'Review Concept',
+    description: 'Practice concept review from parsed [[Concept]] markers before creating real vocabulary.',
+    route: '/use-cases/review-concept-marker',
+    time: '4-7 min',
+  },
+  {
+    kicker: 'Demo',
+    title: 'Explore Graph',
+    description: 'Inspect only real demo relationships between the demo book, concepts, project, and discussion.',
+    route: '/use-cases/inspect-knowledge-graph',
+    time: '3-6 min',
+  },
+  {
+    kicker: 'Demo',
+    title: 'Forum Discussion',
+    description: 'Open a source-linked demo discussion and see how context follows the thread.',
+    route: '/use-cases/source-linked-forum-discussion',
+    time: '4-7 min',
+  },
+  {
+    kicker: 'Demo',
+    title: 'Export Demo Data',
+    description: 'Review export behavior using demo records while keeping private real data separate.',
+    route: '/use-cases/export-reading-knowledge',
+    time: '3-5 min',
+  },
+]
 
 const firstConceptId = computed(() => status.value?.conceptIds[0] ?? null)
 const recordCount = computed(() => {
   if (!status.value?.recordCounts) return 0
   return Object.values(status.value.recordCounts).reduce((sum, count) => sum + count, 0)
+})
+const includedRecordTypes = computed(() => {
+  if (status.value?.includedRecordTypes?.length) return status.value.includedRecordTypes
+  if (status.value?.recordCounts) return Object.keys(status.value.recordCounts).sort()
+  return []
+})
+const includedRecordTypesLabel = computed(() => {
+  if (!includedRecordTypes.value.length) return 'None yet'
+  return includedRecordTypes.value.map(formatRecordType).join(', ')
+})
+const lastResetLabel = computed(() => {
+  if (!status.value?.lastResetAt) return 'Never'
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(status.value.lastResetAt))
 })
 const demoItems = computed(() => [
   {
@@ -151,7 +276,7 @@ const demoItems = computed(() => [
   },
   {
     short: 'KO',
-    title: 'Concepts and knowledge objects',
+    title: 'Concepts and design knowledge',
     description: 'Core Loop, Feedback Loop, Game Feel, and Meaningful Choice with source confidence LOW.',
     countLabel: `${count('CONCEPT')} concepts`,
   },
@@ -164,7 +289,7 @@ const demoItems = computed(() => [
   {
     short: 'FO',
     title: 'Source-linked discussion',
-    description: 'A private demo forum thread attached to the project and source reference.',
+    description: 'A private demo forum thread attached to the project and source link.',
     countLabel: countLabel('FORUM_THREAD', 'thread'),
   },
   {
@@ -226,6 +351,20 @@ async function deleteDemo() {
   }
 }
 
+async function deleteAndStartRealWorkflow() {
+  working.value = true
+  try {
+    await deleteDemoWorkspace()
+    status.value = await getDemoStatus()
+    ElMessage.success('Demo data deleted. Start with a real source next.')
+    await router.push({ name: 'guided-first-loop' })
+  } catch {
+    ElMessage.error('Demo data could not be deleted.')
+  } finally {
+    working.value = false
+  }
+}
+
 function count(type: string) {
   return status.value?.recordCounts?.[type] ?? 0
 }
@@ -233,6 +372,14 @@ function count(type: string) {
 function countLabel(type: string, noun: string) {
   const value = count(type)
   return `${value} ${noun}${value === 1 ? '' : 's'}`
+}
+
+function formatRecordType(type: string) {
+  return type
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 </script>
 
@@ -295,9 +442,98 @@ function countLabel(type: string, noun: string) {
   justify-content: flex-end;
 }
 
+.demo-status__summary {
+  min-width: min(320px, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.demo-status__summary span {
+  padding: var(--space-2);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bookos-surface-muted) 68%, transparent);
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
+.demo-status__summary strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--bookos-text-primary);
+  font-size: var(--type-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.demo-status__wide {
+  grid-column: 1 / -1;
+}
+
 .demo-section {
   display: grid;
   gap: var(--space-3);
+}
+
+.demo-tutorial-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(220px, 1fr));
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+.demo-tutorial {
+  min-height: 190px;
+  padding: var(--space-4);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bookos-accent-soft) 20%, transparent), transparent 48%),
+    var(--bookos-surface);
+  box-shadow: var(--shadow-card);
+  color: inherit;
+  text-decoration: none;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease;
+}
+
+.demo-tutorial:hover,
+.demo-tutorial:focus-visible {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--bookos-primary) 36%, var(--bookos-border));
+  box-shadow: var(--shadow-card);
+  outline: none;
+}
+
+.demo-tutorial h3,
+.demo-tutorial p {
+  margin: 0;
+}
+
+.demo-tutorial p {
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.demo-tutorial__kicker,
+.demo-tutorial__meta {
+  color: var(--bookos-primary);
+  font-size: var(--type-micro);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.demo-tutorial__meta {
+  align-self: end;
+  color: var(--bookos-text-tertiary);
 }
 
 .demo-grid {
@@ -336,6 +572,11 @@ function countLabel(type: string, noun: string) {
 }
 
 @media (max-width: 980px) {
+  .demo-tutorial-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+
   .demo-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -354,6 +595,15 @@ function countLabel(type: string, noun: string) {
 @media (max-width: 720px) {
   .demo-grid {
     grid-template-columns: 1fr;
+  }
+
+  .demo-tutorial-grid,
+  .demo-status__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-status__wide {
+    grid-column: auto;
   }
 
   .demo-hero,

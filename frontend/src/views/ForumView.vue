@@ -16,6 +16,16 @@
     <AppErrorState v-if="errorMessage" title="Forum could not load" :description="errorMessage" retry-label="Retry" @retry="loadForum" />
 
     <template v-else>
+      <DetailNextStepCard
+        :title="forumNextStep.title"
+        :description="forumNextStep.description"
+        :primary-label="forumNextStep.primaryLabel"
+        :primary-to="forumNextStep.primaryTo"
+        :secondary-label="forumNextStep.secondaryLabel"
+        :secondary-to="forumNextStep.secondaryTo"
+        :loop="forumWorkflowLoop"
+      />
+
       <section v-if="!activeSlug" class="forum-overview" aria-label="Forum overview">
         <AppCard class="overview-card" as="section">
           <AppSectionHeader title="Latest Threads" eyebrow="Recent activity" :level="2" compact />
@@ -116,7 +126,7 @@
             <AppEmptyState
               v-else-if="!threads.length"
               title="No threads yet"
-              description="Start a structured discussion from a book, quote, concept, source reference, or this forum page."
+              description="Start a structured discussion from a book, quote, concept, source link, or this forum page."
               compact
             />
             <div v-else class="thread-list">
@@ -165,6 +175,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useAuthStore } from '../stores/auth'
 import type { ForumCategoryRecord, ForumReportRecord, ForumThreadRecord } from '../types'
 
@@ -192,6 +203,29 @@ const popularThreads = computed(() => [...threads.value]
 const bookmarkedThreads = computed(() => threads.value.filter((thread) => thread.bookmarkedByCurrentUser).slice(0, 4))
 const sourceLinkedThreads = computed(() => threads.value.filter((thread) => thread.sourceReferenceId || thread.relatedEntityType).slice(0, 4))
 const isModerator = computed(() => auth.user?.role === 'ADMIN' || auth.user?.role === 'MODERATOR')
+const forumWorkflowLoop = ['Choose context', 'Ask focused question', 'Link source when possible']
+const forumNextStep = computed(() => {
+  const thread = threads.value[0]
+  if (thread) {
+    return {
+      title: 'Read one active discussion',
+      description: 'Start with the latest thread before browsing categories. Structured discussion works best around one book, concept, project, or source.',
+      primaryLabel: 'Open Latest Thread',
+      primaryTo: { name: 'forum-thread', params: { id: thread.id } },
+      secondaryLabel: 'Start Thread',
+      secondaryTo: { name: 'forum-new', query: newThreadQuery.value },
+    }
+  }
+
+  return {
+    title: 'Start one structured discussion',
+    description: 'Create a thread with a clear template and attach source context when you have it.',
+    primaryLabel: 'Start Thread',
+    primaryTo: { name: 'forum-new', query: newThreadQuery.value },
+    secondaryLabel: 'Browse Use Cases',
+      secondaryTo: '/use-cases/source-linked-forum-discussion',
+  }
+})
 
 onMounted(loadForum)
 watch(() => route.params.slug, loadForum)

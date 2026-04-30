@@ -7,6 +7,16 @@
       :level="1"
     />
 
+    <DetailNextStepCard
+      :title="conceptsNextStep.title"
+      :description="conceptsNextStep.description"
+      :primary-label="conceptsNextStep.primaryLabel"
+      :primary-to="conceptsNextStep.primaryTo"
+      :secondary-label="conceptsNextStep.secondaryLabel"
+      :secondary-to="conceptsNextStep.secondaryTo"
+      :loop="conceptsWorkflowLoop"
+    />
+
     <AppCard class="concepts-filter" as="section">
       <label class="field">
         <span>Search concepts</span>
@@ -94,6 +104,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import type { BookRecord, ConceptRecord, SourceConfidence } from '../types'
 
 const { openSource } = useOpenSource()
@@ -115,6 +126,7 @@ const searchText = ref('')
 const bookFilter = ref<number | null>(null)
 const layerFilter = ref('')
 const creatingPrototypeId = ref<number | null>(null)
+const conceptsWorkflowLoop = ['Review marker', 'Confirm concept', 'Open source']
 
 const filteredConcepts = computed(() => {
   const query = searchText.value.trim().toLowerCase()
@@ -128,6 +140,29 @@ const filteredConcepts = computed(() => {
     ]
     return values.some((value) => value.toLowerCase().includes(query))
   })
+})
+
+const conceptsNextStep = computed(() => {
+  const concept = filteredConcepts.value[0] ?? concepts.value[0]
+  if (concept) {
+    return {
+      title: 'Inspect one reviewed concept',
+      description: 'Open a concept, verify its sources, then decide whether it belongs in a project or review session.',
+      primaryLabel: 'Open Concept',
+      primaryTo: { name: 'concept-detail', params: { id: concept.id } },
+      secondaryLabel: 'Process Captures',
+      secondaryTo: '/captures/inbox',
+    }
+  }
+
+  return {
+    title: 'Create concepts by reviewing captures',
+    description: 'Concepts should come from reviewed [[Concept]] markers or source-backed notes, not from empty ontology work.',
+    primaryLabel: 'Process Captures',
+    primaryTo: '/captures/inbox',
+    secondaryLabel: 'Learn Concept Review',
+    secondaryTo: '/use-cases/review-concept-marker',
+  }
 })
 
 onMounted(loadPage)

@@ -6,7 +6,7 @@
       description="Keep the library practical: add one real book, set its status, then open it to capture source-backed notes."
       :level="1"
     >
-      <template #actions>
+        <template #actions>
         <RouterLink to="/books/new" custom v-slot="{ navigate }">
           <AppButton variant="primary" @click="navigate">{{ library.length ? 'Add another book' : 'Add first book' }}</AppButton>
         </RouterLink>
@@ -57,9 +57,12 @@
         description="The first useful BookOS action is adding a real book, then setting its reading status."
         eyebrow="First-day flow"
       >
-        <template #actions>
+      <template #actions>
+          <RouterLink to="/guided/first-loop" custom v-slot="{ navigate }">
+            <AppButton variant="primary" @click="navigate">Start first loop</AppButton>
+          </RouterLink>
           <RouterLink to="/books/new" custom v-slot="{ navigate }">
-            <AppButton variant="primary" @click="navigate">Add first book</AppButton>
+            <AppButton variant="secondary" @click="navigate">Add first book</AppButton>
           </RouterLink>
         </template>
       </AppEmptyState>

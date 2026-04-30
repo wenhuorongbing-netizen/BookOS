@@ -1,14 +1,23 @@
-name: BookOS E2E Smoke
+name: BookOS E2E Release Gate
 
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Playwright suite to run
+        type: choice
+        required: true
+        default: full
+        options:
+          - full
+          - usability
 
 permissions:
   contents: read
 
 jobs:
   e2e:
-    name: Playwright MVP smoke
+    name: Playwright ${{ github.event.inputs.suite }} suite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,9 +48,14 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E smoke tests
+      - name: Run selected E2E suite
         working-directory: frontend
         env:
           APP_SEED_ENABLED: 'true'
           JWT_SECRET: bookos-e2e-secret-bookos-e2e-secret-bookos-e2e-secret-1234
-        run: npm run e2e
+        run: |
+          if [ "${{ github.event.inputs.suite }}" = "usability" ]; then
+            npm run e2e:usability
+          else
+            npm run e2e
+          fi

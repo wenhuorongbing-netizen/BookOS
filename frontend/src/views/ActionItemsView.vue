@@ -1,19 +1,19 @@
 <template>
   <div class="page-shell action-items-page">
     <AppSectionHeader
-      title="Action Items"
+      title="Actions"
       eyebrow="Reading to execution"
       description="Manage source-backed tasks converted from captures, notes, and manual reading decisions."
       :level="1"
     >
       <template #actions>
-        <AppButton variant="primary" @click="openCreateDialog">Create Action Item</AppButton>
+        <AppButton variant="primary" @click="openCreateDialog">Create Action</AppButton>
       </template>
     </AppSectionHeader>
 
     <AppCard class="action-filter" as="section">
       <label class="field action-filter__search">
-        <span>Search action items, source text, or book</span>
+        <span>Search actions, source text, or book</span>
         <el-input v-model="searchText" clearable placeholder="Search tasks, source notes, book title..." />
       </label>
 
@@ -46,26 +46,26 @@
 
     <AppErrorState
       v-if="errorMessage"
-      title="Action items could not load"
+      title="Actions could not load"
       :description="errorMessage"
       retry-label="Retry"
       @retry="loadPage"
     />
 
-    <AppLoadingState v-else-if="loading" label="Loading action items workspace" />
+    <AppLoadingState v-else-if="loading" label="Loading actions workspace" />
 
     <AppEmptyState
       v-else-if="!filteredItems.length"
-      title="No action items found"
-      description="Create an action item manually or convert an action capture from the Capture Inbox."
-      eyebrow="Action Items"
+      title="No actions found"
+      description="Create an action manually or convert an action capture from Process Captures."
+      eyebrow="Actions"
     >
       <template #actions>
-        <AppButton variant="primary" @click="openCreateDialog">Create Action Item</AppButton>
+        <AppButton variant="primary" @click="openCreateDialog">Create Action</AppButton>
       </template>
     </AppEmptyState>
 
-    <section v-else class="action-list" aria-label="Action item results">
+    <section v-else class="action-list" aria-label="Action results">
       <AppCard
         v-for="item in filteredItems"
         :key="item.id"
@@ -213,7 +213,7 @@ async function loadPage() {
     books.value = await getBooks()
     await loadItems()
   } catch {
-    errorMessage.value = 'Check your connection and permissions, then try loading action items again.'
+    errorMessage.value = 'Check your connection and permissions, then try loading actions again.'
   } finally {
     loading.value = false
   }
@@ -229,7 +229,7 @@ async function loadItems() {
     items.value = await getActionItems(params)
   } catch {
     items.value = []
-    errorMessage.value = 'Action items could not be loaded. Check backend availability and permissions.'
+    errorMessage.value = 'Actions could not be loaded. Check backend availability and permissions.'
   }
 }
 
@@ -260,9 +260,9 @@ async function saveActionItem(payload: ActionItemPayload) {
     editingItem.value = null
     await loadItems()
     rightRail.setSourceFromActionItem(saved, books.value.find((book) => book.id === saved.bookId))
-    ElMessage.success('Action item saved.')
+    ElMessage.success('Action saved.')
   } catch {
-    ElMessage.error('Action item could not be saved. Check required fields and permissions.')
+    ElMessage.error('Action could not be saved. Check required fields and permissions.')
   } finally {
     savingItem.value = false
   }
@@ -274,9 +274,9 @@ async function toggleCompletion(item: ActionItemRecord) {
     const updated = item.completed ? await reopenActionItem(item.id) : await completeActionItem(item.id)
     replaceItem(updated)
     rightRail.setSourceFromActionItem(updated, books.value.find((book) => book.id === updated.bookId))
-    ElMessage.success(updated.completed ? 'Action item completed.' : 'Action item reopened.')
+    ElMessage.success(updated.completed ? 'Action completed.' : 'Action reopened.')
   } catch {
-    ElMessage.error('Action item status update failed.')
+    ElMessage.error('Action status update failed.')
   } finally {
     togglingId.value = null
   }
@@ -284,17 +284,17 @@ async function toggleCompletion(item: ActionItemRecord) {
 
 async function archiveActionItemRecord(item: ActionItemRecord) {
   try {
-    await ElMessageBox.confirm('Archive this action item? It will be removed from active action item views.', 'Archive Action Item', {
+    await ElMessageBox.confirm('Archive this action? It will be removed from active action views.', 'Archive Action', {
       confirmButtonText: 'Archive',
       cancelButtonText: 'Cancel',
       type: 'warning',
     })
     await archiveActionItem(item.id)
     items.value = items.value.filter((entry) => entry.id !== item.id)
-    ElMessage.success('Action item archived.')
+    ElMessage.success('Action archived.')
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error('Action item archive failed.')
+      ElMessage.error('Action archive failed.')
     }
   }
 }
@@ -328,7 +328,7 @@ function pageLabel(item: ActionItemRecord) {
 function sourceLabel(item: ActionItemRecord) {
   if (item.sourceReference?.locationLabel) return item.sourceReference.locationLabel
   if (item.sourceReference?.sourceType) return item.sourceReference.sourceType
-  return pageLabel(item) || 'Manual action item'
+  return pageLabel(item) || 'Manual action'
 }
 
 function priorityLabel(priority: ActionPriority) {

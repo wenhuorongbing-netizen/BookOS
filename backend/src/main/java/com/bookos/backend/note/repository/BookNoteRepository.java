@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BookNoteRepository extends JpaRepository<BookNote, Long> {
 
+    long countByUserIdAndArchivedFalse(Long userId);
+
     @EntityGraph(attributePaths = {"book", "blocks"})
     List<BookNote> findByBookIdAndUserIdAndArchivedFalseOrderByUpdatedAtDesc(Long bookId, Long userId);
 

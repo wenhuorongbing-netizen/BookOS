@@ -1,6 +1,7 @@
 package com.bookos.backend.demo;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -41,12 +42,16 @@ class DemoWorkspaceIntegrationTest {
         mockMvc.perform(post("/api/demo/start").header("Authorization", bearer(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.active").value(true))
+                .andExpect(jsonPath("$.data.lastResetAt").isString())
                 .andExpect(jsonPath("$.data.bookId").isNumber())
                 .andExpect(jsonPath("$.data.projectId").isNumber())
                 .andExpect(jsonPath("$.data.quoteId").isNumber())
                 .andExpect(jsonPath("$.data.actionItemId").isNumber())
                 .andExpect(jsonPath("$.data.conceptIds.length()").value(4))
                 .andExpect(jsonPath("$.data.recordCounts.BOOK").value(1))
+                .andExpect(jsonPath("$.data.includedRecordTypes", hasItem("BOOK")))
+                .andExpect(jsonPath("$.data.includedRecordTypes", hasItem("GAME_PROJECT")))
+                .andExpect(jsonPath("$.data.excludedFromAnalyticsByDefault").value(true))
                 .andExpect(jsonPath("$.data.safetyNote").value("Demo mode uses original BookOS sample content, stores unknown pages as null, and labels every created record as demo."));
 
         mockMvc.perform(get("/api/demo/status").header("Authorization", bearer(intruderToken)))

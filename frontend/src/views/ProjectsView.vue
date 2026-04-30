@@ -52,7 +52,7 @@
     <AppEmptyState
       v-else-if="!projectCards.length"
       title="Create one project to apply knowledge"
-      description="Project Mode becomes useful after you create a real prototype or design problem, then attach quotes, concepts, or source references to it."
+      description="Project Mode becomes useful after you create a real prototype or design problem, then attach quotes, concepts, or source links to it."
       eyebrow="First project"
     >
       <template #actions>
@@ -146,7 +146,7 @@ const projectTask = computed(() => {
   if (firstProject) {
     return {
       title: 'Apply one source-backed idea',
-      description: 'Open a project, then attach a quote, concept, or source reference from your reading loop.',
+      description: 'Open a project, then attach a quote, concept, or source link from your reading loop.',
       primaryLabel: 'Open Project Cockpit',
       routeName: 'project-detail',
       routeParams: { id: firstProject.project.id },

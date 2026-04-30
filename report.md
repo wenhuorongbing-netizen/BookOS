@@ -3178,3 +3178,1777 @@ This prompt did not add product features. It created a review-boundary document 
 ### Next Recommended Prompt
 
 Review and stage the current dirty tree in logical groups using `docs/review-boundary-diff-audit.md`. Do not create one giant commit. Start with onboarding backend/preferences and migration `V10`, then frontend onboarding, then dashboard/navigation/use-cases/help, then quick capture guide, project wizard, demo workspace, E2E, and finally docs/report updates.
+
+## Prompt 1 — Current Usability Source-of-Truth Repair and Product Slimming Baseline
+
+### Date and Local Time
+
+2026-04-30 19:34:33 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Source-of-Truth Drift Found
+
+- `docs/current-state.md` still referenced `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
+- Multiple usability docs carried the older reviewed SHA even though `main` now points to `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+- `docs/current-state.md` still described a prior uncommitted checkpoint state instead of the clean current `main` baseline.
+- No false claim of external user validation was found; existing usability docs frame findings as internal product QA or explicitly call out the need for real moderated sessions.
+
+### Source-of-Truth Drift Fixed
+
+- Updated `docs/current-state.md` to the latest verified local and `origin/main` SHA.
+- Added a dedicated Product Slimming section to `docs/current-state.md`.
+- Updated reviewed SHA references in current usability docs that explicitly carried the prior SHA.
+- Added `docs/product-slimming-baseline.md` as the Product Slimming source-of-truth baseline.
+
+### Routes Verified
+
+- `/onboarding` -> `OnboardingView.vue`.
+- `/use-cases` -> `UseCasesView.vue`.
+- `/use-cases/:slug` -> `UseCaseDetailView.vue`.
+- `/help` -> `HelpView.vue`.
+- `/help/:topic` -> `HelpView.vue`.
+- `/demo` -> `DemoWorkspaceView.vue`.
+- `/projects/:id/wizard/apply-knowledge` -> `ProjectApplyKnowledgeWizardView.vue`.
+
+### Usability Docs Verified
+
+- `docs/product-usability-audit.md`
+- `docs/use-case-gap-analysis.md`
+- `docs/navigation-simplification-plan.md`
+- `docs/hands-on-use-cases.md`
+- `docs/first-15-minutes.md`
+- `docs/hands-on-beta-ux-report.md`
+- `docs/po-usability-review.md`
+
+### Product Slimming Baseline Summary
+
+- Essential first-day: Dashboard, Library, Book Detail, Quick Capture, Process Captures, Onboarding, Use Cases, Demo Workspace, and Project Apply Wizard for Game Designer Mode.
+- Essential weekly: Notes, Actions, Review, Daily, Projects, and Concepts after relevant data exists.
+- Contextual: Source references, backlinks, graph entry points, apply-to-project actions, AI drafts, forum source discussion, and related references.
+- Advanced: Graph workspace, Analytics, Mastery, Import/Export, Knowledge Object management, AI settings.
+- Admin-only: Admin Ontology.
+- Keep hidden until data exists: empty graph cards, mastery summaries, analytics charts, empty forum activity, project subnav sections, AI prompts without source context, backlinks with no links, and special library shortcuts with no matching books.
+
+### Confusing Terms List
+
+- `Capture Inbox` -> `Process Captures`.
+- `Knowledge Object` -> `Design Knowledge`.
+- `Entity Link` -> `Relationship`.
+- `Backlink` -> `Related References`.
+- `Source Reference` -> `Original Source`.
+- `Daily Sentence` -> `Daily Quote`.
+- `Daily Design Prompt` -> `Today's Design Prompt`.
+- `Mastery` -> `Learning Progress`.
+- `Ontology` -> `Knowledge Map`.
+- `AI Suggestion` -> `AI Draft`.
+
+### Files Created
+
+- `docs/product-slimming-baseline.md`
+
+### Files Modified
+
+- `docs/current-state.md`
+- `docs/first-15-minutes.md`
+- `docs/hands-on-beta-ux-report.md`
+- `docs/navigation-simplification-plan.md`
+- `docs/po-usability-review.md`
+- `docs/product-usability-audit.md`
+- `docs/use-case-gap-analysis.md`
+- `report.md`
+
+### Commands Run
+
+- `git fetch origin main`
+- `git rev-parse --show-toplevel`
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git rev-parse origin/main`
+- `git status --short --branch`
+- `rg -n "[0-9a-f]{40}|Product Slimming|onboarding|use-cases|demo|wizard|help|project" ...`
+- `rg -n "path:|name:|Onboarding|UseCases|Help|Demo|ProjectApplyKnowledgeWizard|/use-cases|/onboarding|/help|/demo|wizard" ...`
+- `Test-Path frontend/src/views/UseCasesView.vue`
+- `Test-Path frontend/src/views/UseCaseDetailView.vue`
+- `Test-Path frontend/src/views/HelpView.vue`
+- `Test-Path frontend/src/views/OnboardingView.vue`
+- `Test-Path frontend/src/views/DemoWorkspaceView.vue`
+- `Test-Path frontend/src/views/ProjectApplyKnowledgeWizardView.vue`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm ci`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Current branch: `main`.
+- Current local SHA equals `origin/main`: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+- Backend tests: PASS, 62 tests.
+- Frontend clean install: PASS, 147 packages, 0 vulnerabilities.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Playwright E2E: PASS, 19 tests.
+
+### Remaining Risks
+
+- Product Slimming recommendations are still document-only; no navigation or label changes were implemented in this prompt.
+- Real external usability validation has not been conducted.
+- Renaming terms must be done carefully so route names, API contracts, and documentation searchability are not broken.
+- Demo and advanced modules should remain clearly labeled when later UI slimming is implemented.
+
+### Next Recommended Prompt
+
+Implement Product Slimming Sprint 1: rename low-risk UI labels (`Capture Inbox` to `Process Captures`, `Knowledge Objects` to `Design Knowledge`, `AI Suggestions` to `AI Drafts`), reduce Sidebar/Dashboard default choices without removing routes, and keep advanced modules reachable through More and Cmd/Ctrl+K.
+
+## Prompt 2 - Product Slimming Sprint 1: Low-Risk Labels and Progressive Disclosure
+
+### Date And Local Time
+
+2026-04-30 19:47:33 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Product Slimming Changes
+
+- Renamed the user-facing `Capture Inbox` surface to `Process Captures` while preserving the `/captures/inbox` route and `capture-inbox` route name.
+- Renamed user-facing `Knowledge Objects` surfaces to `Design Knowledge` while preserving `/knowledge` routes and backend `knowledge-objects` API contracts.
+- Renamed user-facing `Mastery` surfaces to `Learning Progress` where the term was presented as a page or analytics label.
+- Renamed the Right Rail `AI Draft Suggestions` label to `AI Drafts` to reinforce draft-only behavior.
+- Reduced default sidebar choices by removing Demo Workspace from non-advanced secondary navigation and keeping Knowledge Graph under Advanced/More except for direct deep links and command palette access.
+- Simplified Dashboard hero actions so the main next-step CTA remains primary and Demo/onboarding restart are quiet support links.
+
+### Routes Preserved
+
+- `/captures/inbox`
+- `/knowledge`
+- `/knowledge/:id`
+- `/mastery`
+- `/graph`
+- `/demo`
+- `/admin/ontology`
+
+### Docs Updated
+
+- `docs/current-state.md` now records Product Slimming Sprint 1 as implemented.
+- `docs/product-slimming-baseline.md` now uses `Learning Progress` and `Design Knowledge` in the advanced-feature baseline language.
+
+### Tests Updated
+
+- Navigation progressive disclosure E2E now expects `Process Captures` and `Design Knowledge`.
+- Task-first workspace E2E now expects the `Process Captures` page heading.
+
+### Commands Run
+
+- `git status --short --branch`
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `rg -n "Capture Inbox|Open capture inbox|capture inbox|Knowledge Objects|Knowledge Object|AI Draft Suggestions|label: 'Knowledge'|label: 'Capture'" frontend/src frontend/e2e`
+- `git diff --check`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm ci`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Backend tests: PASS, 62 tests.
+- Frontend typecheck: PASS.
+- Frontend clean install: PASS, 147 packages, 0 vulnerabilities.
+- Frontend production build: PASS after rerunning serially. The first build attempt ran in parallel with `npm ci` and failed because `node_modules` was temporarily being replaced.
+- Playwright E2E: PASS, 19 tests.
+- `git diff --check`: PASS with line-ending warnings only.
+
+### Remaining Risks
+
+- Several internal route names, API names, and TypeScript model names still use technical terms such as `knowledgeObject` and `mastery`; these were intentionally preserved to avoid backend/API churn.
+- Admin ontology remains labeled as Ontology Import in navigation because it is admin-only and maps to existing backend terminology.
+- Further slimming should focus on page-level choice reduction in Book Detail, Project Detail, Graph, and Import/Export rather than more broad renaming.
+
+### Next Recommended Prompt
+
+Implement Product Slimming Sprint 2: reduce page-level choice overload in Book Detail, Project Detail, Graph, and Import/Export by collapsing advanced sections when empty, adding one primary next action per page, and preserving all existing routes and APIs.
+
+## Prompt 2 — Executable Use Case Checklists with Step Completion Tracking
+
+### Date And Local Time
+
+2026-04-30 20:08:01 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Use Cases Made Executable
+
+- First 15 minutes: Add Book, Capture, Process, Open Source.
+- Reader Mode: Track a book from start to finish.
+- Note-Taker Mode: Capture and convert to note, action, and quote.
+- Game Designer Mode: Apply a quote to a game project.
+- Researcher Mode: Create and review a concept.
+- Community Mode: Start a source-linked discussion.
+- Advanced Mode: Search, graph, export, and Mock AI draft.
+
+### Backend Changes
+
+- Added `UserUseCaseProgress` persistence with `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED` status.
+- Added `GET /api/use-cases/progress`.
+- Added `GET /api/use-cases/progress/{slug}`.
+- Added `POST /api/use-cases/progress/{slug}/start`.
+- Added `PUT /api/use-cases/progress/{slug}/steps/{stepKey}/complete`.
+- Added `PUT /api/use-cases/progress/{slug}/reset`.
+- Added Flyway migration `V12__user_use_case_progress.sql`.
+- Added real-data automatic completion checks for owned books, captures, conversions, concepts, projects, project applications, source references, forum activity, and AI drafts.
+
+### Frontend Changes
+
+- Added `frontend/src/api/useCaseProgress.ts`.
+- Updated use-case data with stable step keys and automatic verification labels.
+- Updated `/use-cases` cards to show progress when available.
+- Updated `/use-cases/:slug` to support Start, Continue, Reset, Verify automatically, and Mark manually complete.
+- Preserved all existing use-case routes and linked actions.
+
+### Automatic Step Detection
+
+- Automatic completion uses only persisted records owned by the current user.
+- Manual completion is only exposed for steps without a reliable detector.
+- Checklist actions do not create fake books, captures, quotes, projects, pages, or source references.
+- Reset clears checklist progress only and does not delete user content.
+
+### Tests Added
+
+- Added backend integration tests for user-scoped progress, manual completion, reset behavior, and automatic detection from real book records.
+- Updated the Playwright use-case route smoke test to start, manually complete, reload, and reset a checklist.
+
+### Commands Run
+
+- `git status --short; git branch --show-current; git rev-parse HEAD`
+- `rg -n "UseCaseProgress|first-15-minutes|note-taker-capture-convert|advanced-mode-search-graph-export-ai|/api/use-cases/progress|Mark manually complete|Verify automatically" frontend/src frontend/e2e backend/src docs report.md`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm ci`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Backend tests: PASS, 64 tests. First run failed because the new use-case endpoints were code-only; endpoint inventory, API contract audit docs, and endpoint contract test were updated, then the suite passed.
+- Frontend clean install: PASS, 147 packages, 0 vulnerabilities.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Playwright E2E: PASS, 19 tests.
+
+### Remaining Risks
+
+- Automatic verification is intentionally conservative. Steps such as opening a source, using search, opening graph, and exporting data are manual until event tracking exists.
+- The checklist system tracks progress, not full guided transaction state. Users still perform the real work through existing routes.
+- Use-case progress reset does not reset application data, which is correct but should remain clear in UX copy.
+
+### Next Recommended Prompt
+
+Implement Product Slimming Sprint 3: add lightweight route event tracking for source-open, search-used, graph-opened, and export-started events so more checklist steps can be verified automatically without creating fake user data.
+
+## Prompt 3 - Route Event Tracking for Use Case Auto-Verification
+
+### Date And Local Time
+
+2026-04-30 20:19:49 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Route Events Added
+
+- `SOURCE_OPENED`
+- `SEARCH_USED`
+- `GRAPH_OPENED`
+- `EXPORT_STARTED`
+
+### Backend Changes
+
+- Added `UserUseCaseEvent` persistence with `UseCaseEventType`.
+- Added `UserUseCaseEventRepository`, request/response DTOs, and `UseCaseEventService`.
+- Added `POST /api/use-cases/progress/events`.
+- Added Flyway migration `V13__user_use_case_events.sql`.
+- Extended checklist signal calculation with event counts for source-open, search, graph, and export evidence.
+- Updated automatic detection so `first-15-minutes` can verify `open-source` and Advanced Mode can verify `search`, `graph`, and `export`.
+
+### Frontend Changes
+
+- Added use-case event API support in `frontend/src/api/useCaseProgress.ts`.
+- Added `UseCaseEventType`, `UseCaseEventPayload`, and `UserUseCaseEventRecord` types.
+- Recorded `SOURCE_OPENED` from `useOpenSource` after source drawer/source navigation is invoked.
+- Recorded `SEARCH_USED` from the global search dialog after a successful search.
+- Recorded `GRAPH_OPENED` from the graph workspace after a successful graph API load.
+- Recorded `EXPORT_STARTED` from Import/Export after export download preparation succeeds.
+
+### Tests Added
+
+- Added backend integration coverage proving route events drive checklist auto-detection and remain user-scoped.
+- Updated endpoint contract coverage for `POST /api/use-cases/progress/events`.
+- Updated Playwright use-case smoke coverage for source-open, search, graph, and export event-driven checklist progress.
+
+### Commands Run
+
+- `git status --short --branch`
+- `git rev-parse HEAD; git branch --show-current`
+- `rg -n "useOpenSource|openSource|source drawer|GlobalSearchDialog|Search|GraphView|ImportExportView|export|UseCaseProgressService|advanced-mode-search-graph-export-ai|open-source" frontend/src backend/src docs report.md`
+- `rg -n "use-cases/progress/events|UseCaseEvent|SOURCE_OPENED|SEARCH_USED|GRAPH_OPENED|EXPORT_STARTED|Current Product Slimming Sprint 2" docs/current-state.md docs/api-endpoint-inventory.md docs/api-contract-audit.md backend/src frontend/src frontend/e2e`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+- `cd frontend; npm ci`
+- `git diff --check`
+
+### Verification Result
+
+- Backend tests: PASS, 65 tests.
+- Frontend clean install: PASS, 147 packages, 0 vulnerabilities.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Playwright E2E: PASS, 19 tests.
+- `git diff --check`: PASS with line-ending warnings only.
+
+### Remaining Risks
+
+- Event records are append-only workflow evidence; there is no pruning, aggregation, or analytics dashboard for them yet.
+- Frontend event recording is best-effort. If the network call fails after the primary user action succeeds, the checklist step may remain incomplete.
+- Graph event tracking records successful graph workspace loads, not deeper graph interactions.
+
+### Next Recommended Prompt
+
+Implement Product Slimming Sprint 4: reduce page-level choice overload in Book Detail, Project Detail, Graph, and Import/Export by collapsing advanced sections when empty, adding one primary next action per page, and preserving all existing routes and APIs.
+
+## Prompt 5 — Data-Dependent Progressive Disclosure
+
+Date and local time: 2026-04-30 22:03:12 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Disclosure States Implemented
+
+- Empty user: Dashboard now prioritizes Add Book, First Valuable Loop, and Demo Workspace.
+- Book-only state: Continue Reading and Quick Capture appear, with parser examples; Today, Apply, Project, and Learning sections remain hidden until useful data exists.
+- Capture state: Process Captures appears when unprocessed captures exist.
+- Source-backed state: Daily, Apply Knowledge, and Review actions require user-created source-backed records, not seeded ontology records.
+- Project state: Project Focus appears when a project exists; Project Graph link appears only when source-backed project applications exist.
+- Graph empty state: Knowledge Graph explains how to create relationships through captures, concepts, source links, project applications, or manual relationships, and states that BookOS will not invent graph nodes.
+- Admin state: Admin ontology visibility remains controlled by existing role-aware navigation.
+
+### Summary API / Store Changes
+
+- No backend summary endpoint was added for this prompt.
+- Dashboard computes product readiness from existing API responses for library books, currently reading books, captures, notes, quotes, actions, concepts, knowledge objects, projects, project applications, review sessions, and mastery records.
+- Seeded ontology concepts and knowledge objects are excluded from dashboard source-backed readiness unless their source reference is tied to a user note, note block, or raw capture.
+
+### Dashboard Changes
+
+- Added a first-day readiness card for users with no books.
+- Added conditional guards for Today, Continue Reading, Quick Capture, Process Captures, Apply Knowledge, Project Focus, Learning Loop, and advanced workflow surfaces.
+- Added parser examples for users who have books but have not started capturing yet.
+- Kept hands-on use-case guidance visible as workflow help rather than treating it as an advanced module.
+- Avoided fake counts and fake source-backed claims.
+
+### Advanced Modules Behavior
+
+- Empty dashboard no longer promotes graph, analytics, mastery, daily, apply, or project sections.
+- Advanced routes remain available through existing routes, navigation, and command/search entry points.
+- Knowledge Graph remains accessible and now has an honest no-edges empty state.
+- No routes were removed or blocked.
+
+### Tests Added / Updated
+
+- Updated dashboard E2E coverage for empty, book-only, capture, and project disclosure states.
+- Updated capture guide and help E2E setup to create a real book before asserting Quick Capture surfaces.
+- Kept use-case route smoke compatible with empty-user workflow guidance.
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts e2e/capture-guide.spec.ts e2e/help.spec.ts e2e/use-cases.spec.ts`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts e2e/use-cases.spec.ts`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Backend tests: PASS, 65 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Full Playwright E2E: PASS, 21 tests.
+- Dashboard state-based E2E: PASS after updating tests to reflect the new empty-state progressive disclosure rules.
+
+### Remaining Risks
+
+- Product readiness is currently a frontend heuristic; a future `/api/product-state/summary` endpoint could provide a single audited backend source for all readiness counts.
+- Dashboard source-backed readiness intentionally excludes seeded ontology content by checking for user note, note block, or raw capture source linkage; this is conservative but should be documented if backend summary logic is added later.
+- Full visual QA with screenshots was not performed in this prompt.
+
+### Next Recommended Prompt
+
+Perform a browser visual QA pass on the slimmed dashboard states and capture screenshots for empty, book-only, capture, source-backed, and project users. Fix only obvious usability regressions or misleading states.
+
+## Prompt 6 — Browser Visual QA Pass for Progressive Disclosure
+
+Date and local time: 2026-04-30 22:16:53 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Visual States Captured
+
+- Empty user dashboard.
+- Book-only dashboard.
+- Capture-state dashboard.
+- Source-backed dashboard.
+- Project-state dashboard.
+- Desktop, tablet, and mobile screenshots were generated under `frontend/test-results/visual-qa/dashboard-progressive-disclosure/`.
+
+### Usability Regressions Found
+
+- Empty dashboard still exposed full right-rail modules for Source Link, Draft Assistant, and Extracted Actions before the user had useful pinned context.
+- The first quiet-state fix initially described the right rail as "Nothing source-backed yet", which was misleading for users who had source-backed records but no currently pinned source.
+
+### Usability Regressions Fixed
+
+- Dashboard right rail now shows a single quiet starter panel when there is no selected source, no AI draft, no extracted action, and no AI error.
+- Starter copy now explains that source tools appear after opening a source-backed record: book, quote, note, action, or project application.
+- Full right rail still appears outside the dashboard and still appears on the dashboard whenever real rail content or errors exist.
+
+### Files Created
+
+- None committed. Temporary visual QA spec was created for the run and removed afterward.
+
+### Files Modified
+
+- `frontend/src/components/RightRail.vue`
+- `report.md`
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `Get-Command npx`
+- `npx playwright test e2e/.tmp-dashboard-visual-qa.spec.ts`
+- `cd frontend; npm run typecheck`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Visual screenshot pass: PASS, 15 screenshots generated and reviewed.
+- Temporary dashboard visual QA spec: PASS, 3 tests.
+- Backend tests: PASS, 65 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Full Playwright E2E: PASS, 21 tests.
+
+### Remaining Risks
+
+- Visual QA screenshots are generated under ignored `frontend/test-results/` and are not committed as durable release evidence.
+- The top current-book selector can still show "No active book selected" even when the dashboard has a currently-reading book; this is a UX polish issue rather than a flow blocker.
+- Dashboard right rail is still pinned-source oriented; a future product-state summary could make source context smarter without adding dashboard noise.
+
+### Next Recommended Prompt
+
+Polish the global current-book selector so it defaults to the active/currently-reading dashboard book when no explicit current book is selected, without breaking manual selection.
+
+## Prompt 7 - Current Book Selector Fallback
+
+### Date and Local Time
+
+2026-04-30 22:35:24 +02:00
+
+### Current SHA
+
+5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+### Selector Behavior Added
+
+- The global current-book selector now keeps pinned source context as the explicit override.
+- When no source context is pinned, the selector defaults to the first currently-reading book returned by `/api/user-books/currently-reading`.
+- When no pinned or currently-reading book exists, the selector keeps the honest "No active book selected" state.
+- If the reading shelf request fails, the selector shows an unavailable state instead of showing fake data.
+
+### Frontend Changes
+
+- `AppLayout.vue` now loads currently-reading books, refreshes on auth/user and route changes, and passes selector source/loading state to the top navigation.
+- `TopNav.vue` now distinguishes pinned source context, currently-reading fallback, loading, unavailable, and empty states with user-facing copy and badges.
+- `dashboard.spec.ts` now verifies that a currently-reading book appears in the current-book selector when no explicit source is pinned.
+
+### Tests Added or Updated
+
+- Updated dashboard E2E coverage for current-book fallback behavior.
+
+### Commands Run
+
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts` (first run failed due to an over-broad test locator, then passed after scoping the assertion)
+- `cd backend; .\mvnw.cmd test`
+
+### Verification Result
+
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Focused dashboard Playwright smoke: PASS.
+- Backend full test suite: PASS, 65 tests.
+
+### Remaining Risks
+
+- The selector picks the first currently-reading book returned by the backend; there is no explicit "active book" preference yet.
+- The selector refreshes on route changes, which is simple and reliable but may be optimized later if request volume becomes noisy.
+
+### Next Recommended Prompt
+
+Add an explicit "Set as active book" preference for users with multiple currently-reading books, while keeping the current fallback behavior as the default.
+
+## Prompt 7 — Project Wizard Transaction and Failure Safety
+
+### Date and Local Time
+
+2026-04-30 22:53:36 +02:00
+
+### Current SHA
+
+5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+### Transaction Endpoint Behavior
+
+- Added `POST /api/projects/{projectId}/wizard/apply-knowledge` as the single transactional submit endpoint for the guided Project Apply Knowledge Wizard.
+- The endpoint validates project ownership, source ownership, nested target ownership, and source-reference visibility before creating records.
+- It can create project problems, project applications, design decisions, playtest plans, playtest findings, lens reviews, and project knowledge links in one transaction.
+- It records an idempotency key in `project_wizard_submissions`; duplicate final submissions return the previous response instead of creating duplicate records.
+- Validation failure, cross-user source-reference access, or malformed nested payloads create no project records.
+
+### Frontend Wizard Changes
+
+- Updated `ProjectApplyKnowledgeWizardView.vue` to keep the existing step UI but submit through the new transaction endpoint.
+- Added a final review screen explaining which records will be created and that no records are saved until final confirmation.
+- Added an idempotency key to saved local drafts so retry behavior is explicit and safe.
+- Added a clear failure state: failed transaction submissions tell the user that no partial project records were created.
+- Updated the created-record summary to use the backend response rather than assuming individual API calls succeeded.
+
+### Source Preservation Result
+
+- Source references are applied to project problems, applications, design decisions, playtest findings, lens reviews, and project knowledge links when available.
+- Playtest plans remain source-free because the current model does not carry a source reference field for plans.
+- Unknown pages are not invented; the transaction carries only existing `SourceReference` data.
+
+### Tests Added
+
+- Backend integration tests verify transactional creation, idempotency replay, validation failure creates nothing, and cross-user source-reference rejection creates nothing.
+- Endpoint contract verification now includes the new transaction endpoint.
+- Playwright project wizard smoke now verifies cancellation creates no records, final review appears before creation, transaction confirmation succeeds, and source-backed records are visible afterward.
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `cd backend; .\mvnw.cmd -DskipTests compile`
+- `cd backend; .\mvnw.cmd -Dtest=ProjectModeIntegrationTest test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npx playwright test e2e/project-wizard.spec.ts` (first run exposed stale E2E copy, second run passed)
+- `cd backend; .\mvnw.cmd test` (first run exposed missing endpoint-contract entry, second run passed)
+
+### Verification Result
+
+- Backend compile: PASS.
+- Focused backend project tests: PASS, 9 tests.
+- Backend full test suite: PASS, 68 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Focused project wizard Playwright smoke: PASS, 1 test.
+
+### Remaining Risks
+
+- The idempotency ledger stores the response JSON for replay; if response DTOs are changed incompatibly later, old submissions may need a migration or tolerant reader.
+- Playtest plans are included in the transaction but remain source-free until the domain model supports source references on plans.
+- The broader working tree already contained many unrelated dirty changes from previous checkpoints; this prompt preserved them.
+
+### Next Recommended Prompt
+
+Add a small project-wizard audit note to the user-facing docs or help system explaining that the guided flow is transactional and safe to retry, then run the full E2E suite before any release checkpoint.
+
+## Prompt 8 — Project Wizard Help Note and Full E2E Verification
+
+Date and local time: 2026-04-30 23:16:13 +02:00
+
+Current SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### User-Facing Help Added
+
+- Added a `Project Guided Flow` help topic that explains the Project Apply Knowledge Wizard is transaction-safe, validates access before writing, preserves source links, and uses an idempotency key for safe retry.
+- Added a contextual help tooltip to the Project Apply Knowledge Wizard page header.
+- Updated project hands-on docs to state that final confirmation uses one backend transaction and safe retry behavior.
+
+### Source-of-Truth Drift Fixed
+
+- Updated `docs/hands-on-beta-ux-report.md` to remove stale claims that the project wizard was not transactional.
+- Updated `docs/po-usability-review.md` to replace the old P1 transaction warning with a usability-validation follow-up.
+- Verified no remaining docs match the stale phrases `not transactional`, `not yet a single backend transaction`, `could create partial`, or `eventually use a backend transaction`.
+
+### E2E Coverage Updated
+
+- Updated the project wizard Playwright smoke to verify the contextual help entry is visible.
+- Fixed a strict-mode Playwright selector in the MVP core loop graph assertion by requiring the exact `Knowledge Graph` heading.
+
+### Commands Run
+
+- `rg -n "transaction|single backend transaction|partial|idempotency|Project wizard" docs README.md frontend/src/data/helpTopics.ts frontend/src/views/ProjectApplyKnowledgeWizardView.vue`
+- `rg -n "not transactional|not yet a single backend transaction|could create partial|eventually use a backend transaction|Add transactional Project Wizard command endpoint" docs`
+- `git status --short`
+- `git branch --show-current`
+- `git rev-parse HEAD`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npx playwright test e2e/project-wizard.spec.ts`
+- `cd frontend; npm run e2e` (first run exposed one strict selector issue; second run passed)
+
+### Verification Result
+
+- Backend full test suite: PASS, 68 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Focused project wizard E2E: PASS, 1 test.
+- Full Playwright E2E: PASS, 21 tests.
+
+### Remaining Risks
+
+- `report.md` already contains duplicate prior prompt sections from earlier append-only recovery work; this prompt preserved that history.
+- The working tree still contains many dirty files from prior checkpoints; this prompt did not revert unrelated work.
+- The project wizard transaction is now documented and tested, but hands-on user validation of the final review copy remains a product task.
+
+### Next Recommended Prompt
+
+Run a final source-of-truth and hygiene check focused on committing or splitting the current dirty worktree into reviewable changes, without adding new product features.
+
+## Prompt 4 — Terminology Simplification and UX Copy Refactor
+
+### Date and Local Time
+
+2026-04-30 21:31:39 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Terms Changed
+
+- Capture Inbox -> Process Captures.
+- Action Items -> Actions.
+- Action Item Detail -> Action Detail.
+- Knowledge Objects -> Design Knowledge or Knowledge, depending on space and context.
+- Mastery -> Learning Progress.
+- Entity Links -> Relationships.
+- Source Reference -> Source Link or Source in user-facing UI.
+- AI Suggestions / AI Drafts -> Draft Assistant or assistant drafts.
+- Admin Ontology -> Ontology Import.
+- Graph -> Knowledge Graph.
+- Backlinks -> Related Links, with technical component names preserved.
+
+### Routes Preserved
+
+- Preserved canonical routes including `/captures/inbox`, `/action-items`, `/action-items/:id`, `/mastery`, `/graph`, and `/admin/ontology`.
+- Added user-friendly aliases `/capture`, `/actions`, `/actions/:id`, `/learning-progress`, and `/admin/ontology-import`.
+- Backend entity names, API paths, and API adapter names were not renamed.
+
+### Docs Updated
+
+- Created `docs/terminology-guide.md` as the source of truth for user-facing labels vs technical names.
+- Updated `docs/hands-on-use-cases.md`, `docs/navigation-simplification-plan.md`, and `docs/product-slimming-baseline.md` where labels changed.
+- Preserved precise technical labels in docs where the distinction matters, especially for API and backend entities.
+
+### Tests Added
+
+- No new test files were added.
+- Existing Playwright E2E assertions were updated to verify the new user-facing terminology and route aliases.
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `rg -n "Capture Inbox|Action Items|Action Item Detail|Knowledge Objects|Mastery|Entity Links|Source Reference|AI Suggestions|AI Drafts|Admin Ontology|Open Graph|Backlinks" frontend\src docs\hands-on-use-cases.md docs\navigation-simplification-plan.md docs\product-slimming-baseline.md`
+- `rg -n "alias: \['/capture'\]|alias: \['/actions|alias: \['/learning-progress'\]|alias: \['/admin/ontology-import'\]" frontend\src\router\index.ts`
+- `git diff --check`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm ci`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npx playwright install chromium`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Backend tests: PASS, 65 tests.
+- Frontend clean install: PASS, 147 packages, 0 vulnerabilities.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Playwright E2E smoke: PASS, 21 tests.
+- `git diff --check`: PASS with line-ending warnings only.
+- Route alias verification: PASS, aliases are present while canonical routes remain unchanged.
+
+### Remaining Risks
+
+- Some technical identifiers still contain legacy terms by design, including backend entities, API names, type names, and component filenames.
+- Some documentation intentionally mentions old terms in mapping tables so readers can connect previous labels to new labels.
+- Further product slimming should focus on page density and choice hierarchy, not additional terminology churn.
+
+### Next Recommended Prompt
+
+Continue Product Slimming Sprint 5: reduce page-level choice overload by making each core page show one primary next action, collapsing advanced panels by default, and keeping all existing routes and APIs stable.
+
+## Prompt 5 — Product Slimming Sprint: One Primary Action Per Workspace
+
+### Date and Local Time
+
+2026-04-30 21:41:50 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Page-Level Choice Overload Reduced
+
+- Quotes now starts with one recommended next step before search and filters.
+- Concepts now starts with one recommended next step before ontology filters.
+- Design Knowledge now starts with one recommended next step before type/layer filters.
+- Forum now starts with one recommended next step before categories, latest/popular/bookmarked panels, and filters.
+- Daily now promotes a single primary loop: read prompt, write reflection, apply only if useful.
+
+### Advanced Panels Collapsed
+
+- Daily regenerate/skip/prototype/problem/lens-review actions moved behind "More" disclosure controls.
+- Existing advanced Graph, Import/Export, Book Detail, and Project Detail disclosure behavior was preserved.
+- No routes, API names, backend entities, or stored data behavior were changed.
+
+### Docs Updated
+
+- Updated `docs/product-slimming-baseline.md` with Sprint 5 implementation notes and remaining slimming work.
+
+### Files Modified
+
+- `frontend/src/views/QuotesView.vue`
+- `frontend/src/views/ConceptsView.vue`
+- `frontend/src/views/KnowledgeObjectsView.vue`
+- `frontend/src/views/ForumView.vue`
+- `frontend/src/views/DailyView.vue`
+- `docs/product-slimming-baseline.md`
+- `report.md`
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `rg -n "<AppSectionHeader|AppEmptyState|Graph|Import|advanced|Advanced|details|summary|primary action|next action|Next" frontend\src\views frontend\src\components`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run e2e`
+- `git diff --check`
+
+### Verification Result
+
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Backend tests: PASS, 65 tests.
+- Playwright E2E smoke: PASS, 21 tests.
+- `git diff --check`: PASS with line-ending warnings only.
+
+### Remaining Risks
+
+- Some advanced detail pages still have dense local controls after the first action card; this sprint reduced entry-point overload, not every form-level choice.
+- Graph edge-list arrow copy still contains a pre-existing malformed text artifact in one visual fallback path; build and E2E are unaffected, but it should be repaired in a focused cleanup.
+- The current repo remains a dirty multi-checkpoint worktree with pre-existing untracked use-case progress files.
+
+### Next Recommended Prompt
+
+Continue Product Slimming Sprint 6: audit detail pages and form-heavy pages for form-level overload, then group secondary fields into "Advanced details" without changing backend contracts or routes.
+
+## Prompt 4 - Product Slimming Sprint 4: Progressive Disclosure on Advanced Pages
+
+### Date and Local Time
+
+2026-04-30 21:01:03 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Pages Changed
+
+- Book Detail
+- Project Detail
+- Knowledge Graph
+- Import / Export
+
+### Choice Overload Reduced
+
+- Book Detail now promotes one primary action: add the book to the library when needed, otherwise capture a thought.
+- Book Detail secondary actions are grouped under More, with workflow guides, reading sessions, metadata controls, and backlinks/source references progressively disclosed.
+- Project Detail now promotes the guided apply-knowledge flow as the primary action and moves secondary actions under More.
+- Project Detail stages problems, applications, decisions, and findings so later workflow surfaces do not dominate empty projects.
+- Graph now promotes one next action based on graph state, collapses optional filters, and keeps the manual relationship editor closed until requested.
+- Import / Export now promotes one full JSON backup action and keeps narrow CSV/single-book exports plus import preview behind intentional disclosures.
+
+### Primary Next Actions
+
+- Book Detail: `Add to Library` or `Capture Thought`.
+- Project Detail: `Apply Knowledge Guided Flow`.
+- Graph: `Start First Loop`, `Create Relationship`, or `Inspect relationships` depending on real graph data.
+- Import / Export: `Export All JSON`, `Confirm Import`, or post-import backup depending on import state.
+
+### Advanced Sections Collapsed
+
+- Book workflow guides, reading sessions, metadata controls, and backlinks/source references.
+- Project workflow guides, advanced context, graph context, and future task surface.
+- Graph workflow guides, filters, and manual relationship editor.
+- Import/export workflow guides, CSV/single-book exports, and import preview form.
+
+### Bugs Found and Fixed
+
+- E2E was still asserting hidden raw status enum text on Book Detail; updated it to assert the visible human label `Currently Reading`.
+- E2E was still expecting graph/import workflow guide headings to be visible by default; updated it to open the collapsed guide first.
+- Import / Export showed two visible `Export All JSON` buttons after adding the next-step card; removed the duplicate export-card button and kept the next-step card as the only primary CTA.
+
+### Files Modified
+
+- `frontend/src/views/BookDetailView.vue`
+- `frontend/src/views/ProjectDetailView.vue`
+- `frontend/src/views/GraphView.vue`
+- `frontend/src/views/ImportExportView.vue`
+- `frontend/e2e/mvp-core-loop.spec.ts`
+- `frontend/e2e/use-cases.spec.ts`
+- `report.md`
+
+### Commands Run
+
+- `git status --short`
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+- `cd frontend; npx playwright test e2e\mvp-core-loop.spec.ts e2e\use-cases.spec.ts`
+- `cd frontend; npx playwright test "e2e/mvp-core-loop.spec.ts" "e2e/use-cases.spec.ts"`
+- `git diff --check`
+- `git ls-files backend.zip *.7z *.log *.out *.err frontend/dist backend/target frontend/node_modules tools/*.zip tools/*.7z`
+
+### Verification Result
+
+- Backend tests: PASS, 65 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Full Playwright E2E: PASS, 21 tests.
+- Targeted repaired Playwright specs: PASS, 2 tests.
+- `git diff --check`: PASS with line-ending warnings only.
+- Artifact hygiene check: PASS, no tracked archive/log/target/dist/node_modules matches returned.
+
+### Remaining Risks
+
+- Native `details/summary` disclosures are keyboard-accessible, but visual affordance should still be reviewed in browser screenshots on tablet/mobile.
+- Project Detail staging is intentionally conservative; some users may need a clearer "show all project tools" preference later.
+- Import/export still uses local download behavior that is verified by Playwright but not by a real operating-system file-management workflow.
+
+### Next Recommended Prompt
+
+Implement Product Slimming Sprint 5: run a browser visual QA pass for the task-first pages, capture desktop/tablet/mobile screenshots, and fix only P0/P1 usability issues such as hidden primary actions, confusing disclosure labels, or mobile overflow.
+
+## Prompt 3 — First Valuable Loop Guided Mode
+
+### Date And Local Time
+
+2026-04-30 20:41:06 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Guided Flow Steps Implemented
+
+- Added `/guided/first-loop` as a focused guided path from zero to one source-backed record.
+- Implemented Add Book with existing-book selection and real book creation.
+- Implemented Set Reading with `CURRENTLY_READING` library state and optional page context that is not invented or forced.
+- Implemented Capture Thought with examples, backend parser preview, and explicit page-unknown messaging.
+- Implemented Process Capture with conversion to note, quote, action item, or reviewed concept.
+- Implemented Open Source through the source reference drawer without leaving the guided flow.
+- Implemented Next Path choices for continuing reading, starting review, applying to project, or exploring use cases.
+
+### APIs Used
+
+- `GET /api/books`
+- `POST /api/books`
+- `POST /api/books/{id}/add-to-library`
+- `GET /api/user-books`
+- `PUT /api/user-books/{id}/status`
+- `PUT /api/user-books/{id}/progress`
+- `POST /api/parser/preview`
+- `POST /api/captures`
+- `GET /api/captures/{id}`
+- `POST /api/captures/{id}/convert`
+- `POST /api/captures/{id}/review/concepts`
+- `GET /api/notes/{id}`
+- `GET /api/quotes/{id}`
+- `GET /api/action-items/{id}`
+- `GET /api/concepts/{id}`
+- `POST /api/use-cases/progress/{slug}/start`
+- `PUT /api/use-cases/progress/{slug}/steps/{stepKey}/complete`
+
+### Source Preservation Behavior
+
+- Capture conversion uses existing backend conversion APIs so source references remain backend-owned and source-backed.
+- Capture without a page marker stores `pageStart` as `null`; E2E verifies quote and source reference page values remain `null`.
+- Open Source can now open the source drawer in-place with `navigate: false`, while the drawer's own Open Source action still navigates to the source route.
+- Guided book creation no longer inserts a system-written description into the user-created book record.
+
+### Tests Added
+
+- Added Playwright coverage for a fresh user completing the first loop from book creation through quote conversion and source opening.
+- Added Playwright coverage for an existing user starting the first loop with an existing book.
+- Updated dashboard and onboarding E2E expectations to reflect the new first-loop route.
+
+### Commands Run
+
+- `cd frontend; npx playwright test e2e/guided-first-loop.spec.ts`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm ci`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+- `git status --short`
+- `git rev-parse --abbrev-ref HEAD; git rev-parse HEAD; Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz"`
+- `git diff --check`
+- `git ls-files backend.zip *.7z *.log *.out *.err frontend/dist backend/target frontend/node_modules tools/*.zip tools/*.7z`
+
+### Verification Result
+
+- Backend tests: PASS, 65 tests.
+- Frontend clean install: PASS, 147 packages, 0 vulnerabilities.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Targeted guided-loop Playwright spec: PASS, 2 tests.
+- Full Playwright E2E: PASS, 21 tests.
+- `git diff --check`: PASS with line-ending warnings only.
+- Artifact hygiene check: PASS, no tracked archive/log/target/dist/node_modules matches returned.
+
+### Remaining Risks
+
+- Guided flow resume state is stored in browser local storage; use-case progress is persistent, but the transaction draft itself is local.
+- The guided flow does not create a note body editor experience; it creates or converts records through existing APIs only.
+- Source drawer in-place opening depends on existing source reference availability from conversion results.
+
+### Next Recommended Prompt
+
+Implement Product Slimming Sprint 4: reduce page-level choice overload in Book Detail, Project Detail, Graph, and Import/Export by collapsing advanced sections when empty, adding one primary next action per page, and preserving all existing routes and APIs.
+
+## Prompt 5 — Data-Dependent Progressive Disclosure
+
+Date and local time: 2026-04-30 22:03:12 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Disclosure States Implemented
+
+- Empty user: Dashboard now prioritizes Add Book, First Valuable Loop, and Demo Workspace.
+- Book-only state: Continue Reading and Quick Capture appear, with parser examples; Today, Apply, Project, and Learning sections remain hidden until useful data exists.
+- Capture state: Process Captures appears when unprocessed captures exist.
+- Source-backed state: Daily, Apply Knowledge, and Review actions require user-created source-backed records, not seeded ontology records.
+- Project state: Project Focus appears when a project exists; Project Graph link appears only when source-backed project applications exist.
+- Graph empty state: Knowledge Graph explains how to create relationships through captures, concepts, source links, project applications, or manual relationships, and states that BookOS will not invent graph nodes.
+- Admin state: Admin ontology visibility remains controlled by existing role-aware navigation.
+
+### Summary API / Store Changes
+
+- No backend summary endpoint was added for this prompt.
+- Dashboard computes product readiness from existing API responses for library books, currently reading books, captures, notes, quotes, actions, concepts, knowledge objects, projects, project applications, review sessions, and mastery records.
+- Seeded ontology concepts and knowledge objects are excluded from dashboard source-backed readiness unless their source reference is tied to a user note, note block, or raw capture.
+
+### Dashboard Changes
+
+- Added a first-day readiness card for users with no books.
+- Added conditional guards for Today, Continue Reading, Quick Capture, Process Captures, Apply Knowledge, Project Focus, Learning Loop, and advanced workflow surfaces.
+- Added parser examples for users who have books but have not started capturing yet.
+- Kept hands-on use-case guidance visible as workflow help rather than treating it as an advanced module.
+- Avoided fake counts and fake source-backed claims.
+
+### Advanced Modules Behavior
+
+- Empty dashboard no longer promotes graph, analytics, mastery, daily, apply, or project sections.
+- Advanced routes remain available through existing routes, navigation, and command/search entry points.
+- Knowledge Graph remains accessible and now has an honest no-edges empty state.
+- No routes were removed or blocked.
+
+### Tests Added / Updated
+
+- Updated dashboard E2E coverage for empty, book-only, capture, and project disclosure states.
+- Updated capture guide and help E2E setup to create a real book before asserting Quick Capture surfaces.
+- Kept use-case route smoke compatible with empty-user workflow guidance.
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts e2e/capture-guide.spec.ts e2e/help.spec.ts e2e/use-cases.spec.ts`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts e2e/use-cases.spec.ts`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Backend tests: PASS, 65 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Full Playwright E2E: PASS, 21 tests.
+- Dashboard state-based E2E: PASS after updating tests to reflect the new empty-state progressive disclosure rules.
+
+### Remaining Risks
+
+- Product readiness is currently a frontend heuristic; a future `/api/product-state/summary` endpoint could provide a single audited backend source for all readiness counts.
+- Dashboard source-backed readiness intentionally excludes seeded ontology content by checking for user note, note block, or raw capture source linkage; this is conservative but should be documented if backend summary logic is added later.
+- Full visual QA with screenshots was not performed in this prompt.
+
+### Next Recommended Prompt
+
+Perform a browser visual QA pass on the slimmed dashboard states and capture screenshots for empty, book-only, capture, source-backed, and project users. Fix only obvious usability regressions or misleading states.
+
+## Prompt 6 — Demo Workspace as Interactive Training Ground
+
+Date and local time: 2026-04-30 22:27:52 +02:00
+
+### Current SHA
+
+`5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### Demo Tutorials Added
+
+- Added seven tutorial cards to `/demo`: Capture and Convert, Open Source, Apply Quote to Project, Review Concept, Explore Graph, Forum Discussion, and Export Demo Data.
+- Each tutorial links to an executable use-case checklist instead of creating fake progress or fake records.
+- The Demo Workspace now positions itself as a training ground before a user graduates to real books and projects.
+
+### Demo Safety Behavior
+
+- Demo status now exposes active/inactive state, scoped record count, last reset time, included record types, and analytics exclusion status.
+- Demo copy explicitly states that demo records are not real reading, demo content is original, unknown pages remain unknown, and demo analytics are excluded by default.
+- Added `Graduate to Real Book` and `Delete Demo and Start Real Workflow` CTAs. The latter deletes only demo-scoped records before routing to the first valuable loop.
+
+### Backend Changes
+
+- Extended `DemoWorkspaceStatusResponse` with `lastResetAt`, `includedRecordTypes`, and `excludedFromAnalyticsByDefault`.
+- `DemoWorkspaceService` computes demo status from current-user `demo_records`; reset/delete behavior remains scoped to the current user.
+- Strengthened `DemoWorkspaceIntegrationTest` assertions for last reset, included record types, and analytics exclusion.
+
+### Frontend Changes
+
+- Upgraded `DemoWorkspaceView` with tutorial cards, status summary, graduation actions, accessible status region, and clearer safety copy.
+- Updated frontend demo status types to match the expanded backend response.
+- Updated the demo E2E smoke to verify tutorial links, status details, analytics exclusion, reset, and delete.
+
+### Tests Added
+
+- Added backend assertions for demo status metadata.
+- Added Playwright assertions for tutorial checklist links and demo training safety copy.
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `cd frontend; npm run typecheck`
+- `cd backend; .\mvnw.cmd -Dtest=DemoWorkspaceIntegrationTest test`
+- `cd frontend; npx playwright test e2e/demo-workspace.spec.ts`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+
+### Verification Result
+
+- Frontend typecheck: PASS.
+- Focused backend demo test: PASS.
+- Focused demo browser smoke: PASS after making the status summary an accessible region and scoping the assertion.
+- Backend full test suite: PASS, 65 tests.
+- Frontend production build: PASS.
+- Full Playwright E2E: PASS, 21 tests.
+
+### Remaining Risks
+
+- Demo tutorials currently link to general executable use-case checklists, not demo-only checklist variants.
+- Demo records are excluded from analytics by default, but ordinary list pages may still show clearly labeled demo records until future per-page filtering is added.
+- `lastResetAt` is derived from the current demo record set creation time; there is no separate demo workspace metadata table.
+
+### Next Recommended Prompt
+
+Polish the global current-book selector so it defaults to the active/currently-reading dashboard book when no explicit current book is selected, without breaking manual selection.
+
+## Prompt 7 - Current Book Selector Fallback
+
+### Date and Local Time
+
+2026-04-30 22:35:24 +02:00
+
+### Current SHA
+
+5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+### Selector Behavior Added
+
+- The global current-book selector keeps pinned source context as the explicit override.
+- With no pinned source context, it defaults to the first currently-reading book from `/api/user-books/currently-reading`.
+- With no pinned or currently-reading book, it keeps the honest "No active book selected" state.
+- If the reading shelf request fails, it shows an unavailable state instead of fake data.
+
+### Frontend Changes
+
+- `AppLayout.vue` loads currently-reading books, refreshes on auth/user and route changes, and passes selector source/loading state to the top navigation.
+- `TopNav.vue` distinguishes pinned source context, currently-reading fallback, loading, unavailable, and empty states with user-facing copy and badges.
+- `dashboard.spec.ts` verifies that a currently-reading book appears in the current-book selector when no explicit source is pinned.
+
+### Tests Added or Updated
+
+- Updated dashboard E2E coverage for current-book fallback behavior.
+
+### Commands Run
+
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npx playwright test e2e/dashboard.spec.ts` (first run failed due to an over-broad test locator, then passed after scoping the assertion)
+- `cd backend; .\mvnw.cmd test`
+
+### Verification Result
+
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Focused dashboard Playwright smoke: PASS.
+- Backend full test suite: PASS, 65 tests.
+
+### Remaining Risks
+
+- The selector picks the first currently-reading book returned by the backend; there is no explicit "active book" preference yet.
+- The selector refreshes on route changes, which is simple and reliable but may be optimized later if request volume becomes noisy.
+
+### Next Recommended Prompt
+
+Add an explicit "Set as active book" preference for users with multiple currently-reading books, while keeping the current fallback behavior as the default.
+
+## Prompt 7 — Project Wizard Transaction and Failure Safety
+
+### Date and Local Time
+
+2026-04-30 22:53:36 +02:00
+
+### Current SHA
+
+5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+### Transaction Endpoint Behavior
+
+- Added `POST /api/projects/{projectId}/wizard/apply-knowledge` as the single transactional submit endpoint for the guided Project Apply Knowledge Wizard.
+- The endpoint validates project ownership, source ownership, nested target ownership, and source-reference visibility before creating records.
+- It can create project problems, project applications, design decisions, playtest plans, playtest findings, lens reviews, and project knowledge links in one transaction.
+- It records an idempotency key in `project_wizard_submissions`; duplicate final submissions return the previous response instead of creating duplicate records.
+- Validation failure, cross-user source-reference access, or malformed nested payloads create no project records.
+
+### Frontend Wizard Changes
+
+- Updated `ProjectApplyKnowledgeWizardView.vue` to keep the existing step UI but submit through the new transaction endpoint.
+- Added a final review screen explaining which records will be created and that no records are saved until final confirmation.
+- Added an idempotency key to saved local drafts so retry behavior is explicit and safe.
+- Added a clear failure state: failed transaction submissions tell the user that no partial project records were created.
+- Updated the created-record summary to use the backend response rather than assuming individual API calls succeeded.
+
+### Source Preservation Result
+
+- Source references are applied to project problems, applications, design decisions, playtest findings, lens reviews, and project knowledge links when available.
+- Playtest plans remain source-free because the current model does not carry a source reference field for plans.
+- Unknown pages are not invented; the transaction carries only existing `SourceReference` data.
+
+### Tests Added
+
+- Backend integration tests verify transactional creation, idempotency replay, validation failure creates nothing, and cross-user source-reference rejection creates nothing.
+- Endpoint contract verification now includes the new transaction endpoint.
+- Playwright project wizard smoke now verifies cancellation creates no records, final review appears before creation, transaction confirmation succeeds, and source-backed records are visible afterward.
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `cd backend; .\mvnw.cmd -DskipTests compile`
+- `cd backend; .\mvnw.cmd -Dtest=ProjectModeIntegrationTest test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npx playwright test e2e/project-wizard.spec.ts` (first run exposed stale E2E copy, second run passed)
+- `cd backend; .\mvnw.cmd test` (first run exposed missing endpoint-contract entry, second run passed)
+
+### Verification Result
+
+- Backend compile: PASS.
+- Focused backend project tests: PASS, 9 tests.
+- Backend full test suite: PASS, 68 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Focused project wizard Playwright smoke: PASS, 1 test.
+
+### Remaining Risks
+
+- The idempotency ledger stores the response JSON for replay; if response DTOs are changed incompatibly later, old submissions may need a migration or tolerant reader.
+- Playtest plans are included in the transaction but remain source-free until the domain model supports source references on plans.
+- The broader working tree already contained many unrelated dirty changes from previous checkpoints; this prompt preserved them.
+- `report.md` contained duplicate previous sections; an earlier patch matched an older duplicate, so this section is also appended at EOF to satisfy the append-only reporting rule.
+
+### Next Recommended Prompt
+
+Add a small project-wizard audit note to the user-facing docs or help system explaining that the guided flow is transactional and safe to retry, then run the full E2E suite before any release checkpoint.
+
+## Prompt 8 — Project Wizard Help Note and Full E2E Verification
+
+Date and local time: 2026-04-30 23:16:13 +02:00
+
+Current SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+### User-Facing Help Added
+
+- Added a `Project Guided Flow` help topic that explains the Project Apply Knowledge Wizard is transaction-safe, validates access before writing, preserves source links, and uses an idempotency key for safe retry.
+- Added a contextual help tooltip to the Project Apply Knowledge Wizard page header.
+- Updated project hands-on docs to state that final confirmation uses one backend transaction and safe retry behavior.
+
+### Source-of-Truth Drift Fixed
+
+- Updated `docs/hands-on-beta-ux-report.md` to remove stale claims that the project wizard was not transactional.
+- Updated `docs/po-usability-review.md` to replace the old P1 transaction warning with a usability-validation follow-up.
+- Verified no remaining docs match the stale phrases `not transactional`, `not yet a single backend transaction`, `could create partial`, or `eventually use a backend transaction`.
+
+### E2E Coverage Updated
+
+- Updated the project wizard Playwright smoke to verify the contextual help entry is visible.
+- Fixed a strict-mode Playwright selector in the MVP core loop graph assertion by requiring the exact `Knowledge Graph` heading.
+
+### Commands Run
+
+- `rg -n "transaction|single backend transaction|partial|idempotency|Project wizard" docs README.md frontend/src/data/helpTopics.ts frontend/src/views/ProjectApplyKnowledgeWizardView.vue`
+- `rg -n "not transactional|not yet a single backend transaction|could create partial|eventually use a backend transaction|Add transactional Project Wizard command endpoint" docs`
+- `git status --short`
+- `git branch --show-current`
+- `git rev-parse HEAD`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npx playwright test e2e/project-wizard.spec.ts`
+- `cd frontend; npm run e2e` (first run exposed one strict selector issue; second run passed)
+
+### Verification Result
+
+- Backend full test suite: PASS, 68 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Focused project wizard E2E: PASS, 1 test.
+- Full Playwright E2E: PASS, 21 tests.
+
+### Remaining Risks
+
+- `report.md` already contains duplicate prior prompt sections from earlier append-only recovery work; this prompt preserved that history.
+- The working tree still contains many dirty files from prior checkpoints; this prompt did not revert unrelated work.
+- The project wizard transaction is now documented and tested, but hands-on user validation of the final review copy remains a product task.
+
+### Next Recommended Prompt
+
+Run a final source-of-truth and hygiene check focused on committing or splitting the current dirty worktree into reviewable changes, without adding new product features.
+
+## Prompt 8 — Role-Based Landing Pages and Mode Switching
+
+Date and local time: 2026-04-30 23:29:40 +02:00
+Current SHA: 5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+Modes implemented:
+- Reader, Note-Taker, Game Designer, Researcher, Community, and Advanced modes are now represented in the Dashboard landing guidance.
+- Dashboard mode switching is available directly from the Dashboard and persists through the existing onboarding preference update flow.
+- Existing users can restart onboarding in a mode-switch-only path without being forced through the full first-run flow.
+
+Dashboard behavior by mode:
+- Reader: emphasizes Continue Reading, Capture, and Review.
+- Note-Taker: emphasizes Current Notes, Process Captures, and Source Links.
+- Game Designer: emphasizes Active Project, Apply Knowledge, and Playtest.
+- Researcher: emphasizes Concepts, Review, and Graph From Context.
+- Community: emphasizes Source-Linked Threads, Forum Templates, and Recent Context.
+- Advanced: emphasizes Knowledge Graph, Import/Export, Draft Assistant, and Analytics.
+- Each landing includes a “Why am I seeing this?” explanation and preserves access to the rest of BookOS.
+
+Navigation behavior by mode:
+- Existing mode-aware sidebar behavior is preserved.
+- Community mode no longer duplicates Forum between primary and secondary groups.
+- Advanced routes remain reachable through More / Advanced navigation and the command palette.
+- Admin-only visibility remains controlled by existing role checks.
+
+Tests added:
+- Added Dashboard E2E coverage for switching modes, verifying Dashboard content changes, navigation changes, and persistence after reload.
+- Expanded progressive-disclosure E2E coverage to Reader, Note-Taker, Game Designer, Researcher, Community, and Advanced modes.
+
+Commands run:
+- git branch --show-current
+- git rev-parse HEAD
+- git status --short
+- npm run typecheck
+- npm run build
+- .\mvnw.cmd test
+- npx playwright test e2e/dashboard.spec.ts e2e/navigation-progressive-disclosure.spec.ts
+- npm run e2e
+
+Verification result:
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Backend test suite: PASS, 68 tests.
+- Focused mode-switching E2E: PASS, 11 tests.
+- Full Playwright E2E: PASS, 24 tests.
+
+Remaining risks:
+- The workspace still contains many dirty files from previous checkpoints; this prompt only changed the mode-switching/dashboard/onboarding/navigation areas and related E2E coverage.
+- Mode-specific Dashboard cards are task-focused but still depend on existing empty-state quality in downstream pages.
+
+Next recommended prompt:
+- Perform a short browser UX review of the mode-specific Dashboard and navigation in each mode, then fix only any remaining copy/accessibility issues that block first-day usability.
+
+## Prompt 9 — Mode Switch Recovery UX Refinement
+
+Date and local time: 2026-04-30 23:36:40 +02:00
+Current SHA: 5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+Scope:
+- Follow-up build from the previous checkpoint’s recommendation: focused UX/accessibility review of mode-specific Dashboard and navigation surfaces.
+- No modules were removed, no backend product features were added, and no fake data was introduced.
+
+Changes made:
+- Tightened the existing-user onboarding recovery path so “Switch mode” is a direct mode-switch flow instead of replaying the full 5-step onboarding wizard.
+- Added a “Mode switch” state, “Switch your active mode” copy, direct “Save mode” action, and Cancel behavior that returns to Dashboard.
+- Hid the onboarding stepper and Next/Back controls during mode-switch-only flow to reduce cognitive load.
+- Preserved route guards and existing dashboard/user-menu mode switching behavior.
+
+Tests added:
+- Added E2E coverage proving an existing user can open onboarding restart, choose Researcher Mode, save without replaying onboarding, return to Dashboard, and persist preferredDashboardMode.
+- Tightened the new E2E selector to avoid ambiguity with generated test user names.
+
+Commands run:
+- git branch --show-current
+- git rev-parse HEAD
+- git status --short
+- rg mode/navigation/onboarding surfaces
+- npm run typecheck
+- npm run build
+- .\mvnw.cmd test
+- npx --version
+- npx playwright test e2e/dashboard.spec.ts e2e/onboarding.spec.ts e2e/navigation-progressive-disclosure.spec.ts
+- npm run e2e
+
+Verification result:
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Backend test suite: PASS, 68 tests.
+- Focused Dashboard/onboarding/navigation E2E: PASS, 15 tests.
+- Full Playwright E2E: PASS, 25 tests.
+
+Remaining risks:
+- The broader worktree still includes many dirty files from previous checkpoints. This pass intentionally limited changes to onboarding mode recovery and related E2E coverage.
+- No in-app browser screenshot review was captured in this pass; validation relied on Playwright browser flows and accessibility-first selectors.
+
+Next recommended prompt:
+- Review the current dirty worktree and split it into reviewable commits or PR-sized patches without adding product scope.
+
+## Prompt 9 - Usability E2E Suite: First 15 Minutes Across Modes
+
+Date and local time: 2026-05-01 00:03:04 +02:00
+
+Current SHA: 5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+E2E scenarios added:
+- Reader Mode: registers a unique user, chooses Reader Mode, adds a book, sets reading state, captures a source-backed thought, converts it to a quote, and opens the source with page 15 preserved.
+- Note-Taker Mode: chooses Note-Taker Mode, creates a book and note, opens the capture guide, creates an action capture, and processes it through Process Captures.
+- Game Designer Mode: chooses Game Designer Mode, creates a book and project, creates a source-backed quote, applies it to the project, creates a design decision, and opens the project cockpit.
+- Researcher Mode: chooses Researcher Mode, captures a concept marker, reviews the parsed concept, opens concept detail, opens concept graph or honest empty state, and starts a review session.
+- Community Mode: chooses Community Mode, creates a source-backed quote, starts a source-linked forum thread, adds a comment, and opens the source context.
+- Advanced Mode: chooses Advanced Mode, opens Knowledge Graph, opens export, generates MockAIProvider suggestions, accepts one draft, and rejects another without external AI.
+
+Scenarios passed:
+- Reader Mode: PASS.
+- Note-Taker Mode: PASS.
+- Game Designer Mode: PASS.
+- Researcher Mode: PASS.
+- Community Mode: PASS.
+- Advanced Mode: PASS.
+
+Scenarios failed:
+- None in the final run.
+
+Average runtime:
+- `npm run e2e:usability`: 6 tests in 45.8 seconds, about 7.6 seconds per scenario.
+- `npm run e2e`: 31 tests in 2.0 minutes.
+
+Coverage gaps:
+- These are automated browser usability-path tests, not human user research.
+- Timings are Playwright runtime timings, not evidence that a human can complete every path in 15 minutes.
+- The suite verifies key hands-on paths across modes, but it does not measure perceived cognitive load or visual polish.
+
+Files created:
+- `frontend/e2e/usability-first-15-minutes.spec.ts`
+
+Files modified:
+- `frontend/package.json`
+- `report.md`
+
+Commands run:
+- `git fetch origin main`
+- `git rev-parse origin/main`
+- `git status -sb`
+- `cd frontend; npm run typecheck`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm ci`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e:usability`
+- `cd frontend; npm run e2e -- e2e/onboarding.spec.ts`
+- `cd frontend; npm run e2e`
+
+Verification result:
+- Backend tests: PASS, 68 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Usability E2E suite: PASS, 6 tests.
+- Full Playwright E2E suite: PASS, 31 tests.
+- External AI calls: none.
+
+Remaining risks:
+- The broader repository still contains dirty files from previous checkpoints; this pass did not normalize or commit them.
+- E2E uses unique synthetic test records in the test profile. It does not use production data or claim external user validation.
+- Demo data was not used by the new first-15-minutes tests.
+
+Next recommended prompt:
+- Review the usability E2E artifacts and decide whether `npm run e2e:usability` should become a required CI job or remain a local/workflow-dispatch release gate.
+
+## Prompt 10 - E2E Usability Release Gate Workflow Decision
+
+Date and local time: 2026-05-01 00:07:04 +02:00
+
+Current SHA: 5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+Decision:
+- Keep first-15-minutes usability E2E as a manual release gate for now.
+- Do not make Playwright E2E mandatory on every push or pull request yet because it starts backend and frontend processes and has higher runtime/flake risk than compile and unit/integration checks.
+- Expose the suite explicitly through the existing GitHub Actions E2E workflow so release reviewers can run either the full browser suite or only the usability suite.
+
+Workflow changes:
+- Renamed `.github/workflows/e2e.yml` from smoke-focused wording to `BookOS E2E Release Gate`.
+- Added a `workflow_dispatch` input named `suite` with `full` and `usability` options.
+- `full` runs `npm run e2e`.
+- `usability` runs `npm run e2e:usability`.
+- The workflow still uses test-profile runtime configuration and does not require production secrets or external AI.
+
+Documentation changes:
+- Updated README E2E instructions to include `npm run e2e:usability`.
+- Updated `docs/e2e-smoke-tests.md` into the current E2E browser test source of truth, including full-suite scope, usability-suite scope, manual workflow usage, and latest local verification.
+- Updated `docs/release-test-results.md` from the stale two-test E2E baseline to the current 6-test usability suite and 31-test full suite.
+- Updated `docs/public-beta-release.md` to reflect the current SHA, manual E2E release gate, 68 backend tests, 6 usability E2E tests, and 31 full E2E tests.
+
+Commands run:
+- `git branch --show-current`
+- `git rev-parse HEAD`
+- `git status -sb`
+- `rg e2e/Playwright/usability references`
+- `git diff --check`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run e2e:usability`
+
+Verification result:
+- Branch: `main`.
+- Current SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+- Diff whitespace check: PASS.
+- Frontend typecheck: PASS.
+- Usability E2E: PASS, 6 tests in 47.1 seconds.
+- External AI calls: none.
+- Production secrets required: none.
+
+Files created:
+- None in this pass.
+
+Files modified:
+- `.github/workflows/e2e.yml`
+- `README.md`
+- `docs/e2e-smoke-tests.md`
+- `docs/release-test-results.md`
+- `docs/public-beta-release.md`
+- `report.md`
+
+Remaining risks:
+- The full Playwright suite was not rerun in this pass because it passed in the previous checkpoint and this pass only changed workflow/docs; targeted usability E2E was rerun.
+- The broader repository still contains many dirty files from prior checkpoints; this pass did not attempt cleanup or commit splitting.
+- E2E remains a manual release gate until the team accepts the runtime/flake tradeoff for mandatory CI.
+
+Next recommended prompt:
+- Perform a focused dirty-worktree review and split the accumulated local changes into reviewable commits or PR-sized patches without adding product scope.
+
+## Prompt 9 — Usability E2E Suite: First 15 Minutes Across Modes
+
+Date and local time: 2026-05-01 00:10:10 +02:00
+
+Current SHA: 5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+E2E scenarios added:
+- The repository already contained `frontend/e2e/usability-first-15-minutes.spec.ts` and the `e2e:usability` script at the start of this pass, so no duplicate test file was created.
+- Reader Mode covers register, choose Reader Mode, add book, set reading, capture, convert to quote, and open source.
+- Note-Taker Mode covers choose Note-Taker Mode, create book, create note, use capture guide, convert to action, and process capture.
+- Game Designer Mode covers choose Game Designer Mode, create book, create project, apply quote to project, create decision, and open project cockpit.
+- Researcher Mode covers choose Researcher Mode, create capture with concept marker, review concept, open concept detail, open graph or honest empty state, and start review session.
+- Community Mode covers choose Community Mode, create book/source, create source-linked thread, add comment, and open source context.
+- Advanced Mode covers choose Advanced Mode, open graph, export data, generate MockAIProvider draft, and accept/reject safely.
+
+Scenarios passed:
+- Reader Mode: PASS.
+- Note-Taker Mode: PASS.
+- Game Designer Mode: PASS.
+- Researcher Mode: PASS.
+- Community Mode: PASS.
+- Advanced Mode: PASS.
+
+Scenarios failed:
+- None.
+
+Average runtime:
+- `npm run e2e:usability`: 6 tests in 45.8 seconds, about 7.6 seconds per scenario.
+
+Coverage gaps:
+- This is automated browser-path evidence, not external human user research.
+- Runtime is Playwright execution time, not a measured human first-15-minute study.
+- The suite uses unique synthetic test records under the H2/test-profile runtime; it does not use production data.
+
+Files created:
+- None in this pass.
+
+Files modified:
+- `report.md`
+
+Commands run:
+- `npx --version`
+- `git branch --show-current`
+- `git rev-parse HEAD`
+- `git status -sb`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e:usability`
+
+Verification result:
+- Branch: `main`.
+- Current SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+- Backend tests: PASS, 68 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Usability E2E: PASS, 6 tests in 45.8 seconds.
+- External AI calls: none.
+- Production secrets required: none.
+
+Remaining risks:
+- The broader working tree remains dirty from previous checkpoints; this pass intentionally did not rewrite unrelated work.
+- Full Playwright E2E was not rerun in this pass; the target usability suite was rerun and passed.
+- Human usability validation remains unverified.
+
+Next recommended prompt:
+- Run a focused dirty-worktree review and split accumulated local changes into reviewable commits or PR-sized patches without adding product scope.
+
+## Prompt 11 - Dirty Worktree Review and Commit Slicing Plan
+
+Date and local time: 2026-05-01 00:13:04 +02:00
+
+Current SHA: 5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578
+
+Scope:
+- Performed a focused review of the current local dirty worktree.
+- Did not add product features.
+- Did not stage, commit, revert, or delete existing work.
+- Did not use `.7z` archives.
+
+Worktree findings:
+- Branch: `main`.
+- Total changed paths from `git status --porcelain -uall`: 136.
+- Tracked modified paths: 109.
+- Untracked paths: 27.
+- Major areas: backend use-case/project/demo support, frontend usability and workflow surfaces, E2E tests, release docs, product-slimming docs, and append-only report history.
+- No tracked `backend.zip`, `.7z`, logs, `.out`, `.err`, `backend/target`, `frontend/dist`, or `node_modules` paths were found by the artifact scan.
+- `.gitignore` already protects archives, logs, backend target, frontend dist, frontend node_modules, and Playwright artifacts.
+
+Commit slicing proposal:
+- Slice 1: Use Case Progress Tracking.
+- Slice 2: Guided First Valuable Loop and Onboarding Recovery.
+- Slice 3: Quick Capture, Help, Terminology, and Empty States.
+- Slice 4: Demo Workspace Training Ground.
+- Slice 5: Project Apply-Knowledge Transaction.
+- Slice 6: Project Mode UX and Cross-Module Apply Flows.
+- Slice 7: Graph, Source, Search, Import/Export, and Advanced UX.
+- Slice 8: E2E, Release Gate, and QA Evidence.
+- Slice 9: API, Current State, and Product Slimming Documentation.
+- Slice 10: Report Appendix.
+
+Files created:
+- `docs/dirty-worktree-review.md`
+
+Files modified:
+- `report.md`
+
+Commands run:
+- `git branch --show-current`
+- `git rev-parse HEAD`
+- `git status -sb`
+- `git status --porcelain=v1 -uall`
+- `git diff --stat`
+- `git diff --name-status`
+- `git ls-files` artifact scan
+- `Get-Content .gitignore`
+- `git diff --check -- docs\dirty-worktree-review.md`
+
+Verification result:
+- Dirty-worktree review document created.
+- New review document passed whitespace check.
+- Artifact scan found no tracked generated/archive/log artifacts.
+- No product code was changed in this pass.
+
+Remaining risks:
+- The worktree remains too large for a single review and should be split before merge.
+- Several slices share routing/layout files, so staging by path alone may mix concerns.
+- Flyway migrations must stay ordered and be committed with their matching backend entities.
+- Full tests were not rerun in this pass because only documentation/report files were added; the previous checkpoint verified backend tests, frontend typecheck/build, and usability E2E.
+
+Next recommended prompt:
+- Start Slice 1 review: inspect, verify, and stage or commit only the Use Case Progress Tracking files after explicit approval.
+
+## Prompt 10 — Human Usability Study Package and Product Slimming 0.2 Decision Report
+
+Date and local time: 2026-05-01 00:19:39 +02:00
+
+Current SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+Study docs created:
+- `docs/usability-study-plan.md`
+- `docs/usability-test-script.md`
+- `docs/usability-observation-form.md`
+
+Product decision docs created:
+- `docs/product-slimming-0.2-roadmap.md`
+- `docs/po-decision-report.md`
+
+Product slimming roadmap summary:
+- Recommended next milestone is Product Slimming 0.2.
+- Broad feature expansion should pause until the first-day loop is simpler.
+- Default experience should teach Add Book -> Capture -> Process Capture -> Open Source -> Review or Apply to Project.
+- Graph, Analytics, Import/Export, AI settings, and Ontology Import should remain advanced/collapsed by default.
+- Reader, Note-Taker, and Game Designer are the strongest modes; Researcher, Community, and Advanced need more contextual entry points.
+
+PO decision recommendation:
+- Continue controlled beta with caveats.
+- Do not broaden public-beta claims until real moderated usability sessions confirm that new users can complete the first source-backed loop in 15 minutes.
+- Product Slimming 0.2 is the recommended next milestone.
+
+P0 usability blockers:
+- None confirmed in this documentation pass.
+- Human sessions have not been performed yet, so this is not a validated user-research finding.
+
+P1 usability issues:
+- Researcher, Community, and Advanced modes remain less self-explanatory than Reader, Note-Taker, and Game Designer modes.
+- Advanced surfaces still need contextual entry points and data-dependent hiding.
+- Terminology cleanup should continue across page headers, empty states, breadcrumbs, and help text.
+- Project Wizard final review and failure recovery copy still need real-user validation.
+
+P2 polish issues:
+- Forum, graph, review, and demo tutorials need stronger contextual examples.
+- Review and Learning Progress should feel like one loop for non-advanced users.
+- Demo data boundaries should remain visibly labeled everywhere demo records appear.
+- Commit slicing remains a release-management concern because the local dirty worktree is broad.
+
+Tests run:
+- Pending at time of append: backend tests, frontend `npm ci`, frontend typecheck, frontend production build, full E2E, and usability E2E.
+
+Verification result:
+- Documentation package created.
+- No product features were added.
+- No user research claims were made.
+- Full command verification will be recorded in the BUILD CHECKPOINT for this prompt.
+
+Next milestone recommendation:
+- Run the human usability study, then execute Product Slimming 0.2 before adding new product scope.
+
+Prompt 10 verification update:
+- Verification timestamp: 2026-05-01 00:28:02 +02:00.
+- `git diff --check -- docs/usability-study-plan.md docs/usability-test-script.md docs/usability-observation-form.md docs/product-slimming-0.2-roadmap.md docs/po-decision-report.md report.md`: PASS, with expected CRLF normalization warning for `report.md`.
+- `cd backend; .\mvnw.cmd test`: PASS, 68 tests.
+- `cd frontend; npm ci`: PASS, 147 packages installed/audited, 0 vulnerabilities.
+- `cd frontend; npm run typecheck`: PASS.
+- `cd frontend; npm run build`: PASS.
+- `cd frontend; npm run e2e`: PARTIAL, 30 passed and 1 failed. Failed test: `e2e\onboarding.spec.ts:27`, `existing user can switch mode without replaying full onboarding`; failure was timeout waiting for `getByRole('button', { name: 'Switch mode' })` on `/onboarding?restart=1`.
+- `cd frontend; npm run e2e:usability`: PASS, 6 tests.
+- No product features were added in this prompt.
+- The full E2E failure is documented as a P1 verification issue for the next repair pass, not a P0 release blocker from this documentation-only prompt.
+
+## Prompt 11 - Onboarding Restart Mode Switch E2E Repair
+
+Date and local time: 2026-05-01 00:36:48 +02:00
+
+Current SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`
+
+Issue repaired:
+- The full E2E suite previously failed on `e2e/onboarding.spec.ts`, test `existing user can switch mode without replaying full onboarding`.
+- `/onboarding?restart=1` could render the normal first-run wizard without a visible `Switch mode` button when local user state did not expose `onboardingCompleted: true`.
+
+Fix made:
+- `frontend/src/views/OnboardingView.vue` now treats the explicit `restart=1` query parameter as a valid mode-switch recovery entry point.
+- The change preserves existing routes and onboarding behavior while allowing users to recover from the wrong starting mode.
+
+Files modified:
+- `frontend/src/views/OnboardingView.vue`
+- `report.md`
+
+Commands run:
+- `git branch --show-current`
+- `git rev-parse HEAD`
+- `git status --short -- frontend/src/views/OnboardingView.vue report.md frontend/dist frontend/test-results`
+- `git diff --check -- frontend/src/views/OnboardingView.vue`
+- `cd frontend; npx playwright test e2e/onboarding.spec.ts -g "existing user can switch mode"`
+- `cd backend; .\mvnw.cmd test`
+- `cd frontend; npm run typecheck`
+- `cd frontend; npm run build`
+- `cd frontend; npm run e2e`
+
+Verification result:
+- Targeted onboarding E2E: PASS, 1 test.
+- Backend tests: PASS, 68 tests.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Full Playwright E2E: PASS, 31 tests.
+
+Remaining risks:
+- The repository still has a broad dirty worktree from prior checkpoints and should be sliced before commit.
+- The explicit restart route is now robust, but a later cleanup pass should still verify why completed-user state can be stale in the onboarding restart scenario.
+
+Next recommended prompt:
+- Review the dirty worktree by slice and prepare a focused commit plan for the usability/onboarding changes without adding new product scope.

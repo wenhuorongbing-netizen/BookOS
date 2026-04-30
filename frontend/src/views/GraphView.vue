@@ -8,100 +8,123 @@
     >
       <template #actions>
         <HelpTooltip topic="graph" placement="left" />
-        <AppButton variant="secondary" @click="resetFilters">Reset Filters</AppButton>
-        <AppButton variant="primary" @click="openRelationshipEditor()">Create Relationship</AppButton>
       </template>
     </AppSectionHeader>
 
-    <UseCaseSuggestionPanel
-      title="Make graph exploration practical"
-      description="Use the graph after you have source-backed captures, concepts, project applications, or manual relationships."
-      :slugs="graphUseCaseSlugs"
+    <DetailNextStepCard
+      :title="graphNextStep.title"
+      :description="graphNextStep.description"
+      :primary-label="graphNextStep.primaryLabel"
+      :primary-to="graphNextStep.primaryTo"
+      :secondary-label="graphNextStep.secondaryLabel"
+      :secondary-to="graphNextStep.secondaryTo"
+      :loop="graphWorkflowLoop"
+      @primary="handleGraphPrimaryAction"
+      @secondary="handleGraphSecondaryAction"
     />
 
-    <AppCard class="graph-filters" as="section" aria-label="Graph filters">
-      <label class="graph-field">
-        <span>Book ID</span>
-        <el-input-number
-          v-model="bookIdFilter"
-          :min="1"
-          controls-position="right"
-          placeholder="Any book"
-          :disabled="isBookRoute || isConceptRoute || isProjectRoute"
-          aria-label="Filter graph by book id"
-        />
-      </label>
-      <label class="graph-field">
-        <span>Concept ID</span>
-        <el-input-number
-          v-model="conceptIdFilter"
-          :min="1"
-          controls-position="right"
-          placeholder="Any concept"
-          :disabled="isBookRoute || isConceptRoute || isProjectRoute"
-          aria-label="Filter graph by concept id"
-        />
-      </label>
-      <label class="graph-field">
-        <span>Project ID</span>
-        <el-input-number
-          v-model="projectIdFilter"
-          :min="1"
-          controls-position="right"
-          placeholder="Any project"
-          :disabled="isBookRoute || isConceptRoute || isProjectRoute"
-          aria-label="Filter graph by project id"
-        />
-      </label>
-      <label class="graph-field">
-        <span>Entity type</span>
-        <el-select v-model="entityTypeFilter" clearable placeholder="All entities" aria-label="Filter graph by entity type">
-          <el-option v-for="option in entityTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
-        </el-select>
-      </label>
-      <label class="graph-field">
-        <span>Relationship</span>
-        <el-select v-model="relationshipTypeFilter" clearable filterable placeholder="All relationships" aria-label="Filter graph by relationship type">
-          <el-option v-for="option in relationshipTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
-        </el-select>
-      </label>
-      <label class="graph-field">
-        <span>Confidence</span>
-        <el-select v-model="sourceConfidenceFilter" clearable placeholder="Any confidence" aria-label="Filter graph by source confidence">
-          <el-option v-for="option in sourceConfidenceOptions" :key="option" :label="option" :value="option" />
-        </el-select>
-      </label>
-      <label class="graph-field graph-field--wide">
-        <span>Created range</span>
-        <el-date-picker
-          v-model="createdRange"
-          type="datetimerange"
-          start-placeholder="From"
-          end-placeholder="To"
-          value-format="YYYY-MM-DDTHH:mm:ss.SSS[Z]"
-          aria-label="Filter graph by created date range"
-        />
-      </label>
-      <label class="graph-field">
-        <span>Depth</span>
-        <el-input-number v-model="depthFilter" :min="1" :max="8" controls-position="right" aria-label="Graph traversal depth" />
-      </label>
-      <label class="graph-field">
-        <span>Limit</span>
-        <el-input-number v-model="limitFilter" :min="10" :max="300" controls-position="right" aria-label="Maximum graph nodes" />
-      </label>
-      <div class="graph-filter-actions">
-        <AppButton variant="primary" :loading="loading" @click="loadGraph">Apply Filters</AppButton>
-      </div>
-    </AppCard>
+    <details class="graph-disclosure">
+      <summary>
+        <span>Workflow guides</span>
+        <small>Use when the Knowledge Graph feels abstract</small>
+      </summary>
+      <UseCaseSuggestionPanel
+        title="Make Knowledge Graph exploration practical"
+        description="Use the Knowledge Graph after you have source-backed captures, concepts, project applications, or manual relationships."
+        :slugs="graphUseCaseSlugs"
+      />
+    </details>
 
-    <AppLoadingState v-if="loading" label="Loading source-backed graph" />
-    <AppErrorState v-else-if="errorMessage" title="Graph could not load" :description="errorMessage" retry-label="Retry" @retry="loadGraph" />
+    <details class="graph-disclosure" :open="filtersActive">
+      <summary>
+        <span>Filters</span>
+        <small>{{ filtersActive ? 'Custom filters active' : 'Optional advanced narrowing' }}</small>
+      </summary>
+      <AppCard class="graph-filters" as="section" aria-label="Knowledge Graph filters">
+        <label class="graph-field">
+          <span>Book ID</span>
+          <el-input-number
+            v-model="bookIdFilter"
+            :min="1"
+            controls-position="right"
+            placeholder="Any book"
+            :disabled="isBookRoute || isConceptRoute || isProjectRoute"
+            aria-label="Filter graph by book id"
+          />
+        </label>
+        <label class="graph-field">
+          <span>Concept ID</span>
+          <el-input-number
+            v-model="conceptIdFilter"
+            :min="1"
+            controls-position="right"
+            placeholder="Any concept"
+            :disabled="isBookRoute || isConceptRoute || isProjectRoute"
+            aria-label="Filter graph by concept id"
+          />
+        </label>
+        <label class="graph-field">
+          <span>Project ID</span>
+          <el-input-number
+            v-model="projectIdFilter"
+            :min="1"
+            controls-position="right"
+            placeholder="Any project"
+            :disabled="isBookRoute || isConceptRoute || isProjectRoute"
+            aria-label="Filter graph by project id"
+          />
+        </label>
+        <label class="graph-field">
+          <span>Entity type</span>
+          <el-select v-model="entityTypeFilter" clearable placeholder="All entities" aria-label="Filter graph by entity type">
+            <el-option v-for="option in entityTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
+          </el-select>
+        </label>
+        <label class="graph-field">
+          <span>Relationship</span>
+          <el-select v-model="relationshipTypeFilter" clearable filterable placeholder="All relationships" aria-label="Filter graph by relationship type">
+            <el-option v-for="option in relationshipTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
+          </el-select>
+        </label>
+        <label class="graph-field">
+          <span>Confidence</span>
+          <el-select v-model="sourceConfidenceFilter" clearable placeholder="Any confidence" aria-label="Filter graph by source confidence">
+            <el-option v-for="option in sourceConfidenceOptions" :key="option" :label="option" :value="option" />
+          </el-select>
+        </label>
+        <label class="graph-field graph-field--wide">
+          <span>Created range</span>
+          <el-date-picker
+            v-model="createdRange"
+            type="datetimerange"
+            start-placeholder="From"
+            end-placeholder="To"
+            value-format="YYYY-MM-DDTHH:mm:ss.SSS[Z]"
+            aria-label="Filter graph by created date range"
+          />
+        </label>
+        <label class="graph-field">
+          <span>Depth</span>
+          <el-input-number v-model="depthFilter" :min="1" :max="8" controls-position="right" aria-label="Graph traversal depth" />
+        </label>
+        <label class="graph-field">
+          <span>Limit</span>
+          <el-input-number v-model="limitFilter" :min="10" :max="300" controls-position="right" aria-label="Maximum graph nodes" />
+        </label>
+        <div class="graph-filter-actions">
+          <AppButton variant="secondary" @click="resetFilters">Reset Filters</AppButton>
+          <AppButton variant="primary" :loading="loading" @click="loadGraph">Apply Filters</AppButton>
+        </div>
+      </AppCard>
+    </details>
+
+    <AppLoadingState v-if="loading" label="Loading source-backed Knowledge Graph" />
+    <AppErrorState v-else-if="errorMessage" title="Knowledge Graph could not load" :description="errorMessage" retry-label="Retry" @retry="loadGraph" />
 
     <AppCard v-else class="graph-workspace" as="section">
       <div class="graph-workspace__summary">
         <div>
-          <div class="eyebrow">Graph Scope</div>
+          <div class="eyebrow">Knowledge Graph Scope</div>
           <h2>{{ graphTitle }}</h2>
           <p>{{ graph.nodes.length }} nodes and {{ graph.edges.length }} edges from persisted records.</p>
         </div>
@@ -114,12 +137,12 @@
 
       <AppEmptyState
         v-if="!graph.nodes.length"
-        title="No graph links match these filters"
-        description="Create source-backed notes, captures, quotes, action items, concepts, knowledge objects, forum threads, or manual relationships to grow this graph."
+        title="No Knowledge Graph links match these filters"
+        description="Create relationships through captures, concepts, source links, project applications, or manual relationships to grow this Knowledge Graph. BookOS will not invent graph nodes."
         compact
       >
         <template #actions>
-          <UseCaseActionButton to="/use-cases/inspect-knowledge-graph" label="Learn graph workflow" variant="secondary" />
+          <UseCaseActionButton to="/use-cases/inspect-knowledge-graph" label="Learn Knowledge Graph workflow" variant="secondary" />
           <UseCaseActionButton to="/use-cases/review-concept-marker" label="Create source-backed concept" variant="ghost" />
         </template>
       </AppEmptyState>
@@ -228,71 +251,77 @@
       </div>
     </AppCard>
 
-    <AppCard class="relationship-editor" as="section" aria-label="Manual relationship editor">
-      <div class="relationship-editor__header">
-        <div>
-          <div class="eyebrow">Relationship Editor</div>
-          <h2>{{ editingLinkId ? 'Edit Manual Relationship' : 'Create Manual Relationship' }}</h2>
-          <p>Only entities you can access can be linked. System-created relationships are protected from silent deletion.</p>
+    <details class="graph-disclosure relationship-disclosure" :open="relationshipEditorOpen" @toggle="handleRelationshipToggle">
+      <summary>
+        <span>Manual relationship editor</span>
+        <small>{{ editingLinkId ? 'Editing a user-created link' : 'Advanced curation' }}</small>
+      </summary>
+      <AppCard class="relationship-editor" as="section" aria-label="Manual relationship editor">
+        <div class="relationship-editor__header">
+          <div>
+            <div class="eyebrow">Relationship Editor</div>
+            <h2>{{ editingLinkId ? 'Edit Manual Relationship' : 'Create Manual Relationship' }}</h2>
+            <p>Only entities you can access can be linked. System-created relationships are protected from silent deletion.</p>
+          </div>
+          <AppButton v-if="editingLinkId || relationshipEditorOpen" variant="ghost" @click="clearRelationshipForm">Cancel Edit</AppButton>
         </div>
-        <AppButton v-if="editingLinkId" variant="ghost" @click="clearRelationshipForm">Cancel Edit</AppButton>
-      </div>
-      <div class="relationship-form">
-        <label class="graph-field">
-          <span>Source type</span>
-          <el-select v-model="relationshipForm.sourceType" filterable allow-create aria-label="Relationship source type">
-            <el-option v-for="option in entityTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
-          </el-select>
-        </label>
-        <label class="graph-field">
-          <span>Source ID</span>
-          <el-input-number v-model="relationshipForm.sourceId" :min="1" controls-position="right" aria-label="Relationship source id" />
-        </label>
-        <label class="graph-field">
-          <span>Target type</span>
-          <el-select v-model="relationshipForm.targetType" filterable allow-create aria-label="Relationship target type">
-            <el-option v-for="option in entityTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
-          </el-select>
-        </label>
-        <label class="graph-field">
-          <span>Target ID</span>
-          <el-input-number v-model="relationshipForm.targetId" :min="1" controls-position="right" aria-label="Relationship target id" />
-        </label>
-        <label class="graph-field">
-          <span>Relationship</span>
-          <el-select v-model="relationshipForm.relationType" filterable allow-create aria-label="Relationship type">
-            <el-option v-for="option in relationshipTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
-          </el-select>
-        </label>
-        <label class="graph-field">
-          <span>Source reference ID</span>
-          <el-input-number
-            v-model="relationshipForm.sourceReferenceId"
-            :min="1"
-            controls-position="right"
-            placeholder="Optional"
-            aria-label="Optional relationship source reference id"
-          />
-        </label>
-        <label class="graph-field graph-field--note">
-          <span>Curator note</span>
-          <el-input
-            v-model="relationshipForm.note"
-            type="textarea"
-            :rows="3"
-            maxlength="2000"
-            show-word-limit
-            placeholder="Why are these records related?"
-            aria-label="Relationship curator note"
-          />
-        </label>
-        <div class="relationship-form__actions">
-          <AppButton variant="primary" :loading="savingRelationship" @click="saveRelationship">
-            {{ editingLinkId ? 'Save Relationship' : 'Create Relationship' }}
-          </AppButton>
+        <div class="relationship-form">
+          <label class="graph-field">
+            <span>Source type</span>
+            <el-select v-model="relationshipForm.sourceType" filterable allow-create aria-label="Relationship source type">
+              <el-option v-for="option in entityTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
+            </el-select>
+          </label>
+          <label class="graph-field">
+            <span>Source ID</span>
+            <el-input-number v-model="relationshipForm.sourceId" :min="1" controls-position="right" aria-label="Relationship source id" />
+          </label>
+          <label class="graph-field">
+            <span>Target type</span>
+            <el-select v-model="relationshipForm.targetType" filterable allow-create aria-label="Relationship target type">
+              <el-option v-for="option in entityTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
+            </el-select>
+          </label>
+          <label class="graph-field">
+            <span>Target ID</span>
+            <el-input-number v-model="relationshipForm.targetId" :min="1" controls-position="right" aria-label="Relationship target id" />
+          </label>
+          <label class="graph-field">
+            <span>Relationship</span>
+            <el-select v-model="relationshipForm.relationType" filterable allow-create aria-label="Relationship type">
+              <el-option v-for="option in relationshipTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
+            </el-select>
+          </label>
+          <label class="graph-field">
+            <span>Source link ID</span>
+            <el-input-number
+              v-model="relationshipForm.sourceReferenceId"
+              :min="1"
+              controls-position="right"
+              placeholder="Optional"
+              aria-label="Optional relationship source link id"
+            />
+          </label>
+          <label class="graph-field graph-field--note">
+            <span>Curator note</span>
+            <el-input
+              v-model="relationshipForm.note"
+              type="textarea"
+              :rows="3"
+              maxlength="2000"
+              show-word-limit
+              placeholder="Why are these records related?"
+              aria-label="Relationship curator note"
+            />
+          </label>
+          <div class="relationship-form__actions">
+            <AppButton variant="primary" :loading="savingRelationship" @click="saveRelationship">
+              {{ editingLinkId ? 'Save Relationship' : 'Create Relationship' }}
+            </AppButton>
+          </div>
         </div>
-      </div>
-    </AppCard>
+      </AppCard>
+    </details>
 
     <el-drawer v-model="nodeDrawerOpen" size="420px" title="Node Details" append-to-body>
       <div v-if="selectedNode" class="detail-drawer">
@@ -302,7 +331,7 @@
           <div><dt>Entity ID</dt><dd>{{ selectedNode.entityId }}</dd></div>
           <div><dt>Graph ID</dt><dd>{{ selectedNode.id }}</dd></div>
           <div v-if="selectedNode.sourceConfidence"><dt>Source confidence</dt><dd>{{ selectedNode.sourceConfidence }}</dd></div>
-          <div v-if="selectedNode.sourceReferenceId"><dt>Source reference</dt><dd>#{{ selectedNode.sourceReferenceId }}</dd></div>
+          <div v-if="selectedNode.sourceReferenceId"><dt>Source link</dt><dd>#{{ selectedNode.sourceReferenceId }}</dd></div>
           <div v-if="selectedNode.createdAt"><dt>Created</dt><dd>{{ formatDate(selectedNode.createdAt) }}</dd></div>
         </dl>
         <div class="drawer-actions">
@@ -327,7 +356,7 @@
           <div><dt>Source node</dt><dd>{{ selectedEdge.source }}</dd></div>
           <div><dt>Target node</dt><dd>{{ selectedEdge.target }}</dd></div>
           <div v-if="selectedEdge.entityLinkId"><dt>Entity link</dt><dd>#{{ selectedEdge.entityLinkId }}</dd></div>
-          <div v-if="selectedEdge.sourceReferenceId"><dt>Source reference</dt><dd>#{{ selectedEdge.sourceReferenceId }}</dd></div>
+          <div v-if="selectedEdge.sourceReferenceId"><dt>Source link</dt><dd>#{{ selectedEdge.sourceReferenceId }}</dd></div>
           <div v-if="selectedEdge.sourceConfidence"><dt>Source confidence</dt><dd>{{ selectedEdge.sourceConfidence }}</dd></div>
           <div v-if="selectedEdge.createdBy"><dt>Created by</dt><dd>{{ selectedEdge.createdBy }}</dd></div>
           <div v-if="selectedEdge.createdAt"><dt>Created</dt><dd>{{ formatDate(selectedEdge.createdAt) }}</dd></div>
@@ -336,7 +365,7 @@
         <div class="drawer-actions">
           <AppButton variant="primary" @click="openEdgeNode(selectedEdge.source)">Open Source Node</AppButton>
           <AppButton variant="secondary" @click="openEdgeNode(selectedEdge.target)">Open Target Node</AppButton>
-          <AppButton variant="secondary" :disabled="!selectedEdge.sourceReferenceId" @click="openSelectedEdgeSource">Open Source Reference</AppButton>
+          <AppButton variant="secondary" :disabled="!selectedEdge.sourceReferenceId" @click="openSelectedEdgeSource">Open Source</AppButton>
           <AppButton v-if="canEditEdge(selectedEdge)" variant="ghost" @click="editSelectedEdge">Edit Manual Link</AppButton>
           <AppButton v-if="canEditEdge(selectedEdge)" variant="danger" @click="deleteSelectedEdge">Delete Manual Link</AppButton>
         </div>
@@ -351,6 +380,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getBookGraph, getConceptGraph, getProjectGraph, getWorkspaceGraph, type WorkspaceGraphQuery } from '../api/graph'
 import { createEntityLink, deleteEntityLink, updateEntityLink } from '../api/entityLinks'
+import { recordUseCaseEvent } from '../api/useCaseProgress'
 import { useOpenSource } from '../composables/useOpenSource'
 import type { EntityLinkPayload, GraphEdgeRecord, GraphNodeRecord, GraphRecord, SourceConfidence } from '../types'
 import AppBadge from '../components/ui/AppBadge.vue'
@@ -363,6 +393,7 @@ import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import HelpTooltip from '../components/help/HelpTooltip.vue'
 import UseCaseActionButton from '../components/use-case/UseCaseActionButton.vue'
 import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 
 interface PositionedNode {
   node: GraphNodeRecord
@@ -402,11 +433,14 @@ const selectedEdge = ref<GraphEdgeRecord | null>(null)
 const nodeDrawerOpen = ref(false)
 const edgeDrawerOpen = ref(false)
 const editingLinkId = ref<number | null>(null)
+const relationshipEditorOpen = ref(false)
+const graphEventRecorded = ref(false)
 const graphUseCaseSlugs = [
   'inspect-knowledge-graph',
   'review-concept-marker',
   'search-rediscover-knowledge',
 ]
+const graphWorkflowLoop = ['Source-backed record', 'Relationship', 'Knowledge Graph inspection', 'Open source']
 
 const relationshipForm = reactive<RelationshipForm>({
   sourceType: 'BOOK',
@@ -458,18 +492,65 @@ const isConceptRoute = computed(() => route.name === 'graph-concept')
 const isProjectRoute = computed(() => route.name === 'graph-project')
 
 const graphTitle = computed(() => {
-  if (isBookRoute.value) return `Book graph #${route.params.bookId}`
-  if (isConceptRoute.value) return `Concept graph #${route.params.conceptId}`
-  if (isProjectRoute.value) return `Project graph #${route.params.projectId}`
-  if (projectIdFilter.value) return `Project graph #${projectIdFilter.value}`
-  if (conceptIdFilter.value) return `Concept graph #${conceptIdFilter.value}`
-  if (bookIdFilter.value) return `Book graph #${bookIdFilter.value}`
-  return 'Workspace graph'
+  if (isBookRoute.value) return `Book Knowledge Graph #${route.params.bookId}`
+  if (isConceptRoute.value) return `Concept Knowledge Graph #${route.params.conceptId}`
+  if (isProjectRoute.value) return `Project Knowledge Graph #${route.params.projectId}`
+  if (projectIdFilter.value) return `Project Knowledge Graph #${projectIdFilter.value}`
+  if (conceptIdFilter.value) return `Concept Knowledge Graph #${conceptIdFilter.value}`
+  if (bookIdFilter.value) return `Book Knowledge Graph #${bookIdFilter.value}`
+  return 'Workspace Knowledge Graph'
 })
 
 const graphTextSummary = computed(() => {
   const nodeTypes = [...new Set(graph.value.nodes.map((node) => typeLabel(node.type)))].join(', ') || 'none'
   return `Knowledge graph with ${graph.value.nodes.length} nodes, ${graph.value.edges.length} relationships, node types: ${nodeTypes}.`
+})
+
+const filtersActive = computed(() =>
+  Boolean(
+    bookIdFilter.value ||
+      conceptIdFilter.value ||
+      projectIdFilter.value ||
+      entityTypeFilter.value ||
+      relationshipTypeFilter.value ||
+      sourceConfidenceFilter.value ||
+      createdRange.value ||
+      depthFilter.value !== 3 ||
+      limitFilter.value !== 120,
+  ),
+)
+
+const graphNextStep = computed(() => {
+  if (!graph.value.nodes.length) {
+    return {
+      title: 'Create one source-backed record first',
+      description: 'The Knowledge Graph stays honest when it is built from real notes, captures, quotes, concepts, projects, or source links.',
+      primaryLabel: 'Start First Loop',
+      primaryTo: { name: 'guided-first-loop' },
+      secondaryLabel: 'Learn Knowledge Graph Workflow',
+      secondaryTo: { name: 'use-case-detail', params: { slug: 'inspect-knowledge-graph' } },
+    }
+  }
+
+  if (!graph.value.edges.length) {
+    return {
+      title: 'Connect two accessible records',
+      description: 'This Knowledge Graph has nodes but no relationships. Add a manual link only when you can explain why the records belong together.',
+      primaryLabel: 'Create Relationship',
+      primaryTo: null,
+      secondaryLabel: null,
+      secondaryTo: null,
+    }
+  }
+
+  return {
+    title: 'Inspect a real relationship',
+    description: 'Start by opening a node or edge, then use source links before editing or creating manual links.',
+    primaryLabel: 'Create Relationship',
+    primaryTo: null,
+    secondaryLabel: filtersActive.value ? 'Reset Filters' : null,
+    secondaryTo: null,
+  }
 })
 
 const positionedNodes = computed<PositionedNode[]>(() => {
@@ -510,23 +591,37 @@ async function loadGraph() {
     const params = graphParams()
     if (isBookRoute.value) {
       graph.value = await getBookGraph(String(route.params.bookId), scopedParams(params))
+      recordGraphOpened()
       return
     }
     if (isConceptRoute.value) {
       graph.value = await getConceptGraph(String(route.params.conceptId), scopedParams(params))
+      recordGraphOpened()
       return
     }
     if (isProjectRoute.value) {
       graph.value = await getProjectGraph(String(route.params.projectId), scopedParams(params))
+      recordGraphOpened()
       return
     }
     graph.value = await getWorkspaceGraph(params)
+    recordGraphOpened()
   } catch {
     graph.value = { nodes: [], edges: [] }
     errorMessage.value = 'Check backend availability, graph filters, and permissions, then retry.'
   } finally {
     loading.value = false
   }
+}
+
+function recordGraphOpened() {
+  if (graphEventRecorded.value) return
+  graphEventRecorded.value = true
+  void recordUseCaseEvent({
+    eventType: 'GRAPH_OPENED',
+    contextType: String(route.name ?? 'graph').toUpperCase(),
+    contextId: String(route.params.bookId ?? route.params.conceptId ?? route.params.projectId ?? 'workspace'),
+  }).catch(() => undefined)
 }
 
 function resetFilters() {
@@ -542,6 +637,18 @@ function resetFilters() {
     projectIdFilter.value = undefined
   }
   void loadGraph()
+}
+
+function handleGraphPrimaryAction() {
+  if (!graph.value.nodes.length) {
+    void router.push({ name: 'guided-first-loop' })
+    return
+  }
+  openRelationshipEditor()
+}
+
+function handleGraphSecondaryAction() {
+  resetFilters()
 }
 
 function graphParams(): WorkspaceGraphQuery {
@@ -641,7 +748,7 @@ async function openGraphNode(node: GraphNodeRecord) {
 async function openNodeSource(node: GraphNodeRecord) {
   const sourceReferenceId = node.type === 'SOURCE_REFERENCE' ? node.entityId : node.sourceReferenceId
   if (!sourceReferenceId) {
-    ElMessage.info('This node has no source reference to open.')
+    ElMessage.info('This node has no source link to open.')
     return
   }
   await openSource({
@@ -659,6 +766,7 @@ function useNodeAsRelationshipSource(node: GraphNodeRecord) {
   relationshipForm.sourceType = normalizeType(node.type)
   relationshipForm.sourceId = node.entityId
   relationshipForm.sourceReferenceId = node.sourceReferenceId ?? relationshipForm.sourceReferenceId
+  relationshipEditorOpen.value = true
   nodeDrawerOpen.value = false
 }
 
@@ -666,11 +774,13 @@ function useNodeAsRelationshipTarget(node: GraphNodeRecord) {
   relationshipForm.targetType = normalizeType(node.type)
   relationshipForm.targetId = node.entityId
   relationshipForm.sourceReferenceId = node.sourceReferenceId ?? relationshipForm.sourceReferenceId
+  relationshipEditorOpen.value = true
   nodeDrawerOpen.value = false
 }
 
 function openRelationshipEditor() {
-  clearRelationshipForm()
+  clearRelationshipForm(false)
+  relationshipEditorOpen.value = true
   if (selectedNode.value) {
     useNodeAsRelationshipSource(selectedNode.value)
   }
@@ -692,7 +802,7 @@ async function saveRelationship() {
     clearRelationshipForm()
     await loadGraph()
   } catch {
-    ElMessage.error('Relationship could not be saved. Check ownership, entity IDs, and source reference permissions.')
+    ElMessage.error('Relationship could not be saved. Check ownership, entity IDs, and source link permissions.')
   } finally {
     savingRelationship.value = false
   }
@@ -725,6 +835,7 @@ function editSelectedEdge() {
   }
 
   editingLinkId.value = selectedEdge.value.entityLinkId ?? null
+  relationshipEditorOpen.value = true
   relationshipForm.sourceType = source.type
   relationshipForm.sourceId = source.id
   relationshipForm.targetType = target.type
@@ -760,7 +871,7 @@ function canEditEdge(edge: GraphEdgeRecord) {
   return Boolean(edge.entityLinkId && !edge.systemCreated)
 }
 
-function clearRelationshipForm() {
+function clearRelationshipForm(closeEditor = true) {
   editingLinkId.value = null
   relationshipForm.sourceType = 'BOOK'
   relationshipForm.sourceId = undefined
@@ -769,6 +880,11 @@ function clearRelationshipForm() {
   relationshipForm.relationType = 'RELATED_TO'
   relationshipForm.sourceReferenceId = undefined
   relationshipForm.note = ''
+  if (closeEditor) relationshipEditorOpen.value = false
+}
+
+function handleRelationshipToggle(event: Event) {
+  relationshipEditorOpen.value = (event.target as HTMLDetailsElement).open
 }
 
 function routeForNode(node: GraphNodeRecord) {
@@ -852,7 +968,16 @@ function initialDateRange(): [string, string] | null {
 }
 
 function typeLabel(value: string) {
-  return normalizeType(value)
+  const normalized = normalizeType(value)
+  const friendlyLabels: Record<string, string> = {
+    ACTION_ITEM: 'Action',
+    KNOWLEDGE_OBJECT: 'Design Knowledge',
+    SOURCE_REFERENCE: 'Source Link',
+    ENTITY_LINK: 'Relationship',
+    GAME_PROJECT: 'Project',
+  }
+  if (friendlyLabels[normalized]) return friendlyLabels[normalized]
+  return normalized
     .replaceAll('_', ' ')
     .toLowerCase()
     .replace(/^\w|\s\w/g, (match) => match.toUpperCase())
@@ -903,12 +1028,48 @@ function formatDate(value: string) {
 .graph-panel,
 .node-list,
 .edge-list,
+.graph-disclosure,
 .relationship-editor,
 .relationship-form,
 .detail-drawer,
 .drawer-actions {
   display: grid;
   gap: var(--space-4);
+}
+
+.graph-disclosure summary {
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bookos-surface) 86%, var(--bookos-primary-soft));
+  color: var(--bookos-text-primary);
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+
+.graph-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.graph-disclosure summary::after {
+  content: "+";
+  color: var(--bookos-primary);
+}
+
+.graph-disclosure[open] summary::after {
+  content: "-";
+}
+
+.graph-disclosure summary small {
+  margin-left: auto;
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
 }
 
 .graph-filters {
@@ -941,6 +1102,7 @@ function formatDate(value: string) {
 .graph-filter-actions,
 .relationship-form__actions {
   display: flex;
+  gap: var(--space-2);
   align-items: end;
   justify-content: flex-end;
 }

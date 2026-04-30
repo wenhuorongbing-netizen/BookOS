@@ -21,6 +21,16 @@
     />
 
     <template v-else-if="daily">
+      <DetailNextStepCard
+        title="Use one daily item today"
+        description="Start by writing a short reflection. Apply to a project only when the prompt changes a real design decision."
+        primary-label="Write Reflection"
+        secondary-label="Apply to Project"
+        :loop="dailyWorkflowLoop"
+        @primary="focusReflection('PROMPT')"
+        @secondary="applyProjectOpen = true"
+      />
+
       <section class="daily-grid" aria-label="Today's daily cards">
         <AppCard class="daily-card daily-card--quote" as="article">
           <div class="daily-card__heading">
@@ -41,9 +51,14 @@
             </p>
             <div class="daily-card__actions">
               <AppButton variant="secondary" :disabled="!daily.sentence.sourceReference" @click="openDailySource('SENTENCE')">Open source</AppButton>
-              <AppButton variant="ghost" :loading="dailyBusy" @click="updateDaily('SENTENCE', 'regenerate')">Regenerate</AppButton>
-              <AppButton variant="text" :loading="dailyBusy" @click="updateDaily('SENTENCE', 'skip')">Skip</AppButton>
             </div>
+            <details class="daily-more-actions">
+              <summary>More quote actions</summary>
+              <div class="daily-card__actions">
+                <AppButton variant="ghost" :loading="dailyBusy" @click="updateDaily('SENTENCE', 'regenerate')">Regenerate</AppButton>
+                <AppButton variant="text" :loading="dailyBusy" @click="updateDaily('SENTENCE', 'skip')">Skip</AppButton>
+              </div>
+            </details>
           </template>
 
           <AppEmptyState
@@ -69,18 +84,23 @@
           <p class="daily-card__meta">{{ daily.prompt.sourceTitle ?? daily.prompt.bookTitle ?? 'Daily prompt' }}</p>
           <div class="daily-card__actions">
             <AppButton variant="secondary" :disabled="!daily.prompt.sourceReference" @click="openDailySource('PROMPT')">Open source</AppButton>
-            <AppButton variant="primary" @click="reflectionTarget = 'PROMPT'">Save reflection</AppButton>
-            <AppButton variant="accent" :loading="dailyBusy" @click="createPrototypeTask">Create prototype task</AppButton>
+            <AppButton variant="primary" @click="focusReflection('PROMPT')">Write reflection</AppButton>
             <AppButton variant="secondary" @click="applyProjectOpen = true">Apply to Project</AppButton>
-            <AppButton variant="secondary" @click="openProjectAction('PROBLEM')">Create project problem</AppButton>
-            <AppButton variant="secondary" @click="openProjectAction('LENS_REVIEW')">Create lens review</AppButton>
-            <AppButton variant="ghost" :loading="dailyBusy" @click="updateDaily('PROMPT', 'regenerate')">Regenerate</AppButton>
-            <AppButton variant="text" :loading="dailyBusy" @click="updateDaily('PROMPT', 'skip')">Skip</AppButton>
           </div>
+          <details class="daily-more-actions">
+            <summary>More prompt actions</summary>
+            <div class="daily-card__actions">
+              <AppButton variant="accent" :loading="dailyBusy" @click="createPrototypeTask">Create prototype task</AppButton>
+              <AppButton variant="secondary" @click="openProjectAction('PROBLEM')">Create project problem</AppButton>
+              <AppButton variant="secondary" @click="openProjectAction('LENS_REVIEW')">Create lens review</AppButton>
+              <AppButton variant="ghost" :loading="dailyBusy" @click="updateDaily('PROMPT', 'regenerate')">Regenerate</AppButton>
+              <AppButton variant="text" :loading="dailyBusy" @click="updateDaily('PROMPT', 'skip')">Skip</AppButton>
+            </div>
+          </details>
         </AppCard>
       </section>
 
-      <AppCard class="reflection-card" as="section">
+      <AppCard id="daily-reflection" class="reflection-card" as="section">
         <div class="reflection-card__heading">
           <div>
             <div class="eyebrow">Daily Reflection</div>
@@ -160,6 +180,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import type { DailyHistoryRecord, DailyTarget, DailyTodayRecord } from '../types'
 
@@ -176,6 +197,7 @@ const reflectionText = ref('')
 const applyProjectOpen = ref(false)
 const projectActionOpen = ref(false)
 const projectActionMode = ref<'PROBLEM' | 'LENS_REVIEW'>('PROBLEM')
+const dailyWorkflowLoop = ['Read prompt', 'Reflect', 'Apply only if useful']
 const reflectionOptions = computed(() => [
   { label: 'Prompt', value: 'PROMPT' },
   { label: 'Sentence', value: 'SENTENCE', disabled: !daily.value?.sentence },
@@ -205,6 +227,13 @@ async function loadHistory() {
     history.value = []
     historyError.value = 'Daily history could not be loaded.'
   }
+}
+
+function focusReflection(target: DailyTarget) {
+  reflectionTarget.value = target
+  requestAnimationFrame(() => {
+    document.getElementById('daily-reflection')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
 }
 
 async function updateDaily(target: DailyTarget, action: 'regenerate' | 'skip') {
@@ -264,7 +293,7 @@ function openDailySource(target: DailyTarget) {
   const item = target === 'SENTENCE' ? daily.value.sentence : daily.value.prompt
   const source = item?.sourceReference
   if (!source) {
-    ElMessage.info('This daily item does not have a source reference.')
+    ElMessage.info('This daily item does not have a source link.')
     return
   }
 
@@ -348,6 +377,41 @@ function formatDate(value: string) {
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
+}
+
+.daily-more-actions {
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface-muted);
+}
+
+.daily-more-actions summary {
+  min-height: 42px;
+  padding: 0 var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--bookos-text-secondary);
+  cursor: pointer;
+  font-size: var(--type-metadata);
+  font-weight: 900;
+}
+
+.daily-more-actions summary::-webkit-details-marker {
+  display: none;
+}
+
+.daily-more-actions summary::after {
+  content: "+";
+  color: var(--bookos-accent);
+}
+
+.daily-more-actions[open] summary::after {
+  content: "-";
+}
+
+.daily-more-actions .daily-card__actions {
+  padding: 0 var(--space-3) var(--space-3);
 }
 
 .reflection-card__field {

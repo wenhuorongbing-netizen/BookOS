@@ -4,7 +4,7 @@ Last reviewed: 2026-04-30.
 
 Reviewed branch: `main`.
 
-Reviewed SHA: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
+Reviewed SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
 
 ## Purpose
 
@@ -94,9 +94,9 @@ What works:
 Friction:
 
 - The Project Cockpit is broad and can still feel dense.
-- The multi-step wizard uses multiple existing API calls; it is usable, but not yet a single backend transaction.
+- The multi-step wizard now submits final creation through one backend transaction with an idempotency key, but the Project Cockpit is still broad enough to need guided entry points.
 
-Verdict: PASS for beta, with a P1 hardening issue around transactional wizard creation.
+Verdict: PASS for beta, with no remaining P1 issue around partial project-wizard creation.
 
 ## Scenario 4: Researcher
 
@@ -159,7 +159,7 @@ None found in this gate.
 ## P1 Usability Issues
 
 - Researcher, forum, graph, import/export, and AI workflows remain too abstract for a new user unless launched from contextual use-case guidance.
-- Project apply-knowledge wizard is not transactional; a network failure during final confirmation could create partial project records.
+- Project apply-knowledge wizard now uses a transactional final submit; continue monitoring usability around the final review and retry copy.
 - Some labels still expose implementation concepts, especially Knowledge Objects, Mastery, Entity Links, and Source References.
 - Capture Inbox should continue moving toward "Process Captures" language across page titles and docs.
 

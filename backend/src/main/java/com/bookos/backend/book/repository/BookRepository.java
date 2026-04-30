@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
 
+    long countByOwnerId(Long ownerId);
+
     @Override
     @EntityGraph(attributePaths = {"owner", "owner.role", "bookAuthors", "bookAuthors.author", "bookTags", "bookTags.tag"})
     List<Book> findAll();

@@ -18,20 +18,28 @@
     <BookContextHeader>
       <template #actions>
         <HelpTooltip topic="source-reference" placement="left" />
-        <RouterLink :to="{ name: 'book-notes', params: { bookId: book.id } }" custom v-slot="{ navigate }">
-          <AppButton variant="primary" @click="navigate">Open Notes</AppButton>
-        </RouterLink>
-        <RouterLink
-          :to="{ name: 'forum-new', query: { relatedEntityType: 'BOOK', relatedEntityId: String(book.id), bookId: String(book.id), title: `Discuss ${book.title}` } }"
-          custom
-          v-slot="{ navigate }"
-        >
-          <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
-        </RouterLink>
-        <RouterLink :to="`/books/${book.id}/edit`" custom v-slot="{ navigate }">
-          <AppButton variant="secondary" @click="navigate">Edit Book</AppButton>
-        </RouterLink>
         <AppButton v-if="!book.inLibrary" variant="primary" @click="handleAddToLibrary">Add to Library</AppButton>
+        <RouterLink v-else :to="{ name: 'book-detail', params: { id: book.id }, hash: '#book-quick-capture' }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Capture Thought</AppButton>
+        </RouterLink>
+        <details class="header-more-actions">
+          <summary>More</summary>
+          <div class="header-more-actions__menu">
+            <RouterLink :to="{ name: 'book-notes', params: { bookId: book.id } }" custom v-slot="{ navigate }">
+              <AppButton variant="secondary" @click="navigate">Open Notes</AppButton>
+            </RouterLink>
+            <RouterLink
+              :to="{ name: 'forum-new', query: { relatedEntityType: 'BOOK', relatedEntityId: String(book.id), bookId: String(book.id), title: `Discuss ${book.title}` } }"
+              custom
+              v-slot="{ navigate }"
+            >
+              <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
+            </RouterLink>
+            <RouterLink :to="`/books/${book.id}/edit`" custom v-slot="{ navigate }">
+              <AppButton variant="secondary" @click="navigate">Edit Book</AppButton>
+            </RouterLink>
+          </div>
+        </details>
       </template>
     </BookContextHeader>
 
@@ -55,44 +63,57 @@
       @primary="handleBookNextStep"
       @secondary="createBookReview"
     />
-    <UseCaseSuggestionPanel
-      title="Start a book workflow"
-      description="Use this book as the source context for capture, conversion, concepts, or project application."
-      :slugs="bookUseCaseSlugs"
-    />
-    <AppCard class="reading-session-panel" as="section">
-      <div class="detail-panel__heading">
-        <div class="eyebrow">Reading Session</div>
-        <h2>Track this reading pass</h2>
-      </div>
-      <div class="reading-session-panel__grid">
+    <details class="progressive-section">
+      <summary>
+        <span>Workflow guides</span>
+        <small>Show hands-on paths for this book</small>
+      </summary>
+      <UseCaseSuggestionPanel
+        title="Start a book workflow"
+        description="Use this book as the source context for capture, conversion, concepts, or project application."
+        :slugs="bookUseCaseSlugs"
+      />
+    </details>
+
+    <details class="progressive-section" :open="Boolean(activeReadingSession || readingSessions.length)">
+      <summary>
+        <span>Reading sessions and review</span>
+        <small>{{ readingSessions.length }} sessions logged</small>
+      </summary>
+      <AppCard class="reading-session-panel" as="section">
+        <div class="detail-panel__heading">
+          <div class="eyebrow">Reading Session</div>
+          <h2>Track this reading pass</h2>
+        </div>
+        <div class="reading-session-panel__grid">
+          <label class="detail-field">
+            <span>Start page</span>
+            <el-input-number v-model="readingStartPage" :min="0" controls-position="right" aria-label="Reading session start page" />
+          </label>
+          <label class="detail-field">
+            <span>End page</span>
+            <el-input-number v-model="readingEndPage" :min="0" controls-position="right" aria-label="Reading session end page" />
+          </label>
+          <label class="detail-field">
+            <span>Minutes read</span>
+            <el-input-number v-model="readingMinutes" :min="0" controls-position="right" aria-label="Minutes read" />
+          </label>
+        </div>
         <label class="detail-field">
-          <span>Start page</span>
-          <el-input-number v-model="readingStartPage" :min="0" controls-position="right" aria-label="Reading session start page" />
+          <span>Reflection</span>
+          <el-input v-model="readingReflection" type="textarea" :rows="3" placeholder="What changed in your understanding during this session?" />
         </label>
-        <label class="detail-field">
-          <span>End page</span>
-          <el-input-number v-model="readingEndPage" :min="0" controls-position="right" aria-label="Reading session end page" />
-        </label>
-        <label class="detail-field">
-          <span>Minutes read</span>
-          <el-input-number v-model="readingMinutes" :min="0" controls-position="right" aria-label="Minutes read" />
-        </label>
-      </div>
-      <label class="detail-field">
-        <span>Reflection</span>
-        <el-input v-model="readingReflection" type="textarea" :rows="3" placeholder="What changed in your understanding during this session?" />
-      </label>
-      <div class="reading-session-panel__actions">
-        <AppButton v-if="!activeReadingSession" variant="primary" :loading="readingBusy" @click="startSession">Start Session</AppButton>
-        <AppButton v-else variant="primary" :loading="readingBusy" @click="finishSession">Finish Session</AppButton>
-        <AppButton variant="secondary" :loading="readingBusy" @click="createBookReview">Create Review from Book</AppButton>
-        <span class="reading-session-panel__meta">
-          {{ readingSessions.length }} sessions logged
-          <template v-if="activeReadingSession">/ active since {{ formatDate(activeReadingSession.startedAt) }}</template>
-        </span>
-      </div>
-    </AppCard>
+        <div class="reading-session-panel__actions">
+          <AppButton v-if="!activeReadingSession" variant="primary" :loading="readingBusy" @click="startSession">Start Session</AppButton>
+          <AppButton v-else variant="primary" :loading="readingBusy" @click="finishSession">Finish Session</AppButton>
+          <AppButton variant="secondary" :loading="readingBusy" @click="createBookReview">Create Review from Book</AppButton>
+          <span class="reading-session-panel__meta">
+            {{ readingSessions.length }} sessions logged
+            <template v-if="activeReadingSession">/ active since {{ formatDate(activeReadingSession.startedAt) }}</template>
+          </span>
+        </div>
+      </AppCard>
+    </details>
     <AppCard v-if="cockpitWarning" class="cockpit-warning" as="section" role="status">
       <strong>Some cockpit data could not load</strong>
       <p>{{ cockpitWarning }}</p>
@@ -120,86 +141,98 @@
       <BookCaptureSection :book="book" />
     </div>
 
-    <section class="detail-grid" aria-label="Book metadata and reading controls">
-      <AppCard as="article" class="detail-panel">
-        <div class="detail-panel__heading">
-          <div class="eyebrow">Source Metadata</div>
-          <h2>Book record</h2>
-        </div>
-        <dl class="detail-meta">
-          <div>
-            <dt>Category</dt>
-            <dd>{{ book.category ?? 'Uncategorized' }}</dd>
+    <details class="progressive-section" :open="!book.inLibrary">
+      <summary>
+        <span>Book metadata and reading controls</span>
+        <small>{{ book.inLibrary ? 'Status, progress, rating, and source metadata' : 'Add this book to unlock reading state' }}</small>
+      </summary>
+      <section class="detail-grid" aria-label="Book metadata and reading controls">
+        <AppCard as="article" class="detail-panel">
+          <div class="detail-panel__heading">
+            <div class="eyebrow">Source Metadata</div>
+            <h2>Book record</h2>
           </div>
-          <div>
-            <dt>Publisher</dt>
-            <dd>{{ book.publisher ?? 'Unknown' }}</dd>
+          <dl class="detail-meta">
+            <div>
+              <dt>Category</dt>
+              <dd>{{ book.category ?? 'Uncategorized' }}</dd>
+            </div>
+            <div>
+              <dt>Publisher</dt>
+              <dd>{{ book.publisher ?? 'Unknown' }}</dd>
+            </div>
+            <div>
+              <dt>Year</dt>
+              <dd>{{ book.publicationYear ?? 'Unknown' }}</dd>
+            </div>
+            <div>
+              <dt>Visibility</dt>
+              <dd>{{ book.visibility }}</dd>
+            </div>
+            <div>
+              <dt>ISBN</dt>
+              <dd>{{ book.isbn ?? 'Not set' }}</dd>
+            </div>
+          </dl>
+          <p class="detail-description">{{ book.description ?? 'No description yet.' }}</p>
+          <div v-if="book.tags.length" class="detail-tags" aria-label="Book tags">
+            <AppBadge v-for="tag in book.tags" :key="tag" variant="primary" size="sm">{{ tag }}</AppBadge>
           </div>
-          <div>
-            <dt>Year</dt>
-            <dd>{{ book.publicationYear ?? 'Unknown' }}</dd>
-          </div>
-          <div>
-            <dt>Visibility</dt>
-            <dd>{{ book.visibility }}</dd>
-          </div>
-          <div>
-            <dt>ISBN</dt>
-            <dd>{{ book.isbn ?? 'Not set' }}</dd>
-          </div>
-        </dl>
-        <p class="detail-description">{{ book.description ?? 'No description yet.' }}</p>
-        <div v-if="book.tags.length" class="detail-tags" aria-label="Book tags">
-          <AppBadge v-for="tag in book.tags" :key="tag" variant="primary" size="sm">{{ tag }}</AppBadge>
-        </div>
-      </AppCard>
+        </AppCard>
 
-      <AppCard id="library-state" as="section" class="detail-library">
-        <div class="detail-panel__heading">
-          <div class="eyebrow">Reading Controls</div>
-          <h2>Your library state</h2>
-        </div>
+        <AppCard id="library-state" as="section" class="detail-library">
+          <div class="detail-panel__heading">
+            <div class="eyebrow">Reading Controls</div>
+            <h2>Your library state</h2>
+          </div>
 
-        <template v-if="book.inLibrary && book.userBookId">
-          <BookStatusBadge :status="status" />
+          <template v-if="book.inLibrary && book.userBookId">
+            <BookStatusBadge :status="status" />
 
-          <label class="detail-field">
-            <span>Reading status</span>
-            <el-select v-model="status" @change="handleStatusUpdate" aria-label="Reading status">
-              <el-option v-for="item in statusOptions" :key="item" :label="item" :value="item" />
-            </el-select>
-          </label>
-
-          <div class="detail-progress-control">
-            <BookProgressBar :progress="progress" />
             <label class="detail-field">
-              <span>Progress percentage</span>
-              <el-input-number v-model="progress" :min="0" :max="100" @change="handleProgressUpdate" aria-label="Progress percentage" />
+              <span>Reading status</span>
+              <el-select v-model="status" @change="handleStatusUpdate" aria-label="Reading status">
+                <el-option v-for="item in statusOptions" :key="item" :label="item" :value="item" />
+              </el-select>
             </label>
+
+            <div class="detail-progress-control">
+              <BookProgressBar :progress="progress" />
+              <label class="detail-field">
+                <span>Progress percentage</span>
+                <el-input-number v-model="progress" :min="0" :max="100" @change="handleProgressUpdate" aria-label="Progress percentage" />
+              </label>
+            </div>
+
+            <div class="detail-rating-control">
+              <BookRating :rating="rating" />
+              <label class="detail-field">
+                <span>Rating</span>
+                <el-rate v-model="rating" aria-label="Rating" @change="handleRatingUpdate" />
+              </label>
+            </div>
+          </template>
+
+          <div v-else class="detail-library__empty">
+            <p>Add this book to your library to track status, progress, rating, and five-star favorite state.</p>
+            <AppButton variant="primary" @click="handleAddToLibrary">Add to Library</AppButton>
           </div>
+        </AppCard>
+      </section>
+    </details>
 
-          <div class="detail-rating-control">
-            <BookRating :rating="rating" />
-            <label class="detail-field">
-              <span>Rating</span>
-              <el-rate v-model="rating" aria-label="Rating" @change="handleRatingUpdate" />
-            </label>
-          </div>
-        </template>
-
-        <div v-else class="detail-library__empty">
-          <p>Add this book to your library to track status, progress, rating, and five-star favorite state.</p>
-          <AppButton variant="primary" @click="handleAddToLibrary">Add to Library</AppButton>
-        </div>
-      </AppCard>
-    </section>
-
-    <BacklinksSection
-      entity-type="BOOK"
-      :entity-id="book.id"
-      :source-references="sourceReferenceRecords"
-      :book-title="book.title"
-    />
+    <details class="progressive-section" :open="sourceReferenceRecords.length > 0">
+      <summary>
+        <span>Sources and related links</span>
+        <small>{{ sourceReferenceRecords.length }} source links</small>
+      </summary>
+      <BacklinksSection
+        entity-type="BOOK"
+        :entity-id="book.id"
+        :source-references="sourceReferenceRecords"
+        :book-title="book.title"
+      />
+    </details>
 
     <ApplyToProjectDialog
       v-if="daily?.prompt"
@@ -343,8 +376,8 @@ const bookNextStep = computed(() => {
   if ((currentBook.actionItemsCount ?? 0) > 0) {
     return {
       title: 'Act on the knowledge extracted from this book',
-      description: 'Review the source-backed action items from this book and turn one into completed design work.',
-      primaryLabel: 'Open Action Items',
+      description: 'Review the source-backed actions from this book and turn one into completed design work.',
+      primaryLabel: 'Open Actions',
       primaryTo: { name: 'action-items', query: { bookId: String(currentBook.id) } },
       primaryLoading: false,
       secondaryLabel: 'Create Review',
@@ -437,8 +470,8 @@ async function hydrateBookKnowledge(base: BookRecord): Promise<BookRecord> {
     ['notes', notesResult],
     ['raw captures', capturesResult],
     ['quotes', quotesResult],
-    ['action items', actionItemsResult],
-    ['source references', sourceReferencesResult],
+    ['actions', actionItemsResult],
+    ['source links', sourceReferencesResult],
     ['concepts', conceptsResult],
     ['daily resurfacing', dailyResult],
     ['knowledge graph', graphResult],
@@ -858,6 +891,83 @@ function formatDate(value: string) {
 </script>
 
 <style scoped>
+.header-more-actions {
+  position: relative;
+}
+
+.header-more-actions summary,
+.progressive-section summary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--bookos-border);
+  border-radius: 999px;
+  background: var(--bookos-surface);
+  color: var(--bookos-text-primary);
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+
+.header-more-actions summary {
+  padding: 0 var(--space-4);
+}
+
+.header-more-actions summary::-webkit-details-marker,
+.progressive-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.header-more-actions summary::after,
+.progressive-section summary::after {
+  content: "+";
+  color: var(--bookos-primary);
+}
+
+.header-more-actions[open] summary::after,
+.progressive-section[open] summary::after {
+  content: "-";
+}
+
+.header-more-actions__menu {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  min-width: 220px;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background: var(--bookos-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.progressive-section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.progressive-section summary {
+  width: 100%;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bookos-surface) 86%, var(--bookos-primary-soft));
+}
+
+.progressive-section summary span {
+  color: var(--bookos-text-primary);
+}
+
+.progressive-section summary small {
+  margin-left: auto;
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
@@ -997,6 +1107,17 @@ function formatDate(value: string) {
 }
 
 @media (max-width: 640px) {
+  .header-more-actions,
+  .header-more-actions__menu {
+    position: static;
+    width: 100%;
+  }
+
+  .header-more-actions summary {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .detail-meta,
   .reading-session-panel__grid {
     grid-template-columns: 1fr;

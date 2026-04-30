@@ -123,7 +123,7 @@ const rows = reactive<ConceptReviewRow[]>([])
 
 const sourceLabel = computed(() => {
   const source = props.sourceReference
-  if (!source) return 'No source reference selected'
+  if (!source) return 'No source link selected'
   const page = source.pageStart ? `p.${source.pageStart}${source.pageEnd ? `-${source.pageEnd}` : ''}` : 'No page'
   return `${source.locationLabel ?? source.sourceType} / ${page}`
 })

@@ -12,6 +12,9 @@
       <div class="use-cases-hero__note">
         <strong>No fake completion state</strong>
         <span>Use cases link to real BookOS routes. They do not claim a workflow is complete until you do the work in the app.</span>
+        <RouterLink to="/guided/first-loop" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Start First Valuable Loop</AppButton>
+        </RouterLink>
       </div>
     </AppCard>
 
@@ -35,7 +38,12 @@
       <div v-for="group in groupedUseCases" :key="group.category" class="use-cases-group">
         <h2>{{ group.category }}</h2>
         <div class="use-cases-grid">
-          <UseCaseCard v-for="useCase in group.items" :key="useCase.slug" :use-case="useCase" />
+          <UseCaseCard
+            v-for="useCase in group.items"
+            :key="useCase.slug"
+            :use-case="useCase"
+            :progress="progressBySlug.get(useCase.slug) ?? null"
+          />
         </div>
       </div>
     </section>
@@ -49,14 +57,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { getUseCaseProgress } from '../api/useCaseProgress'
+import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import UseCaseCard from '../components/use-case/UseCaseCard.vue'
 import { useCases } from '../data/useCases'
+import type { UserUseCaseProgressRecord } from '../types'
 
 const query = ref('')
+const progressRecords = ref<UserUseCaseProgressRecord[]>([])
+
+onMounted(loadProgress)
+
+const progressBySlug = computed(() => new Map(progressRecords.value.map((record) => [record.useCaseSlug, record])))
 
 const filteredUseCases = computed(() => {
   const normalizedQuery = query.value.trim().toLowerCase()
@@ -92,6 +108,14 @@ const groupedUseCases = computed(() => {
 
   return Array.from(groups.entries()).map(([category, items]) => ({ category, items }))
 })
+
+async function loadProgress() {
+  try {
+    progressRecords.value = await getUseCaseProgress()
+  } catch {
+    progressRecords.value = []
+  }
+}
 </script>
 
 <style scoped>

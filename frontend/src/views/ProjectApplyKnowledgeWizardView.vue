@@ -17,6 +17,7 @@
         :level="1"
       >
         <template #actions>
+          <HelpTooltip topic="project-apply-wizard" placement="bottom" />
           <RouterLink :to="{ name: 'project-detail', params: { id: project.id } }" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Open Project Cockpit</AppButton>
           </RouterLink>
@@ -32,7 +33,7 @@
           <p class="eyebrow">Why this matters</p>
           <h2>Turn a quote or concept into an actual design move</h2>
           <p>
-            This workflow waits until confirmation before creating records. Source references are carried into each
+            This workflow waits until confirmation before creating records. Source links are carried into each
             source-backed record, and unknown pages stay unknown.
           </p>
         </div>
@@ -67,7 +68,7 @@
             <AppEmptyState
               v-if="!sourceOptions.length"
               title="No source-backed material yet"
-              description="Create a quote, concept, knowledge object, source reference, or daily prompt before using the guided project flow."
+              description="Create a quote, concept, design knowledge record, source link, or daily prompt before using the guided project flow."
               compact
             />
 
@@ -94,7 +95,7 @@
                   <h3>{{ option.label }}</h3>
                   <p>{{ option.detail }}</p>
                   <p class="source-card__meta">
-                    {{ option.sourceReference ? sourceLocation(option.sourceReference) : 'No source reference attached.' }}
+                    {{ option.sourceReference ? sourceLocation(option.sourceReference) : 'No source link attached.' }}
                   </p>
                 </div>
               </AppCard>
@@ -230,27 +231,55 @@
                 <el-input v-model="wizard.iterationNote" type="textarea" :rows="4" placeholder="Summarize the next change and evidence source." />
               </el-form-item>
               <p class="helper-text">
-                Stored as a project knowledge link so it remains traceable to the selected quote, concept, knowledge object, or source reference.
+                Stored as a project knowledge link so it remains traceable to the selected quote, concept, design knowledge record, or source link.
               </p>
             </el-form>
           </template>
 
           <template v-else>
+            <AppErrorState
+              v-if="submitError"
+              title="Project records were not created"
+              :description="submitError"
+              compact
+            />
+
             <div class="finish-grid">
               <AppCard variant="muted">
                 <p class="eyebrow">Before confirm</p>
-                <h3>Nothing has been created yet</h3>
-                <p>Press Confirm to create only the unskipped records with valid titles.</p>
+                <h3>Review before creating</h3>
+                <p>The wizard now uses one transactional request. If validation or network submission fails, BookOS does not create a confusing partial set.</p>
               </AppCard>
               <AppCard variant="muted">
                 <p class="eyebrow">Source preservation</p>
-                <h3>{{ selectedSourceReference ? 'Source reference ready' : 'No source reference available' }}</h3>
+                <h3>{{ selectedSourceReference ? 'Source link ready' : 'No source link available' }}</h3>
                 <p>{{ selectedSourceReference ? sourceLocation(selectedSourceReference) : 'Template or source-free records will clearly remain source-free.' }}</p>
               </AppCard>
             </div>
 
+            <AppCard class="review-summary" variant="muted">
+              <AppSectionHeader title="Records that will be created" eyebrow="Final review" :level="2" compact />
+              <AppEmptyState
+                v-if="!recordsToCreate.length"
+                title="No records ready yet"
+                description="Go back and add text to at least one unskipped step before confirming."
+                compact
+              />
+              <ul v-else>
+                <li v-for="record in recordsToCreate" :key="`${record.type}-${record.title}`">
+                  <strong>{{ record.type }}</strong>: {{ record.title }}
+                  <AppBadge v-if="record.sourcePreserved" variant="success" size="sm">Source will be preserved</AppBadge>
+                  <AppBadge v-else variant="neutral" size="sm">No source link</AppBadge>
+                </li>
+              </ul>
+              <p class="helper-text">
+                Idempotency key: {{ idempotencyKey }}. Re-submitting the same final step returns the previous result instead of duplicating records.
+              </p>
+            </AppCard>
+
             <AppCard v-if="createdRecords.length" class="created-summary" variant="highlight">
               <AppSectionHeader title="Guided project records created" eyebrow="Finish" :level="2" compact />
+              <p v-if="wizardResult?.duplicate" class="helper-text">This was an idempotent replay. BookOS returned the previous result and did not create duplicates.</p>
               <ul>
                 <li v-for="record in createdRecords" :key="record.key">
                   <strong>{{ record.type }}</strong>: {{ record.title }}
@@ -262,20 +291,20 @@
         </section>
 
         <div v-if="selectedSourceReference" class="source-preservation" role="note">
-          <strong>Source reference preserved:</strong>
+          <strong>Source link preserved:</strong>
           {{ sourceLocation(selectedSourceReference) }}
           <span>Unknown pages stay null; BookOS does not invent page numbers.</span>
         </div>
         <div v-else class="source-preservation source-preservation--muted" role="note">
-          <strong>No source reference selected.</strong>
+          <strong>No source link selected.</strong>
           Template prompts and source-free records stay clearly labeled as source-free.
         </div>
 
         <div class="wizard-actions">
           <AppButton variant="secondary" :disabled="activeStep === 0" @click="previousStep">Back</AppButton>
           <AppButton v-if="activeStep < steps.length - 1" variant="primary" @click="nextStep">Next</AppButton>
-          <AppButton v-else variant="primary" :loading="confirming" :disabled="Boolean(createdRecords.length)" @click="confirmWizard">
-            Confirm and Create Records
+          <AppButton v-else variant="primary" :loading="confirming" :disabled="Boolean(createdRecords.length) || !recordsToCreate.length" @click="confirmWizard">
+            Confirm Transaction
           </AppButton>
           <RouterLink v-if="createdRecords.length" :to="{ name: 'project-detail', params: { id: project.id } }" custom v-slot="{ navigate }">
             <AppButton variant="accent" @click="navigate">Open Project Cockpit</AppButton>
@@ -301,20 +330,12 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getDailyToday } from '../api/daily'
 import { getConcepts, getKnowledgeObjects } from '../api/knowledge'
 import {
-  applyConceptToProject,
-  applyKnowledgeObjectToProject,
-  applyQuoteToProject,
-  applySourceReferenceToProject,
-  createDesignDecision,
-  createPlaytestFinding,
-  createPlaytestPlan,
-  createProjectKnowledgeLink,
-  createProjectProblem,
-  createPrototypeTaskFromDaily,
+  applyKnowledgeWizard,
   getProject,
 } from '../api/projects'
 import { getQuotes } from '../api/quotes'
 import { getSourceReferences } from '../api/sourceReferences'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
 import ProjectWorkspaceNav from '../components/project/ProjectWorkspaceNav.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -328,8 +349,8 @@ import type {
   DailyDesignPromptRecord,
   GameProjectRecord,
   KnowledgeObjectRecord,
-  ProjectApplicationRecord,
-  ProjectKnowledgeLinkRecord,
+  ProjectWizardApplyKnowledgePayload,
+  ProjectWizardApplyKnowledgeRecord,
   QuoteRecord,
   SourceReferenceRecord,
 } from '../types'
@@ -350,6 +371,7 @@ interface WizardSourceOption {
 interface CreatedRecord {
   key: string
   type: string
+  id: number | null
   title: string
   sourcePreserved: boolean
 }
@@ -391,13 +413,16 @@ const activeStep = ref(0)
 const sourceQuery = ref('')
 const selectedSourceKey = ref('')
 const createdRecords = ref<CreatedRecord[]>([])
+const wizardResult = ref<ProjectWizardApplyKnowledgeRecord | null>(null)
+const submitError = ref('')
+const idempotencyKey = ref(createIdempotencyKey())
 
 const steps: Array<{ key: WizardStepKey; shortTitle: string; title: string; description: string }> = [
   {
     key: 'source',
     shortTitle: 'Source',
     title: 'Choose the reading source',
-    description: 'Start from a real quote, concept, knowledge object, source reference, or daily prompt. This is the evidence the project work points back to.',
+    description: 'Start from a real quote, concept, design knowledge record, source link, or daily prompt. This is the evidence the project work points back to.',
   },
   {
     key: 'problem',
@@ -513,7 +538,7 @@ const sourceOptions = computed<WizardSourceOption[]>(() => {
     key: `SOURCE_REFERENCE:${source.id}`,
     type: 'SOURCE_REFERENCE' as const,
     id: source.id,
-    label: source.locationLabel ?? `Source reference #${source.id}`,
+    label: source.locationLabel ?? `Source link #${source.id}`,
     detail: source.sourceText ?? source.sourceType,
     sourceReference: source,
   }))
@@ -544,6 +569,29 @@ const filteredSourceOptions = computed(() => {
 })
 const selectedSource = computed(() => sourceOptions.value.find((option) => option.key === selectedSourceKey.value) ?? null)
 const selectedSourceReference = computed(() => selectedSource.value?.sourceReference ?? null)
+const recordsToCreate = computed(() => {
+  const records: Array<{ type: string; title: string; sourcePreserved: boolean }> = []
+  const sourcePreserved = Boolean(selectedSourceReference.value)
+  if (!wizard.skipProblem && wizard.problem.title.trim()) {
+    records.push({ type: 'Project Problem', title: wizard.problem.title.trim(), sourcePreserved })
+  }
+  if (!wizard.skipApplication && wizard.application.title.trim()) {
+    records.push({ type: 'Project Application', title: wizard.application.title.trim(), sourcePreserved })
+  }
+  if (!wizard.skipDecision && wizard.decision.title.trim() && wizard.decision.decision.trim()) {
+    records.push({ type: 'Design Decision', title: wizard.decision.title.trim(), sourcePreserved })
+  }
+  if (!wizard.skipPlan && wizard.plan.title.trim()) {
+    records.push({ type: 'Playtest Plan', title: wizard.plan.title.trim(), sourcePreserved: false })
+  }
+  if (!wizard.skipFinding && wizard.finding.title.trim()) {
+    records.push({ type: 'Playtest Finding', title: wizard.finding.title.trim(), sourcePreserved })
+  }
+  if (!wizard.skipIterationNote && wizard.iterationNote.trim() && selectedSource.value && iterationTarget(selectedSource.value)) {
+    records.push({ type: 'Iteration Link', title: truncate(wizard.iterationNote.trim(), 90), sourcePreserved })
+  }
+  return records
+})
 
 onMounted(loadData)
 
@@ -645,6 +693,7 @@ function saveDraft() {
     JSON.stringify({
       selectedSourceKey: selectedSourceKey.value,
       activeStep: activeStep.value,
+      idempotencyKey: idempotencyKey.value,
       wizard,
     }),
   )
@@ -655,9 +704,10 @@ function restoreDraft() {
   const raw = window.localStorage.getItem(draftKey.value)
   if (!raw) return
   try {
-    const parsed = JSON.parse(raw) as { selectedSourceKey?: string; activeStep?: number; wizard?: Partial<typeof wizard> }
+    const parsed = JSON.parse(raw) as { selectedSourceKey?: string; activeStep?: number; idempotencyKey?: string; wizard?: Partial<typeof wizard> }
     selectedSourceKey.value = parsed.selectedSourceKey ?? ''
     activeStep.value = Number.isInteger(parsed.activeStep) ? Math.min(Math.max(Number(parsed.activeStep), 0), steps.length - 1) : 0
+    idempotencyKey.value = parsed.idempotencyKey || idempotencyKey.value
     if (parsed.wizard) {
       Object.assign(wizard, parsed.wizard)
     }
@@ -671,122 +721,116 @@ async function confirmWizard() {
     ElMessage.warning('Choose a real source before confirming.')
     return
   }
+  if (!recordsToCreate.value.length) {
+    ElMessage.warning('Add text to at least one unskipped step before confirming.')
+    return
+  }
 
   confirming.value = true
   createdRecords.value = []
-  const created: CreatedRecord[] = []
-  const source = selectedSource.value
-  const sourceReferenceId = selectedSourceReference.value?.id ?? null
+  wizardResult.value = null
+  submitError.value = ''
 
   try {
-    if (!wizard.skipProblem && wizard.problem.title.trim()) {
-      const problem = await createProjectProblem(project.value.id, {
-        title: wizard.problem.title.trim(),
-        description: wizard.problem.description.trim() || null,
-        priority: wizard.problem.priority,
-        status: wizard.problem.status,
-        relatedSourceReferenceId: sourceReferenceId,
-      })
-      created.push(recordSummary('Project Problem', problem.title, Boolean(problem.relatedSourceReference)))
-    }
-
-    if (!wizard.skipApplication && wizard.application.title.trim()) {
-      const application = await createApplicationFromSource(source)
-      created.push(recordSummary('Project Application', application.title, Boolean(application.sourceReference)))
-    }
-
-    if (!wizard.skipDecision && wizard.decision.title.trim() && wizard.decision.decision.trim()) {
-      const decision = await createDesignDecision(project.value.id, {
-        title: wizard.decision.title.trim(),
-        decision: wizard.decision.decision.trim(),
-        rationale: wizard.decision.rationale.trim() || null,
-        tradeoffs: wizard.decision.tradeoffs.trim() || null,
-        status: wizard.decision.status,
-        sourceReferenceId,
-      })
-      created.push(recordSummary('Design Decision', decision.title, Boolean(decision.sourceReference)))
-    }
-
-    if (!wizard.skipPlan && wizard.plan.title.trim()) {
-      const plan = await createPlaytestPlan(project.value.id, {
-        title: wizard.plan.title.trim(),
-        hypothesis: wizard.plan.hypothesis.trim() || null,
-        targetPlayers: wizard.plan.targetPlayers.trim() || null,
-        tasks: wizard.plan.tasks.trim() || null,
-        successCriteria: wizard.plan.successCriteria.trim() || null,
-        status: wizard.plan.status,
-      })
-      created.push(recordSummary('Playtest Plan', plan.title, false))
-    }
-
-    if (!wizard.skipFinding && wizard.finding.title.trim()) {
-      const finding = await createPlaytestFinding(project.value.id, {
-        title: wizard.finding.title.trim(),
-        observation: wizard.finding.observation.trim() || null,
-        recommendation: wizard.finding.recommendation.trim() || null,
-        severity: wizard.finding.severity,
-        status: wizard.finding.status,
-        sourceReferenceId,
-      })
-      created.push(recordSummary('Playtest Finding', finding.title, Boolean(finding.sourceReference)))
-    }
-
-    if (!wizard.skipIterationNote && wizard.iterationNote.trim()) {
-      const link = await createIterationKnowledgeLink(source)
-      if (link) {
-        created.push(recordSummary('Iteration Note', link.note ?? 'Iteration note', Boolean(link.sourceReference)))
-      }
-    }
-
-    if (!created.length) {
-      ElMessage.warning('No records were created. Add text to at least one unskipped step.')
-      return
-    }
-
-    createdRecords.value = created
+    const result = await applyKnowledgeWizard(project.value.id, buildWizardPayload())
+    wizardResult.value = result
+    createdRecords.value = result.createdRecords.map((record) => ({
+      key: `${record.type}-${record.id}`,
+      type: record.type,
+      id: record.id,
+      title: record.title,
+      sourcePreserved: record.sourcePreserved,
+    }))
     window.localStorage.removeItem(draftKey.value)
-    ElMessage.success('Guided project records created.')
+    ElMessage.success(result.duplicate ? 'Previous wizard result returned. No duplicate records were created.' : 'Guided project records created transactionally.')
   } catch {
-    ElMessage.error('Could not complete the guided project workflow. Existing records may have been created before the failure.')
+    submitError.value = 'The transactional wizard request failed. No partial project records were created by this submission.'
+    ElMessage.error(submitError.value)
   } finally {
     confirming.value = false
   }
 }
 
-async function createApplicationFromSource(source: WizardSourceOption): Promise<ProjectApplicationRecord> {
-  if (!project.value) throw new Error('Project missing.')
-  const payload = {
-    sourceId: source.id,
-    title: wizard.application.title.trim(),
-    description: wizard.application.description.trim() || null,
-    applicationType: wizard.application.applicationType,
+function buildWizardPayload(): ProjectWizardApplyKnowledgePayload {
+  const source = selectedSource.value
+  const sourceReferenceId = selectedSourceReference.value?.id ?? null
+  const payload: ProjectWizardApplyKnowledgePayload = {
+    sourceType: source?.type ?? null,
+    sourceId: source?.id ?? null,
+    sourceReferenceId,
+    clientStepIntent: steps[activeStep.value]?.key ?? 'finish',
+    idempotencyKey: idempotencyKey.value,
   }
 
-  if (source.type === 'QUOTE') return applyQuoteToProject(project.value.id, payload)
-  if (source.type === 'CONCEPT') return applyConceptToProject(project.value.id, payload)
-  if (source.type === 'KNOWLEDGE_OBJECT') return applyKnowledgeObjectToProject(project.value.id, payload)
-  if (source.type === 'SOURCE_REFERENCE') return applySourceReferenceToProject(project.value.id, payload)
-  return createPrototypeTaskFromDaily(project.value.id, {
-    dailyDesignPromptId: source.id,
-    title: wizard.application.title.trim(),
-    description: wizard.application.description.trim() || null,
-  })
-}
-
-async function createIterationKnowledgeLink(source: WizardSourceOption): Promise<ProjectKnowledgeLinkRecord | null> {
-  if (!project.value) return null
-  const target = iterationTarget(source)
-  if (!target) {
-    ElMessage.warning('Iteration note skipped because the selected source cannot be linked without inventing an entity.')
-    return null
+  if (!wizard.skipProblem && wizard.problem.title.trim()) {
+    payload.projectProblem = {
+      title: wizard.problem.title.trim(),
+      description: wizard.problem.description.trim() || null,
+      priority: wizard.problem.priority,
+      status: wizard.problem.status,
+      relatedSourceReferenceId: sourceReferenceId,
+    }
   }
-  return createProjectKnowledgeLink(project.value.id, {
-    targetType: target.type,
-    targetId: target.id,
-    relationshipType: 'ITERATION_NOTE',
-    note: wizard.iterationNote.trim(),
-    sourceReferenceId: selectedSourceReference.value?.id ?? null,
-  })
+
+  if (!wizard.skipApplication && wizard.application.title.trim()) {
+    payload.projectApplication = {
+      sourceEntityType: source?.type ?? null,
+      sourceEntityId: source?.id ?? null,
+      sourceReferenceId,
+      applicationType: wizard.application.applicationType,
+      title: wizard.application.title.trim(),
+      description: wizard.application.description.trim() || null,
+      status: 'OPEN',
+    }
+  }
+
+  if (!wizard.skipDecision && wizard.decision.title.trim() && wizard.decision.decision.trim()) {
+    payload.designDecision = {
+      title: wizard.decision.title.trim(),
+      decision: wizard.decision.decision.trim(),
+      rationale: wizard.decision.rationale.trim() || null,
+      tradeoffs: wizard.decision.tradeoffs.trim() || null,
+      status: wizard.decision.status,
+      sourceReferenceId,
+    }
+  }
+
+  if (!wizard.skipPlan && wizard.plan.title.trim()) {
+    payload.playtestPlan = {
+      title: wizard.plan.title.trim(),
+      hypothesis: wizard.plan.hypothesis.trim() || null,
+      targetPlayers: wizard.plan.targetPlayers.trim() || null,
+      tasks: wizard.plan.tasks.trim() || null,
+      successCriteria: wizard.plan.successCriteria.trim() || null,
+      status: wizard.plan.status,
+    }
+  }
+
+  if (!wizard.skipFinding && wizard.finding.title.trim()) {
+    payload.playtestFinding = {
+      title: wizard.finding.title.trim(),
+      observation: wizard.finding.observation.trim() || null,
+      recommendation: wizard.finding.recommendation.trim() || null,
+      severity: wizard.finding.severity,
+      status: wizard.finding.status,
+      sourceReferenceId,
+    }
+  }
+
+  if (!wizard.skipIterationNote && wizard.iterationNote.trim() && source) {
+    const target = iterationTarget(source)
+    if (target) {
+      payload.projectKnowledgeLink = {
+        targetType: target.type,
+        targetId: target.id,
+        relationshipType: 'ITERATION_NOTE',
+        note: wizard.iterationNote.trim(),
+        sourceReferenceId,
+      }
+    }
+  }
+
+  return payload
 }
 
 function iterationTarget(source: WizardSourceOption) {
@@ -794,10 +838,6 @@ function iterationTarget(source: WizardSourceOption) {
     return selectedSourceReference.value ? { type: 'SOURCE_REFERENCE', id: selectedSourceReference.value.id } : null
   }
   return { type: source.type, id: source.id }
-}
-
-function recordSummary(type: string, title: string, sourcePreserved: boolean): CreatedRecord {
-  return { key: `${type}-${Date.now()}-${Math.random()}`, type, title, sourcePreserved }
 }
 
 function stepSkipped(key: WizardStepKey) {
@@ -833,6 +873,13 @@ function sourceLocation(source: SourceReferenceRecord) {
 function truncate(value: string, max: number) {
   return value.length > max ? `${value.slice(0, max - 1)}...` : value
 }
+
+function createIdempotencyKey() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID()
+  }
+  return `wizard-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 </script>
 
 <style scoped>
@@ -860,6 +907,7 @@ function truncate(value: string, max: number) {
 .wizard-intro p,
 .source-card h3,
 .source-card p,
+.review-summary ul,
 .created-summary ul {
   margin: 0;
 }
@@ -948,10 +996,12 @@ function truncate(value: string, max: number) {
   background: var(--bookos-surface-muted);
 }
 
+.review-summary,
 .created-summary {
   padding: var(--space-4);
 }
 
+.review-summary ul,
 .created-summary ul {
   padding-left: 1.1rem;
   display: grid;

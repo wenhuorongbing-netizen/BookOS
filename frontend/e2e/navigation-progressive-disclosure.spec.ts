@@ -1,7 +1,7 @@
 import { expect, test, type Page, type APIRequestContext } from '@playwright/test'
 import { apiPost, apiPut, setSession, uniqueRunId, type AuthPayload } from './support/api'
 
-type NavigationMode = 'READER' | 'GAME_DESIGNER' | 'RESEARCHER' | 'ADVANCED'
+type NavigationMode = 'READER' | 'NOTE_TAKER' | 'GAME_DESIGNER' | 'RESEARCHER' | 'COMMUNITY' | 'ADVANCED'
 
 const modeCases: Array<{
   mode: NavigationMode
@@ -12,26 +12,38 @@ const modeCases: Array<{
   {
     mode: 'READER',
     label: 'Reader Mode',
-    primary: ['Dashboard', 'Library', 'Capture', 'Notes', 'Review'],
+    primary: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Review'],
     secondary: ['Quotes', 'Actions', 'Concepts'],
+  },
+  {
+    mode: 'NOTE_TAKER',
+    label: 'Note-Taker Mode',
+    primary: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Review'],
+    secondary: ['Quotes', 'Actions', 'Concepts', 'Design Knowledge'],
   },
   {
     mode: 'GAME_DESIGNER',
     label: 'Game Designer Mode',
-    primary: ['Dashboard', 'Library', 'Capture', 'Projects', 'Review'],
-    secondary: ['Quotes', 'Concepts', 'Knowledge', 'Daily', 'Forum'],
+    primary: ['Dashboard', 'Library', 'Process Captures', 'Projects', 'Review'],
+    secondary: ['Quotes', 'Concepts', 'Design Knowledge', 'Daily', 'Forum'],
   },
   {
     mode: 'RESEARCHER',
     label: 'Researcher Mode',
     primary: ['Dashboard', 'Library', 'Notes', 'Concepts', 'Review'],
-    secondary: ['Knowledge', 'Knowledge Graph', 'Quotes'],
+    secondary: ['Design Knowledge', 'Quotes'],
+  },
+  {
+    mode: 'COMMUNITY',
+    label: 'Community Mode',
+    primary: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Forum', 'Review'],
+    secondary: ['Quotes', 'Concepts', 'Design Knowledge', 'Daily'],
   },
   {
     mode: 'ADVANCED',
     label: 'Advanced Mode',
-    primary: ['Dashboard', 'Library', 'Capture', 'Notes', 'Projects', 'Concepts', 'Review'],
-    secondary: ['Quotes', 'Actions', 'Knowledge', 'Daily', 'Forum', 'Use Cases'],
+    primary: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Projects', 'Concepts', 'Review'],
+    secondary: ['Quotes', 'Actions', 'Design Knowledge', 'Daily', 'Forum', 'Use Cases'],
   },
 ]
 
@@ -44,7 +56,7 @@ async function createModeUser(page: Page, request: APIRequestContext, mode: Navi
   })
   const user = await apiPut<AuthPayload['user']>(request, '/users/me/onboarding', auth.token, {
     onboardingCompleted: true,
-    primaryUseCase: mode === 'GAME_DESIGNER' ? 'GAME_PROJECT' : 'TRACK_READING',
+    primaryUseCase: mode === 'GAME_DESIGNER' ? 'GAME_PROJECT' : mode === 'COMMUNITY' ? 'COMMUNITY_DISCUSSION' : 'TRACK_READING',
     startingMode: mode,
     preferredDashboardMode: mode,
   })
@@ -72,7 +84,7 @@ for (const modeCase of modeCases) {
     }
 
     await expect(sidebarLink(page, 'Ontology Import')).toHaveCount(0)
-    if (modeCase.mode !== 'ADVANCED' && modeCase.mode !== 'RESEARCHER') {
+    if (modeCase.mode !== 'ADVANCED') {
       await expect(sidebarLink(page, 'Knowledge Graph')).toHaveCount(0)
     }
   })

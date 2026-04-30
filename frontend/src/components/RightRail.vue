@@ -1,6 +1,30 @@
 <template>
   <aside class="right-rail" aria-label="Contextual sidebar">
-    <ContextPanel eyebrow="Source Reference" title="Current source">
+    <template v-if="showDashboardStarterRail">
+      <ContextPanel eyebrow="Context" title="No source pinned yet">
+        <div class="rail-starter">
+          <strong>Pin context when you open a source</strong>
+          <p>
+            Open a book, quote, note, action, or source-backed project application to use source tools here. Draft
+            Assistant and extracted actions stay quiet until there is useful context.
+          </p>
+          <div class="rail-starter__actions">
+            <RouterLink to="/guided/first-loop" custom v-slot="{ navigate }">
+              <AppButton variant="primary" @click="navigate">Start first loop</AppButton>
+            </RouterLink>
+            <RouterLink to="/books/new" custom v-slot="{ navigate }">
+              <AppButton variant="secondary" @click="navigate">Add Book</AppButton>
+            </RouterLink>
+            <RouterLink to="/captures/inbox" custom v-slot="{ navigate }">
+              <AppButton variant="ghost" @click="navigate">Process Captures</AppButton>
+            </RouterLink>
+          </div>
+        </div>
+      </ContextPanel>
+    </template>
+
+    <template v-else>
+      <ContextPanel eyebrow="Source Link" title="Current source">
       <div v-if="source" class="source-card">
         <div class="source-card__topline">
           <AppBadge :variant="source.type === 'quote' ? 'accent' : source.type === 'action-item' ? 'warning' : 'primary'" size="sm">
@@ -50,11 +74,11 @@
 
       <div v-else class="rail-empty">
         <strong>No source selected</strong>
-        <p>Open a book, quote, note, or action item to pin its source here.</p>
+        <p>Open a book, quote, note, or action to pin its source here.</p>
       </div>
     </ContextPanel>
 
-    <ContextPanel eyebrow="AI Draft Suggestions" title="Draft assistance">
+    <ContextPanel eyebrow="Draft Assistant" title="Draft assistance">
       <div class="draft-disabled">
         <div class="draft-disabled__status">
           <AppBadge :variant="aiStatus?.available ? 'info' : 'warning'" size="sm">
@@ -67,7 +91,7 @@
         <p>{{ aiStatus?.message ?? 'Draft-only suggestions are generated from existing BookOS content.' }}</p>
         <p>Accepting a draft records your decision only; it never overwrites notes, quotes, concepts, projects, forum posts, or actions.</p>
       </div>
-      <div class="ai-task-row" aria-label="Generate AI draft suggestions">
+      <div class="ai-task-row" aria-label="Generate assistant draft suggestions">
         <label class="ai-task-row__field">
           <span>Generation task</span>
           <el-select v-model="selectedAITask" aria-label="AI generation task">
@@ -84,8 +108,8 @@
         </AppButton>
       </div>
 
-      <AppLoadingState v-if="aiLoading" label="Loading AI drafts" compact />
-      <AppErrorState v-else-if="aiError" title="AI drafts unavailable" :description="aiError" retry-label="Retry" @retry="loadAISuggestions" />
+      <AppLoadingState v-if="aiLoading" label="Loading assistant drafts" compact />
+      <AppErrorState v-else-if="aiError" title="Draft Assistant unavailable" :description="aiError" retry-label="Retry" @retry="loadAISuggestions" />
 
       <div v-else-if="visibleDrafts.length" class="draft-list">
         <article v-for="draft in visibleDrafts" :key="draft.id" class="draft-card">
@@ -104,7 +128,7 @@
           </label>
           <p v-else>{{ draft.draftText }}</p>
 
-          <div class="right-rail__actions" :aria-label="`Actions for draft suggestion ${draft.id}`">
+          <div class="right-rail__actions" :aria-label="`Actions for assistant draft ${draft.id}`">
             <template v-if="editingDraftId === draft.id">
               <AppButton variant="primary" :loading="aiMutatingId === draft.id" @click="saveDraftEdit(draft)">Save edit</AppButton>
               <AppButton variant="ghost" @click="cancelDraftEdit">Cancel</AppButton>
@@ -120,12 +144,12 @@
       </div>
 
       <div v-else class="rail-empty">
-        <strong>No AI drafts available</strong>
+        <strong>No assistant drafts available</strong>
         <p>Generate a MockAIProvider draft from the current source or recent user content.</p>
       </div>
     </ContextPanel>
 
-    <ContextPanel eyebrow="Action Items Extracted" title="Next actions">
+    <ContextPanel eyebrow="Extracted Actions" title="Next actions">
       <div v-if="actionItems.length" class="action-list">
         <article v-for="item in actionItems" :key="item.id" class="action-item" :class="{ 'action-item--complete': item.completed }">
           <div class="action-item__body">
@@ -143,12 +167,13 @@
       </div>
 
       <div v-else class="rail-empty">
-        <strong>No extracted action items yet</strong>
-        <p>Action items converted from captures, notes, or manual entries will be listed here.</p>
+        <strong>No extracted actions yet</strong>
+        <p>Actions converted from captures, notes, or manual entries will be listed here.</p>
       </div>
 
-      <AppButton variant="secondary" @click="openActionItems">View all action items</AppButton>
+      <AppButton variant="secondary" @click="openActionItems">View all actions</AppButton>
     </ContextPanel>
+    </template>
 
     <div
       v-if="pendingAcceptDraft"
@@ -159,7 +184,7 @@
       @keydown.escape="pendingAcceptDraft = null"
     >
       <div ref="confirmPanel" class="rail-confirm__panel" tabindex="-1">
-        <h2 id="accept-draft-title">Accept AI draft?</h2>
+        <h2 id="accept-draft-title">Accept assistant draft?</h2>
         <p>This marks the suggestion as accepted. It still will not overwrite existing user content automatically.</p>
         <div class="right-rail__actions">
           <AppButton variant="primary" :loading="aiMutatingId === pendingAcceptDraft.id" @click="confirmAcceptDraft">Accept draft</AppButton>
@@ -173,7 +198,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   acceptAISuggestion,
   createDesignLensSuggestion,
@@ -198,6 +223,7 @@ import { useRightRailStore, type ActionItemPriority, type ExtractedActionItem, t
 import type { AIProviderStatusRecord, AISuggestionPayload, AISuggestionRecord, AISuggestionType } from '../types'
 
 const router = useRouter()
+const route = useRoute()
 const rail = useRightRailStore()
 const { openSource: openSourceDrawer } = useOpenSource()
 
@@ -217,9 +243,12 @@ const togglingActionItemId = ref<string | null>(null)
 const source = computed(() => rail.sourceReference)
 const visibleDrafts = computed(() => aiSuggestions.value.filter((draft) => draft.status === 'DRAFT'))
 const actionItems = computed(() => rail.actionItems)
+const showDashboardStarterRail = computed(
+  () => route.name === 'dashboard' && !source.value && !visibleDrafts.value.length && !actionItems.value.length && !aiError.value,
+)
 const aiTaskOptions: { label: string; value: AISuggestionType }[] = [
   { label: 'Summarize source', value: 'NOTE_SUMMARY' },
-  { label: 'Extract action items', value: 'EXTRACT_ACTIONS' },
+  { label: 'Extract actions', value: 'EXTRACT_ACTIONS' },
   { label: 'Extract concepts', value: 'EXTRACT_CONCEPTS' },
   { label: 'Suggest design lenses', value: 'SUGGEST_DESIGN_LENSES' },
   { label: 'Suggest project applications', value: 'SUGGEST_PROJECT_APPLICATIONS' },
@@ -264,7 +293,7 @@ function openActionItemSource(item: ExtractedActionItem) {
     bookId: item.bookId,
     bookTitle: item.bookTitle,
     pageRange: item.pageRange,
-    location: 'Action item',
+    location: 'Action',
     excerpt: item.text,
   })
   void openSourceDrawer({
@@ -273,7 +302,7 @@ function openActionItemSource(item: ExtractedActionItem) {
     bookId: item.bookId,
     bookTitle: item.bookTitle,
     sourceReferenceId: item.sourceId ?? null,
-    locationLabel: 'Action item',
+    locationLabel: 'Action',
     sourceText: item.text,
   })
 }
@@ -286,7 +315,7 @@ async function loadAISuggestions() {
     aiStatus.value = status
     aiSuggestions.value = suggestions
   } catch (error) {
-    aiError.value = apiErrorMessage(error, 'AI drafts could not be loaded.')
+    aiError.value = apiErrorMessage(error, 'Assistant drafts could not be loaded.')
   } finally {
     aiLoading.value = false
   }
@@ -300,7 +329,7 @@ async function generateSuggestion(type: AISuggestionType) {
     upsertSuggestion(suggestion)
     ElMessage.success(`${aiStatus.value?.activeProvider ?? 'AI provider'} draft created.`)
   } catch (error) {
-    ElMessage.error(apiErrorMessage(error, 'AI draft generation failed.'))
+    ElMessage.error(apiErrorMessage(error, 'Assistant draft generation failed.'))
   } finally {
     aiGenerating.value = null
   }
@@ -404,7 +433,7 @@ async function toggleActionItem(id: string) {
   togglingActionItemId.value = id
   try {
     await rail.toggleActionItem(id)
-    ElMessage.success('Action item updated.')
+    ElMessage.success('Action updated.')
   } catch (error) {
     ElMessage.error(actionItemErrorMessage(error))
   } finally {
@@ -414,7 +443,7 @@ async function toggleActionItem(id: string) {
 
 function sourceTypeLabel(type: RailSourceType) {
   if (type === 'quote') return 'Quote'
-  if (type === 'action-item') return 'Action item'
+  if (type === 'action-item') return 'Action'
   if (type === 'note') return 'Note source'
   if (type === 'daily-sentence') return 'Daily sentence'
   return 'Book context'
@@ -430,14 +459,14 @@ function sourceTypeQuery(type: RailSourceType) {
 
 function actionItemErrorMessage(error: unknown) {
   if (typeof error !== 'object' || error === null || !('response' in error)) {
-    return 'Action item update failed. Check that the backend is available and try again.'
+    return 'Action update failed. Check that the backend is available and try again.'
   }
 
   const response = (error as { response?: { status?: number; data?: { message?: string } } }).response
   if (!response) return 'Backend unavailable. Check that the API server is running and try again.'
-  if (response.status === 403) return 'Permission denied. You do not have access to update this action item.'
-  if (response.status === 400) return response.data?.message ?? 'Validation error. The action item could not be updated.'
-  return response.data?.message ?? 'Action item update failed.'
+  if (response.status === 403) return 'Permission denied. You do not have access to update this action.'
+  if (response.status === 400) return response.data?.message ?? 'Validation error. The action could not be updated.'
+  return response.data?.message ?? 'Action update failed.'
 }
 
 function apiErrorMessage(error: unknown, fallback: string) {
@@ -447,8 +476,8 @@ function apiErrorMessage(error: unknown, fallback: string) {
 
   const response = (error as { response?: { status?: number; data?: { message?: string } } }).response
   if (!response) return 'Backend unavailable. Check that the API server is running and try again.'
-  if (response.status === 403) return 'Permission denied. You do not have access to this AI draft.'
-  if (response.status === 400) return response.data?.message ?? 'Validation error. The AI draft request could not be completed.'
+  if (response.status === 403) return 'Permission denied. You do not have access to this assistant draft.'
+  if (response.status === 400) return response.data?.message ?? 'Validation error. The assistant draft request could not be completed.'
   return response.data?.message ?? fallback
 }
 
@@ -508,9 +537,25 @@ function formatDate(value: string | null | undefined) {
 .draft-card__warnings,
 .ai-task-row,
 .action-list,
-.rail-empty {
+.rail-empty,
+.rail-starter,
+.rail-starter__actions {
   display: grid;
   gap: var(--space-3);
+}
+
+.rail-starter p {
+  margin: 0;
+  color: var(--bookos-text-secondary);
+}
+
+.rail-starter strong {
+  color: var(--bookos-text-primary);
+  font-size: 1rem;
+}
+
+.rail-starter__actions {
+  grid-template-columns: 1fr;
 }
 
 .source-card__topline {

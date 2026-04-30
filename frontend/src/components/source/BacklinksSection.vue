@@ -8,17 +8,17 @@
       compact
     />
 
-    <AppLoadingState v-if="loading" label="Loading backlinks" />
+    <AppLoadingState v-if="loading" label="Loading related links" />
 
-    <AppErrorState v-else-if="errorMessage" title="Backlinks unavailable" :description="errorMessage" />
+    <AppErrorState v-else-if="errorMessage" title="Related links unavailable" :description="errorMessage" />
 
     <div v-else class="backlinks-section__content">
       <section aria-labelledby="direct-sources-title" class="backlinks-section__group">
-        <h3 id="direct-sources-title">Source references</h3>
+        <h3 id="direct-sources-title">Source links</h3>
         <AppEmptyState
           v-if="!sourceReferences.length"
-          title="No source references"
-          description="This object does not have a direct source reference yet."
+          title="No source links"
+          description="This object does not have a direct source link yet."
           compact
         />
         <template v-else>
@@ -35,10 +35,10 @@
       </section>
 
       <section aria-labelledby="entity-links-title" class="backlinks-section__group">
-        <h3 id="entity-links-title">Backlinks</h3>
+        <h3 id="entity-links-title">Related Links</h3>
         <AppEmptyState
           v-if="!backlinks.length"
-          title="No backlinks"
+          title="No related links"
           description="Related concepts, notes, captures, quotes, and tasks will appear here when linked."
           compact
         />
@@ -90,7 +90,7 @@ const props = withDefaults(
   }>(),
   {
     sourceReferences: () => [],
-    title: 'Sources and Backlinks',
+    title: 'Sources and Related Links',
     description: 'Open the original source and inspect source-backed relationships.',
     bookTitle: null,
   },
@@ -118,7 +118,7 @@ async function loadLinks() {
     backlinks.value = await getBacklinks({ entityType: props.entityType, entityId: props.entityId })
   } catch {
     backlinks.value = []
-    errorMessage.value = 'Backlinks could not be loaded. Check backend availability and permissions.'
+    errorMessage.value = 'Related links could not be loaded. Check backend availability and permissions.'
   } finally {
     loading.value = false
   }

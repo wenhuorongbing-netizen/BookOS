@@ -18,6 +18,8 @@ import type {
   ProjectProblemPayload,
   ProjectProblemRecord,
   ProjectPrototypeTaskFromDailyPayload,
+  ProjectWizardApplyKnowledgePayload,
+  ProjectWizardApplyKnowledgeRecord,
 } from '../types'
 
 export function getProjects() {
@@ -166,4 +168,8 @@ export function applyKnowledgeObjectToProject(projectId: number | string, payloa
 
 export function createPrototypeTaskFromDaily(projectId: number | string, payload: ProjectPrototypeTaskFromDailyPayload) {
   return unwrap<ProjectApplicationRecord>(api.post(`/projects/${projectId}/create-prototype-task-from-daily`, payload))
+}
+
+export function applyKnowledgeWizard(projectId: number | string, payload: ProjectWizardApplyKnowledgePayload) {
+  return unwrap<ProjectWizardApplyKnowledgeRecord>(api.post(`/projects/${projectId}/wizard/apply-knowledge`, payload))
 }

@@ -38,6 +38,23 @@ Demo endpoint rules:
 - Demo pages are not invented; unknown page values stay `null`.
 - Normal analytics exclude demo records unless `includeDemo=true`.
 
+Executable use cases:
+
+- `GET /api/use-cases/progress`
+- `GET /api/use-cases/progress/{slug}`
+- `POST /api/use-cases/progress/{slug}/start`
+- `PUT /api/use-cases/progress/{slug}/steps/{stepKey}/complete`
+- `PUT /api/use-cases/progress/{slug}/reset`
+- `POST /api/use-cases/progress/events`
+
+Executable use case rules:
+
+- Progress is current-user scoped and persists across reloads.
+- Automatic step completion is inferred only from real owned records.
+- Manual completion is allowed only for steps the app cannot detect yet.
+- Reset clears only the current user's progress for the selected use case.
+- Events record real current-user actions such as opening source, using search, opening graph, and starting export.
+
 Books and user library:
 
 - `GET /api/books`
@@ -230,6 +247,7 @@ Project Mode:
 - `POST /api/projects/{projectId}/apply/concept`
 - `POST /api/projects/{projectId}/apply/knowledge-object`
 - `POST /api/projects/{projectId}/create-prototype-task-from-daily`
+- `POST /api/projects/{projectId}/wizard/apply-knowledge` - transactional guided project workflow; validates ownership before creating project records, preserves source references, and uses an idempotency key to prevent duplicate submissions.
 
 Forum:
 

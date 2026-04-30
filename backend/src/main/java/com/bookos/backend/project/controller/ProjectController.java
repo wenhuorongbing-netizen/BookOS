@@ -10,6 +10,8 @@ import com.bookos.backend.project.dto.PlaytestFindingRequest;
 import com.bookos.backend.project.dto.PlaytestFindingResponse;
 import com.bookos.backend.project.dto.PlaytestPlanRequest;
 import com.bookos.backend.project.dto.PlaytestPlanResponse;
+import com.bookos.backend.project.dto.ProjectApplyKnowledgeWizardRequest;
+import com.bookos.backend.project.dto.ProjectApplyKnowledgeWizardResponse;
 import com.bookos.backend.project.dto.ProjectApplicationRequest;
 import com.bookos.backend.project.dto.ProjectApplicationResponse;
 import com.bookos.backend.project.dto.ProjectKnowledgeLinkRequest;
@@ -311,5 +313,18 @@ public class ProjectController {
             @Valid @RequestBody ProjectPrototypeTaskFromDailyRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Prototype task created from daily prompt.", projectService.createPrototypeTaskFromDaily(authentication.getName(), projectId, request)));
+    }
+
+    @PostMapping("/api/projects/{projectId}/wizard/apply-knowledge")
+    public ResponseEntity<ApiResponse<ProjectApplyKnowledgeWizardResponse>> applyKnowledgeWizard(
+            Authentication authentication,
+            @PathVariable Long projectId,
+            @Valid @RequestBody ProjectApplyKnowledgeWizardRequest request) {
+        ProjectApplyKnowledgeWizardResponse response = projectService.applyKnowledgeWizard(authentication.getName(), projectId, request);
+        HttpStatus status = response.duplicate() ? HttpStatus.OK : HttpStatus.CREATED;
+        String message = response.duplicate()
+                ? "Project wizard submission already exists; previous result returned."
+                : "Project wizard records created transactionally.";
+        return ResponseEntity.status(status).body(ApiResponse.ok(message, response));
     }
 }

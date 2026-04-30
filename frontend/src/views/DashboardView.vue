@@ -19,12 +19,12 @@
           <RouterLink :to="nextActionPlan.primaryTo" custom v-slot="{ navigate }">
             <AppButton variant="primary" @click="navigate">{{ nextActionPlan.primaryLabel }}</AppButton>
           </RouterLink>
-          <RouterLink to="/demo" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Try Demo Workspace</AppButton>
-          </RouterLink>
-          <RouterLink to="/onboarding?restart=1" custom v-slot="{ navigate }">
-            <AppButton variant="ghost" @click="navigate">Restart onboarding</AppButton>
-          </RouterLink>
+          <div class="dashboard-hero__support" aria-label="Secondary dashboard help">
+            <button type="button" @click="focusModeSwitcher">Switch mode</button>
+            <RouterLink to="/guided/first-loop">First loop</RouterLink>
+            <RouterLink to="/demo">Practice in Demo</RouterLink>
+            <RouterLink to="/onboarding?restart=1">Restart onboarding</RouterLink>
+          </div>
         </div>
       </section>
 
@@ -44,7 +44,67 @@
         </div>
       </AppCard>
 
-      <section class="dashboard-section dashboard-section--today" aria-labelledby="today-title">
+      <AppCard id="dashboard-mode-switcher" class="mode-landing-card" as="section" aria-labelledby="mode-landing-title">
+        <AppSectionHeader
+          eyebrow="Focused landing"
+          :title="`${currentModeLabel} landing`"
+          :description="modeLanding.description"
+          compact
+        />
+        <div class="mode-landing-card__why">
+          <strong>Why am I seeing this?</strong>
+          <span>{{ modeLanding.why }}</span>
+        </div>
+        <div class="mode-landing-grid">
+          <AppCard v-for="item in modeLanding.items" :key="item.title" class="mode-task-card" variant="muted" as="article">
+            <div>
+              <p class="eyebrow">{{ item.eyebrow }}</p>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.description }}</p>
+              <p class="task-card__meta">{{ item.meta }}</p>
+            </div>
+            <RouterLink :to="item.to" custom v-slot="{ navigate }">
+              <AppButton variant="secondary" @click="navigate">{{ item.cta }}</AppButton>
+            </RouterLink>
+          </AppCard>
+        </div>
+        <div class="mode-switcher" role="group" aria-label="Switch dashboard mode">
+          <button
+            v-for="mode in navigationModes"
+            :key="mode.value"
+            type="button"
+            :aria-pressed="mode.value === currentDashboardMode"
+            :disabled="modeSaving || mode.value === currentDashboardMode"
+            @click="setDashboardMode(mode.value)"
+          >
+            {{ mode.label }}
+          </button>
+        </div>
+      </AppCard>
+
+      <AppCard v-if="isEmptyUser" class="readiness-card" as="section" aria-labelledby="readiness-title">
+        <div>
+          <p class="eyebrow">First-day flow</p>
+          <h2 id="readiness-title">Start with one book, one capture, and one source check.</h2>
+          <p>
+            BookOS will keep advanced tools out of the way until you have real reading material. You can still open them
+            from More or Advanced Mode when you need them.
+          </p>
+        </div>
+        <div class="readiness-card__actions">
+          <RouterLink to="/books/new" custom v-slot="{ navigate }">
+            <AppButton variant="primary" @click="navigate">Add Book</AppButton>
+          </RouterLink>
+          <RouterLink to="/guided/first-loop" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">First Valuable Loop</AppButton>
+          </RouterLink>
+          <RouterLink to="/demo" custom v-slot="{ navigate }">
+            <AppButton variant="ghost" @click="navigate">Practice in Demo</AppButton>
+          </RouterLink>
+        </div>
+      </AppCard>
+
+      <section v-if="showTodaySection" class="dashboard-section dashboard-section--today" aria-labelledby="today-title">
         <AppSectionHeader
           eyebrow="Today"
           title="Today"
@@ -88,7 +148,7 @@
             >
               <template #actions>
                 <RouterLink to="/captures/inbox" custom v-slot="{ navigate }">
-                  <AppButton variant="secondary" @click="navigate">Open capture inbox</AppButton>
+                  <AppButton variant="secondary" @click="navigate">Process Captures</AppButton>
                 </RouterLink>
               </template>
             </AppEmptyState>
@@ -132,11 +192,11 @@
         </div>
       </section>
 
-      <section class="dashboard-section dashboard-section--reading" aria-labelledby="continue-title">
+      <section v-if="showContinueReadingSection" class="dashboard-section dashboard-section--reading" aria-labelledby="continue-title">
         <AppSectionHeader
           eyebrow="Continue Reading"
           title="Continue Reading"
-          description="Resume the book context that can anchor notes, captures, quotes, and source references."
+          description="Resume the book context that can anchor notes, captures, quotes, and source links."
           compact
         />
         <div v-if="continueBooks.length" class="reading-list">
@@ -173,14 +233,17 @@
             <RouterLink to="/books/new" custom v-slot="{ navigate }">
               <AppButton variant="primary" @click="navigate">Add a book</AppButton>
             </RouterLink>
+            <RouterLink to="/guided/first-loop" custom v-slot="{ navigate }">
+              <AppButton variant="secondary" @click="navigate">Start first loop</AppButton>
+            </RouterLink>
             <RouterLink to="/my-library" custom v-slot="{ navigate }">
-              <AppButton variant="secondary" @click="navigate">Open library</AppButton>
+              <AppButton variant="ghost" @click="navigate">Open library</AppButton>
             </RouterLink>
           </template>
         </AppEmptyState>
       </section>
 
-      <section class="dashboard-section dashboard-section--capture" aria-labelledby="capture-title">
+      <section v-if="showQuickCaptureSection" class="dashboard-section dashboard-section--capture" aria-labelledby="capture-title">
         <AppCard class="quick-capture-card" as="section">
           <div class="quick-capture-card__intro">
             <p class="eyebrow">Quick Capture</p>
@@ -205,7 +268,7 @@
               </option>
             </select>
             <p v-if="!captureBookId" class="capture-warning" role="status">
-              Choose a book before saving so BookOS can preserve the source reference. Unknown pages will stay null.
+              Choose a book before saving so BookOS can preserve the source link. Unknown pages will stay null.
             </p>
 
             <label class="form-label" for="dashboard-capture-text">Capture text</label>
@@ -217,15 +280,22 @@
               placeholder="&#x1F4A1; p.12 This could become a core loop [[Core Loop]] #prototype"
             />
             <p class="capture-hint">
-              Examples: &#x1F4AC; p.42 quote text #quote [[Concept]] · &#x2705; page 80 action item #todo
+              Examples: &#x1F4AC; p.42 quote text #quote [[Concept]] · &#x2705; page 80 action #todo
             </p>
+
+            <div v-if="showParserExamples" class="parser-examples" aria-label="Parser examples">
+              <strong>Parser examples</strong>
+              <span>&#x1F4AC; p.42 original quote text #quote [[Core Loop]]</span>
+              <span>&#x2705; page 80 test this tomorrow #todo [[Feedback Loop]]</span>
+              <span>&#x1F9E9; 第12页 connect this to [[Meaningful Choice]] #concept</span>
+            </div>
 
             <div class="capture-form__actions">
               <AppButton variant="primary" native-type="submit" :loading="captureSaving" :disabled="!canSaveCapture">
                 Save capture
               </AppButton>
               <RouterLink to="/captures/inbox" custom v-slot="{ navigate }">
-                <AppButton variant="secondary" @click="navigate">Open inbox</AppButton>
+                <AppButton variant="secondary" @click="navigate">Process Captures</AppButton>
               </RouterLink>
             </div>
           </form>
@@ -251,10 +321,10 @@
         </AppCard>
       </section>
 
-      <section class="dashboard-section dashboard-section--inbox" aria-labelledby="inbox-title">
+      <section v-if="showInboxSection" class="dashboard-section dashboard-section--inbox" aria-labelledby="inbox-title">
         <AppSectionHeader
-          eyebrow="Inbox"
-          title="Inbox"
+          eyebrow="Process Captures"
+          title="Process Captures"
           description="Process unconverted captures before they become another pile of raw notes."
           compact
         >
@@ -291,13 +361,13 @@
         </div>
         <AppEmptyState
           v-else
-          title="Capture inbox is clear"
+          title="No captures to process"
           description="When you save raw thoughts from Quick Capture, BookOS will show suggested conversions here."
           compact
         />
       </section>
 
-      <section class="dashboard-section dashboard-section--apply" aria-labelledby="apply-title">
+      <section v-if="showApplySection" class="dashboard-section dashboard-section--apply" aria-labelledby="apply-title">
         <AppSectionHeader
           eyebrow="Apply Knowledge"
           title="Apply Knowledge"
@@ -324,6 +394,9 @@
             <RouterLink :to="recentKnowledgeTarget.route" custom v-slot="{ navigate }">
               <AppButton variant="secondary" @click="navigate">Open item</AppButton>
             </RouterLink>
+            <RouterLink v-if="showSourceBackedTools" to="/review" custom v-slot="{ navigate }">
+              <AppButton variant="ghost" @click="navigate">Review Source</AppButton>
+            </RouterLink>
           </div>
         </AppCard>
         <AppEmptyState
@@ -334,13 +407,13 @@
         >
           <template #actions>
             <RouterLink to="/captures/inbox" custom v-slot="{ navigate }">
-              <AppButton variant="primary" @click="navigate">Open capture inbox</AppButton>
+              <AppButton variant="primary" @click="navigate">Process Captures</AppButton>
             </RouterLink>
           </template>
         </AppEmptyState>
       </section>
 
-      <section class="dashboard-section dashboard-section--project" aria-labelledby="project-title">
+      <section v-if="showProjectSection" class="dashboard-section dashboard-section--project" aria-labelledby="project-title">
         <AppSectionHeader
           eyebrow="Project Focus"
           title="Project Focus"
@@ -379,6 +452,14 @@
             <RouterLink :to="{ name: 'project-problems', params: { id: selectedProject.id } }" custom v-slot="{ navigate }">
               <AppButton variant="secondary" @click="navigate">Review problems</AppButton>
             </RouterLink>
+            <RouterLink
+              v-if="showProjectGraphLink"
+              :to="{ name: 'graph-project', params: { projectId: selectedProject.id } }"
+              custom
+              v-slot="{ navigate }"
+            >
+              <AppButton variant="ghost" @click="navigate">Open Project Graph</AppButton>
+            </RouterLink>
           </div>
         </AppCard>
         <AppEmptyState
@@ -395,11 +476,11 @@
         </AppEmptyState>
       </section>
 
-      <section class="dashboard-section dashboard-section--review" aria-labelledby="review-title">
+      <section v-if="showLearningSection" class="dashboard-section dashboard-section--review" aria-labelledby="review-title">
         <AppSectionHeader
           eyebrow="Learning Loop"
           title="Learning Loop"
-          description="Review source-backed items and keep mastery honest instead of inventing scores."
+          description="Review source-backed items and keep learning progress honest instead of inventing scores."
           compact
         >
           <template #actions>
@@ -414,7 +495,7 @@
           </div>
           <div class="review-card__metrics">
             <AppBadge variant="primary" size="sm">{{ reviewSessions.length }} review sessions</AppBadge>
-            <AppBadge variant="accent" size="sm">{{ mastery.length }} mastery targets</AppBadge>
+            <AppBadge variant="accent" size="sm">{{ mastery.length }} progress targets</AppBadge>
           </div>
           <div class="review-card__actions">
             <RouterLink to="/review" custom v-slot="{ navigate }">
@@ -428,6 +509,7 @@
       </section>
 
       <UseCaseSuggestionPanel
+        v-if="showUseCasePanel"
         title="Learn this dashboard through a workflow"
         description="Use these scenario guides when you need a concrete path instead of another module list."
         :slugs="dashboardUseCaseSlugs"
@@ -441,7 +523,7 @@
           compact
         />
         <div class="advanced-grid">
-          <RouterLink to="/graph" class="advanced-link">Open Graph</RouterLink>
+          <RouterLink to="/graph" class="advanced-link">Open Knowledge Graph</RouterLink>
           <RouterLink to="/import-export" class="advanced-link">Import / Export</RouterLink>
           <RouterLink to="/use-cases/mock-ai-draft-helper" class="advanced-link">Mock AI safety workflow</RouterLink>
         </div>
@@ -451,7 +533,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getActionItems } from '../api/actionItems'
 import { getBooks } from '../api/books'
@@ -477,7 +559,7 @@ import type {
   QuoteRecord,
   RawCaptureRecord,
   ReviewSessionRecord,
-  StartingMode,
+  SourceReferenceRecord,
   UserBookRecord,
 } from '../types'
 import AppBadge from '../components/ui/AppBadge.vue'
@@ -492,6 +574,7 @@ import HelpTooltip from '../components/help/HelpTooltip.vue'
 import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useAuthStore } from '../stores/auth'
+import { navigationModeLabel, navigationModes, normalizeNavigationMode, type NavigationMode } from '../utils/navigationMode'
 
 type DashboardRouteTarget = string | { name: string; params?: Record<string, number | string>; query?: Record<string, number | string> }
 
@@ -507,6 +590,21 @@ interface NextActionPlan {
 interface ModeGuide {
   eyebrow: string
   description: string
+}
+
+interface ModeLandingItem {
+  eyebrow: string
+  title: string
+  description: string
+  meta: string
+  cta: string
+  to: DashboardRouteTarget
+}
+
+interface ModeLanding {
+  description: string
+  why: string
+  items: ModeLandingItem[]
 }
 
 interface CaptureBookOption {
@@ -549,28 +647,38 @@ const captureError = ref('')
 const captureText = ref('')
 const captureBookId = ref(0)
 const lastCapture = ref<RawCaptureRecord | null>(null)
+const modeSaving = ref(false)
+
+const currentDashboardMode = computed(() =>
+  normalizeNavigationMode(auth.user?.preferredDashboardMode, auth.user?.startingMode),
+)
+const currentModeLabel = computed(() => navigationModeLabel(currentDashboardMode.value))
 
 const dashboardUseCaseSlugs = computed(() => {
-  if (dashboardMode.value === 'game_designer') {
+  if (currentDashboardMode.value === 'GAME_DESIGNER') {
     return ['apply-quote-to-game-project', 'run-design-lens-review', 'create-playtest-finding']
   }
-  if (dashboardMode.value === 'researcher') {
+  if (currentDashboardMode.value === 'RESEARCHER') {
     return ['review-concept-marker', 'search-rediscover-knowledge', 'inspect-knowledge-graph']
   }
-  if (dashboardMode.value === 'advanced') {
+  if (currentDashboardMode.value === 'ADVANCED') {
     return ['inspect-knowledge-graph', 'export-reading-knowledge', 'mock-ai-draft-helper']
+  }
+  if (currentDashboardMode.value === 'COMMUNITY') {
+    return ['start-source-linked-discussion', 'open-source-from-quote-or-action', 'capture-idea-while-reading']
+  }
+  if (currentDashboardMode.value === 'NOTE_TAKER') {
+    return ['note-taker-capture-convert', 'capture-to-action-item', 'open-source-from-quote-or-action']
   }
   return ['track-book-start-to-finish', 'capture-idea-while-reading', 'capture-to-quote']
 })
 
 const dashboardMode = computed(() => {
-  const mode = auth.user?.preferredDashboardMode ?? auth.user?.startingMode ?? 'READER'
-  return String(mode).toLowerCase()
+  return currentDashboardMode.value.toLowerCase()
 })
 
 const modeGuide = computed<ModeGuide>(() => {
-  const mode = (auth.user?.startingMode ?? 'READER') as StartingMode
-  const guides: Record<StartingMode, ModeGuide> = {
+  const guides: Record<NavigationMode, ModeGuide> = {
     READER: {
       eyebrow: 'Reader Mode',
       description: 'Today is organized around continuing a book, capturing one note, and processing the inbox.',
@@ -585,7 +693,7 @@ const modeGuide = computed<ModeGuide>(() => {
     },
     RESEARCHER: {
       eyebrow: 'Researcher Mode',
-      description: 'Today is organized around concepts, review, and source-backed knowledge objects.',
+      description: 'Today is organized around concepts, review, and source-backed design knowledge.',
     },
     COMMUNITY: {
       eyebrow: 'Community Mode',
@@ -596,7 +704,7 @@ const modeGuide = computed<ModeGuide>(() => {
       description: 'Today still starts with a task, with graph, import/export, and AI kept available but secondary.',
     },
   }
-  return guides[mode] ?? guides.READER
+  return guides[currentDashboardMode.value] ?? guides.READER
 })
 
 const continueBooks = computed(() => {
@@ -614,7 +722,16 @@ const captureBookOptions = computed<CaptureBookOption[]>(() => {
 
 const canSaveCapture = computed(() => Boolean(captureBookId.value && captureText.value.trim()))
 const sourceBackedQuotes = computed(() => quotes.value.filter((quote) => quote.sourceReference))
-const sourceBackedConcepts = computed(() => concepts.value.filter((concept) => concept.firstSourceReference || concept.sourceReferences.length))
+const sourceBackedConcepts = computed(() =>
+  concepts.value.filter(
+    (concept) =>
+      (concept.firstSourceReference && isUserSourceReference(concept.firstSourceReference)) ||
+      concept.sourceReferences.some((source) => isUserSourceReference(source)),
+  ),
+)
+const userKnowledgeObjects = computed(() =>
+  knowledgeObjects.value.filter((knowledge) => knowledge.sourceReference && isUserSourceReference(knowledge.sourceReference)),
+)
 const selectedProject = computed(() => projects.value.find((project) => !project.archivedAt) ?? projects.value[0] ?? null)
 const selectedProjectApplications = computed(() =>
   selectedProject.value ? projectApplications.value.filter((application) => application.projectId === selectedProject.value?.id) : [],
@@ -622,7 +739,223 @@ const selectedProjectApplications = computed(() =>
 const openProjectProblems = computed(() =>
   projectProblems.value.filter((problem) => !['DONE', 'RESOLVED', 'CLOSED'].includes(problem.status.toUpperCase())),
 )
+const isEmptyUser = computed(() => library.value.length === 0)
+const hasLibraryBooks = computed(() => library.value.length > 0)
+const hasCaptures = computed(() => inboxCaptures.value.length > 0 || Boolean(lastCapture.value))
+const convertedRecordCount = computed(() => quotes.value.length + actionItems.value.length + sourceBackedConcepts.value.length + userKnowledgeObjects.value.length)
+const sourceBackedRecordCount = computed(
+  () =>
+    sourceBackedQuotes.value.length +
+    sourceBackedConcepts.value.length +
+    actionItems.value.filter((item) => item.sourceReference).length +
+    userKnowledgeObjects.value.filter((item) => item.sourceReference).length,
+)
+const hasSourceBackedRecords = computed(() => sourceBackedRecordCount.value > 0)
+const showTodaySection = computed(() => hasSourceBackedRecords.value || reviewSessions.value.length > 0 || dashboardMode.value === 'advanced')
+const showContinueReadingSection = computed(() => hasLibraryBooks.value)
+const showQuickCaptureSection = computed(() => hasLibraryBooks.value)
+const showParserExamples = computed(() => hasLibraryBooks.value && !hasCaptures.value && convertedRecordCount.value === 0)
+const showInboxSection = computed(() => hasCaptures.value)
+const showApplySection = computed(() => convertedRecordCount.value > 0)
+const showProjectSection = computed(() => Boolean(selectedProject.value))
+const showProjectGraphLink = computed(() => selectedProjectApplications.value.some((application) => application.sourceReference))
+const showLearningSection = computed(
+  () => hasSourceBackedRecords.value || convertedRecordCount.value > 0 || reviewSessions.value.length > 0 || mastery.value.length > 0,
+)
+const showSourceBackedTools = computed(() => hasSourceBackedRecords.value)
+const showUseCasePanel = computed(() => true)
 const showAdvancedModules = computed(() => dashboardMode.value === 'advanced')
+
+const modeLanding = computed<ModeLanding>(() => {
+  const firstBookRoute = selectedBookRoute()
+  const activeProjectRoute = selectedProject.value ? { name: 'project-detail', params: { id: selectedProject.value.id } } : '/projects/new'
+  const sourceLinksMeta = `${sourceBackedRecordCount.value} source-backed record${sourceBackedRecordCount.value === 1 ? '' : 's'}`
+
+  const landings: Record<NavigationMode, ModeLanding> = {
+    READER: {
+      description: 'A quiet reader-first path: resume a book, capture one thought, then review what matters.',
+      why: 'You chose Reader Mode or have not selected another mode. BookOS keeps projects, graph, import, and assistant tools secondary until you ask for them.',
+      items: [
+        {
+          eyebrow: 'Continue Reading',
+          title: 'Continue Reading',
+          description: continueBooks.value.length ? `Open ${continueBooks.value[0].title} before adding more notes.` : 'Add or resume a book before adding more notes.',
+          meta: `${continueBooks.value.length} reading candidate${continueBooks.value.length === 1 ? '' : 's'}`,
+          cta: continueBooks.value.length ? 'Open book' : 'Add Book',
+          to: continueBooks.value.length ? firstBookRoute : '/books/new',
+        },
+        {
+          eyebrow: 'Capture',
+          title: 'Capture',
+          description: 'Use Quick Capture to preserve book context, tags, concepts, and page markers.',
+          meta: hasCaptures.value ? `${inboxCaptures.value.length} capture${inboxCaptures.value.length === 1 ? '' : 's'} waiting` : 'No pending captures',
+          cta: hasLibraryBooks.value ? 'Capture now' : 'Start first loop',
+          to: hasLibraryBooks.value ? firstBookRoute : '/guided/first-loop',
+        },
+        {
+          eyebrow: 'Review',
+          title: 'Review',
+          description: 'Review only real source-backed records; no fake mastery prompts.',
+          meta: `${reviewSessions.value.length} review session${reviewSessions.value.length === 1 ? '' : 's'}`,
+          cta: 'Start Review',
+          to: '/review',
+        },
+      ],
+    },
+    NOTE_TAKER: {
+      description: 'A note-taking path: write, process, and reconnect notes to their source links.',
+      why: 'Note-Taker Mode emphasizes the workbench where raw captures become notes, quotes, actions, and source-backed blocks.',
+      items: [
+        {
+          eyebrow: 'Current Notes',
+          title: 'Current Notes',
+          description: 'Review existing notes or create a note from a book context.',
+          meta: 'Notes stay useful when tied to books and blocks',
+          cta: 'Open Notes',
+          to: '/notes',
+        },
+        {
+          eyebrow: 'Process Captures',
+          title: 'Process Captures',
+          description: 'Convert raw thoughts into notes, quotes, actions, or concept reviews.',
+          meta: hasCaptures.value ? `${inboxCaptures.value.length} capture${inboxCaptures.value.length === 1 ? '' : 's'} waiting` : 'Capture first, then process',
+          cta: 'Process Captures',
+          to: '/captures/inbox',
+        },
+        {
+          eyebrow: 'Source Links',
+          title: 'Source Links',
+          description: 'Open source-backed records and confirm page unknown stays unknown when no page was supplied.',
+          meta: sourceLinksMeta,
+          cta: sourceBackedRecordCount.value ? 'Open Quotes' : 'Create source-backed record',
+          to: sourceBackedRecordCount.value ? '/quotes' : '/guided/first-loop',
+        },
+      ],
+    },
+    GAME_DESIGNER: {
+      description: 'A game-design path: apply reading to a project, make decisions, and plan playtests.',
+      why: 'Game Designer Mode promotes project application over browsing modules so reading turns into design action.',
+      items: [
+        {
+          eyebrow: 'Active Project',
+          title: 'Active Project',
+          description: selectedProject.value ? `Keep ${selectedProject.value.title} visible so reading can become design work.` : 'Create a project cockpit so reading can become design work.',
+          meta: selectedProject.value ? `${selectedProject.value.progressPercent}% progress` : 'No project yet',
+          cta: selectedProject.value ? 'Open Project Cockpit' : 'Create Project',
+          to: activeProjectRoute,
+        },
+        {
+          eyebrow: 'Apply Knowledge',
+          title: 'Apply Knowledge',
+          description: recentKnowledgeTarget.value ? `Use ${recentKnowledgeTarget.value.title} as evidence for project applications.` : 'Use source-backed quotes, concepts, or design knowledge as evidence for project applications.',
+          meta: `${projectApplications.value.length} project application${projectApplications.value.length === 1 ? '' : 's'}`,
+          cta: recentKnowledgeTarget.value ? 'Apply Source' : 'Find source',
+          to: recentKnowledgeTarget.value?.route ?? '/quotes',
+        },
+        {
+          eyebrow: 'Playtest',
+          title: 'Playtest',
+          description: 'Plan or record findings after reading informs a project problem.',
+          meta: openProjectProblems.value.length ? `${openProjectProblems.value.length} open problem${openProjectProblems.value.length === 1 ? '' : 's'}` : 'Create a problem first',
+          cta: selectedProject.value ? 'Open Playtests' : 'Create Project',
+          to: selectedProject.value ? { name: 'project-playtests', params: { id: selectedProject.value.id } } : '/projects/new',
+        },
+      ],
+    },
+    RESEARCHER: {
+      description: 'A research path: build concepts, review them, and inspect relationships only when context exists.',
+      why: 'Researcher Mode promotes concepts and review, with the Knowledge Graph available from context instead of dominating the empty dashboard.',
+      items: [
+        {
+          eyebrow: 'Concepts',
+          title: 'Concepts',
+          description: 'Review [[Concept]] markers before saving them as durable knowledge.',
+          meta: `${sourceBackedConcepts.value.length} source-backed concept${sourceBackedConcepts.value.length === 1 ? '' : 's'}`,
+          cta: concepts.value.length ? 'Open Concepts' : 'Review Concept',
+          to: concepts.value.length ? '/concepts' : '/captures/inbox',
+        },
+        {
+          eyebrow: 'Review',
+          title: 'Review',
+          description: 'Use review sessions to make concepts and source-backed notes active again.',
+          meta: `${mastery.value.length} progress target${mastery.value.length === 1 ? '' : 's'}`,
+          cta: 'Start Review',
+          to: '/review',
+        },
+        {
+          eyebrow: 'Graph From Context',
+          title: 'Graph From Context',
+          description: 'Open the graph only when it can show real books, concepts, sources, or project links.',
+          meta: sourceBackedRecordCount.value ? 'Real source context available' : 'No graph links yet',
+          cta: 'Open Knowledge Graph',
+          to: concepts.value[0] ? { name: 'graph-concept', params: { conceptId: concepts.value[0].id } } : '/graph',
+        },
+      ],
+    },
+    COMMUNITY: {
+      description: 'A community path: create source-linked discussions instead of generic posts.',
+      why: 'Community Mode keeps forum templates near books, quotes, concepts, and source context while private data remains protected by backend permissions.',
+      items: [
+        {
+          eyebrow: 'Source-Linked Threads',
+          title: 'Source-Linked Threads',
+          description: 'Start from a quote, concept, book, or source link before opening a thread.',
+          meta: sourceLinksMeta,
+          cta: sourceBackedRecordCount.value ? 'Open Forum' : 'Create source first',
+          to: sourceBackedRecordCount.value ? '/forum' : '/guided/first-loop',
+        },
+        {
+          eyebrow: 'Forum Templates',
+          title: 'Forum Templates',
+          description: 'Use Book Discussion, Quote Discussion, Concept Discussion, or Project Critique templates.',
+          meta: 'Templates prevent generic comment dumps',
+          cta: 'New Thread',
+          to: '/forum/new',
+        },
+        {
+          eyebrow: 'Recent Context',
+          title: 'Recent Context',
+          description: 'Attach a book, quote, concept, project, or source link when possible.',
+          meta: recentKnowledgeTarget.value?.sourceLabel ?? 'No recent source-backed context',
+          cta: recentKnowledgeTarget.value ? 'Open source item' : 'Open Use Cases',
+          to: recentKnowledgeTarget.value?.route ?? '/use-cases/start-source-linked-discussion',
+        },
+      ],
+    },
+    ADVANCED: {
+      description: 'An advanced path: graph, import/export, Draft Assistant, and analytics are visible while still using real data only.',
+      why: 'Advanced Mode expands advanced navigation and surfaces technical workflows without making them look complete when there is no data.',
+      items: [
+        {
+          eyebrow: 'Knowledge Graph',
+          title: 'Knowledge Graph',
+          description: 'Inspect graph nodes and relationships generated from source references and manual links.',
+          meta: sourceBackedRecordCount.value ? `${sourceBackedRecordCount.value} source-backed inputs` : 'Honest empty state if no links exist',
+          cta: 'Open Graph',
+          to: '/graph',
+        },
+        {
+          eyebrow: 'Import / Export',
+          title: 'Import / Export',
+          description: 'Export user-owned data or preview imports before committing records.',
+          meta: 'Preview before write; no fake pages',
+          cta: 'Open Import / Export',
+          to: '/import-export',
+        },
+        {
+          eyebrow: 'Draft Assistant + Analytics',
+          title: 'Draft Assistant + Analytics',
+          description: 'MockAIProvider drafts remain editable suggestions; analytics uses real counts only.',
+          meta: 'Draft-only assistant behavior',
+          cta: 'Open AI workflow',
+          to: '/use-cases/mock-ai-draft-helper',
+        },
+      ],
+    },
+  }
+
+  return landings[currentDashboardMode.value] ?? landings.READER
+})
 
 const recentKnowledgeTarget = computed<KnowledgeTarget | null>(() => {
   const quote = sourceBackedQuotes.value[0] ?? quotes.value[0]
@@ -636,7 +969,7 @@ const recentKnowledgeTarget = computed<KnowledgeTarget | null>(() => {
     }
   }
 
-  const concept = sourceBackedConcepts.value[0] ?? concepts.value[0]
+  const concept = sourceBackedConcepts.value[0]
   if (concept) {
     return {
       typeLabel: 'Recent concept',
@@ -647,12 +980,12 @@ const recentKnowledgeTarget = computed<KnowledgeTarget | null>(() => {
     }
   }
 
-  const knowledge = knowledgeObjects.value[0]
+  const knowledge = userKnowledgeObjects.value[0]
   if (knowledge) {
     return {
       typeLabel: knowledge.type.replaceAll('_', ' '),
       title: knowledge.title,
-      excerpt: knowledge.description || 'No knowledge-object description yet.',
+      excerpt: knowledge.description || 'No design knowledge description yet.',
       sourceLabel: knowledge.bookTitle ?? knowledge.sourceReference?.locationLabel ?? 'Source context unavailable',
       route: { name: 'knowledge-detail', params: { id: knowledge.id } },
     }
@@ -691,20 +1024,20 @@ const learningLoopDescription = computed(() => {
 const nextActionPlan = computed<NextActionPlan>(() => {
   if (!library.value.length) {
     return {
-      title: 'Add one real book',
-      description: 'BookOS becomes useful only after there is a source book to anchor captures, quotes, concepts, and projects.',
-      primaryLabel: 'Add a book',
-      primaryTo: '/books/new',
-      secondaryLabel: 'Browse use cases',
-      secondaryTo: '/use-cases',
+      title: 'Complete the first valuable loop',
+      description: 'Start with one real book, one capture, one processed record, and one source check before exploring modules.',
+      primaryLabel: 'Start first loop',
+      primaryTo: '/guided/first-loop',
+      secondaryLabel: 'Add a book directly',
+      secondaryTo: '/books/new',
     }
   }
 
   if (inboxCaptures.value.length) {
     return {
-      title: `Process ${inboxCaptures.value.length} inbox capture${inboxCaptures.value.length === 1 ? '' : 's'}`,
+      title: `Process ${inboxCaptures.value.length} capture${inboxCaptures.value.length === 1 ? '' : 's'}`,
       description: 'Convert raw captures into notes, quotes, actions, or reviewed concepts before adding more knowledge.',
-      primaryLabel: 'Open capture inbox',
+      primaryLabel: 'Process Captures',
       primaryTo: '/captures/inbox',
       secondaryLabel: 'Capture another thought',
       secondaryTo: selectedBookRoute(),
@@ -862,15 +1195,44 @@ function setDefaultCaptureBook() {
   captureBookId.value = currentlyReading.value[0]?.bookId ?? library.value[0]?.bookId ?? books.value[0]?.id ?? 0
 }
 
+async function setDashboardMode(mode: NavigationMode) {
+  if (modeSaving.value || mode === currentDashboardMode.value) return
+  modeSaving.value = true
+  try {
+    await auth.updateOnboarding({
+      preferredDashboardMode: mode,
+      onboardingCompleted: auth.user?.onboardingCompleted ?? true,
+      primaryUseCase: auth.user?.primaryUseCase ?? null,
+      startingMode: auth.user?.startingMode ?? mode,
+    })
+    ElMessage.success(`Dashboard changed to ${navigationModeLabel(mode)}.`)
+  } catch {
+    ElMessage.error('Dashboard mode could not be saved.')
+  } finally {
+    modeSaving.value = false
+  }
+}
+
+async function focusModeSwitcher() {
+  await nextTick()
+  const target = document.getElementById('dashboard-mode-switcher')
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  target?.querySelector<HTMLButtonElement>('.mode-switcher button:not([disabled])')?.focus()
+}
+
 function selectedBookRoute(): DashboardRouteTarget {
   const id = captureBookId.value || currentlyReading.value[0]?.bookId || library.value[0]?.bookId || books.value[0]?.id
   return id ? { name: 'book-detail', params: { id } } : '/my-library'
 }
 
+function isUserSourceReference(source: SourceReferenceRecord) {
+  return Boolean(source.rawCaptureId || source.noteId || source.noteBlockId)
+}
+
 function openDailySource(target: DailyTarget) {
   const source = target === 'SENTENCE' ? daily.value?.sentence?.sourceReference : daily.value?.prompt.sourceReference
   if (!source) {
-    ElMessage.info('This daily item does not have a source reference.')
+    ElMessage.info('This daily item does not have a source link.')
     return
   }
 
@@ -992,6 +1354,42 @@ function initials(title: string) {
   flex-wrap: wrap;
 }
 
+.dashboard-hero__actions {
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 12rem;
+}
+
+.dashboard-hero__support {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  font-weight: 800;
+}
+
+.dashboard-hero__support a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 4px;
+}
+
+.dashboard-hero__support button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
 .next-step-card {
   padding: var(--space-5);
   display: flex;
@@ -1010,6 +1408,130 @@ function initials(title: string) {
   margin-top: var(--space-2);
   color: var(--bookos-text-secondary);
   max-width: 58rem;
+}
+
+.mode-landing-card {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+  border-color: color-mix(in srgb, var(--bookos-primary) 18%, var(--bookos-border));
+}
+
+.mode-landing-card:target,
+.mode-landing-card:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.mode-landing-card__why {
+  padding: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: baseline;
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface-muted);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.mode-landing-card__why strong {
+  color: var(--bookos-text-primary);
+}
+
+.mode-landing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.mode-task-card {
+  padding: var(--space-4);
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-4);
+}
+
+.mode-task-card h3,
+.mode-task-card p {
+  margin: 0;
+}
+
+.mode-task-card h3 {
+  margin-top: var(--space-1);
+  font-family: var(--font-book-title);
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.mode-task-card p:not(.eyebrow) {
+  margin-top: var(--space-2);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.mode-switcher {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.mode-switcher button {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-sm);
+  background: var(--bookos-surface);
+  color: var(--bookos-text-primary);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mode-switcher button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--bookos-primary) 48%, var(--bookos-border));
+  background: var(--bookos-primary-soft);
+  color: var(--bookos-primary-hover);
+}
+
+.mode-switcher button:disabled {
+  cursor: default;
+  opacity: 0.82;
+}
+
+.readiness-card {
+  padding: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: center;
+  border-color: color-mix(in srgb, var(--bookos-accent) 28%, var(--bookos-border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bookos-accent-soft) 42%, var(--bookos-surface)), var(--bookos-surface));
+}
+
+.readiness-card h2,
+.readiness-card p {
+  margin: 0;
+}
+
+.readiness-card h2 {
+  margin-top: var(--space-1);
+  font-family: var(--font-book-title);
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+}
+
+.readiness-card p:not(.eyebrow) {
+  margin-top: var(--space-2);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+  max-width: 60rem;
+}
+
+.readiness-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .dashboard-section {
@@ -1180,6 +1702,21 @@ function initials(title: string) {
   grid-column: 1 / -1;
 }
 
+.parser-examples {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed color-mix(in srgb, var(--bookos-primary) 34%, var(--bookos-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bookos-primary-soft) 48%, var(--bookos-surface));
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-meta-size);
+}
+
+.parser-examples strong {
+  color: var(--bookos-text-primary);
+}
+
 .parsed-preview {
   grid-column: 1 / -1;
   padding: var(--space-4);
@@ -1264,6 +1801,7 @@ function initials(title: string) {
 @media (max-width: 980px) {
   .today-grid,
   .quick-capture-card,
+  .mode-landing-grid,
   .advanced-grid {
     grid-template-columns: 1fr;
   }
@@ -1280,9 +1818,17 @@ function initials(title: string) {
 @media (max-width: 720px) {
   .dashboard-hero,
   .next-step-card,
+  .readiness-card,
   .inbox-card {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .dashboard-hero__actions,
+  .dashboard-hero__support,
+  .readiness-card__actions {
+    align-items: stretch;
+    justify-content: flex-start;
   }
 
   .reading-card {

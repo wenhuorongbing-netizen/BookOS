@@ -7,10 +7,13 @@
           <h1 id="onboarding-title">Shape BookOS around your workflow</h1>
           <p>BookOS helps you turn reading into source-backed notes, knowledge, projects, and discussions.</p>
         </div>
-        <AppBadge variant="accent" size="sm">Step {{ currentStep }} of 5</AppBadge>
+        <div class="onboarding-card__header-actions">
+          <AppBadge variant="accent" size="sm">{{ progressBadgeLabel }}</AppBadge>
+          <AppButton v-if="canSwitchMode" variant="secondary" @click="startModeSwitch">Switch mode</AppButton>
+        </div>
       </div>
 
-      <ol class="onboarding-steps" aria-label="Onboarding progress">
+      <ol v-if="!switchModeOnly" class="onboarding-steps" aria-label="Onboarding progress">
         <li v-for="step in steps" :key="step.number" :class="{ active: step.number === currentStep, complete: step.number < currentStep }">
           <span>{{ step.number }}</span>
           {{ step.label }}
@@ -50,8 +53,14 @@
       </section>
 
       <section v-else-if="currentStep === 3" class="onboarding-panel" aria-labelledby="mode-step-title">
-        <h2 id="mode-step-title">Choose your starting mode</h2>
-        <p>This does not remove any features. It only gives BookOS a clearer first-run path.</p>
+        <h2 id="mode-step-title">{{ switchModeOnly ? 'Switch your active mode' : 'Choose your starting mode' }}</h2>
+        <p>
+          {{
+            switchModeOnly
+              ? 'This changes your Dashboard focus and navigation priority. It does not remove access to other BookOS tools.'
+              : 'This does not remove any features. It only gives BookOS a clearer first-run path.'
+          }}
+        </p>
         <div class="option-grid option-grid--compact">
           <button
             v-for="option in modeOptions"
@@ -81,7 +90,7 @@
 
       <section v-else class="onboarding-panel" aria-labelledby="next-actions-step-title">
         <h2 id="next-actions-step-title">Your next 3 actions</h2>
-        <p>These are practical next steps based on {{ selectedModeLabel }}.</p>
+        <p>These are practical next steps based on {{ selectedModeLabel }}. The first guided loop will walk you through the smallest source-backed record.</p>
         <ol class="next-actions-list">
           <li v-for="action in selectedModePlan.nextActions" :key="action">{{ action }}</li>
         </ol>
@@ -96,11 +105,13 @@
       <p v-if="validationMessage" class="validation-message" role="alert">{{ validationMessage }}</p>
 
       <div class="onboarding-actions">
-        <AppButton variant="text" :loading="saving" @click="skipOnboarding">Skip for now</AppButton>
+        <AppButton variant="text" :loading="saving" @click="switchModeOnly ? cancelModeSwitch() : skipOnboarding()">
+          {{ switchModeOnly ? 'Cancel' : 'Skip for now' }}
+        </AppButton>
         <div class="onboarding-actions__right">
-          <AppButton v-if="currentStep > 1" variant="ghost" :disabled="saving" @click="currentStep -= 1">Back</AppButton>
-          <AppButton v-if="currentStep < 5" variant="primary" :disabled="saving" @click="goNext">Next</AppButton>
-          <AppButton v-else variant="primary" :loading="saving" @click="completeOnboarding">Start workflow</AppButton>
+          <AppButton v-if="currentStep > 1 && !switchModeOnly" variant="ghost" :disabled="saving" @click="currentStep -= 1">Back</AppButton>
+          <AppButton v-if="currentStep < 5 && !switchModeOnly" variant="primary" :disabled="saving" @click="goNext">Next</AppButton>
+          <AppButton v-else variant="primary" :loading="saving" @click="completeOnboarding">{{ completionButtonLabel }}</AppButton>
         </div>
       </div>
     </AppCard>
@@ -110,13 +121,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
 import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import { useAuthStore } from '../stores/auth'
 import type { OnboardingUseCase, StartingMode } from '../types'
+import { normalizeNavigationMode } from '../utils/navigationMode'
 
 interface UseCaseOption {
   value: OnboardingUseCase
@@ -141,6 +153,7 @@ interface ModePlan {
 }
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 
 const currentStep = ref(1)
@@ -148,6 +161,7 @@ const primaryUseCase = ref<OnboardingUseCase | null>(auth.user?.primaryUseCase ?
 const startingMode = ref<StartingMode | null>(auth.user?.startingMode ?? null)
 const saving = ref(false)
 const validationMessage = ref('')
+const switchModeOnly = ref(false)
 
 const steps = [
   { number: 1, label: 'Welcome' },
@@ -183,7 +197,7 @@ const useCaseOptions: UseCaseOption[] = [
   {
     value: 'CONCEPTS_ACTIONS',
     label: 'I want to turn books into concepts and actions.',
-    description: 'Start with concepts, action items, and source references.',
+    description: 'Start with concepts, actions, and source links.',
   },
   {
     value: 'GAME_PROJECT',
@@ -206,9 +220,9 @@ const modeOptions: ModeOption[] = [
   { value: 'READER', label: 'Reader Mode', description: 'Track a book and capture your first note.' },
   { value: 'NOTE_TAKER', label: 'Note-Taker Mode', description: 'Start from books, notes, and source-backed blocks.' },
   { value: 'GAME_DESIGNER', label: 'Game Designer Mode', description: 'Apply reading material to an active game project.' },
-  { value: 'RESEARCHER', label: 'Researcher Mode', description: 'Build concepts and knowledge objects from books.' },
+  { value: 'RESEARCHER', label: 'Researcher Mode', description: 'Build concepts and design knowledge from books.' },
   { value: 'COMMUNITY', label: 'Community Mode', description: 'Discuss books, concepts, and sources in the forum.' },
-  { value: 'ADVANCED', label: 'Advanced Mode', description: 'Use the dashboard, graph, import/export, and AI draft tools.' },
+  { value: 'ADVANCED', label: 'Advanced Mode', description: 'Use the dashboard, Knowledge Graph, import/export, and Draft Assistant tools.' },
 ]
 
 const modePlans: Record<StartingMode, ModePlan> = {
@@ -259,10 +273,10 @@ const modePlans: Record<StartingMode, ModePlan> = {
   },
   ADVANCED: {
     createTitle: 'Open the advanced dashboard',
-    createDescription: 'You will see the full product surface and can move into graph, import/export, or AI draft tools.',
+    createDescription: 'You will see the full product surface and can move into Knowledge Graph, import/export, or Draft Assistant tools.',
     routeName: 'dashboard',
     routeLabel: 'Dashboard',
-    nextActions: ['Open the dashboard.', 'Use Cmd/Ctrl+K search.', 'Explore graph, import/export, or mock AI drafts.'],
+    nextActions: ['Open the dashboard.', 'Use Cmd/Ctrl+K search.', 'Explore Knowledge Graph, import/export, or assistant drafts.'],
     emptyTitle: 'Advanced tools need real source data',
     emptyDescription: 'Graph, search, import/export, and mock AI panels are honest when no records exist.',
   },
@@ -271,6 +285,9 @@ const modePlans: Record<StartingMode, ModePlan> = {
 const selectedMode = computed<StartingMode>(() => startingMode.value ?? 'READER')
 const selectedModePlan = computed(() => modePlans[selectedMode.value])
 const selectedModeLabel = computed(() => modeOptions.find((option) => option.value === selectedMode.value)?.label ?? 'Reader Mode')
+const progressBadgeLabel = computed(() => (switchModeOnly.value ? 'Mode switch' : `Step ${currentStep.value} of 5`))
+const completionButtonLabel = computed(() => (switchModeOnly.value ? 'Save mode' : 'Start workflow'))
+const canSwitchMode = computed(() => auth.user?.onboardingCompleted === true || route.query.restart === '1')
 
 function goNext() {
   validationMessage.value = ''
@@ -297,20 +314,32 @@ async function skipOnboarding() {
 }
 
 async function completeOnboarding() {
-  if (!startingMode.value || !primaryUseCase.value) {
-    validationMessage.value = 'Choose a use case and starting mode before starting.'
-    currentStep.value = !primaryUseCase.value ? 2 : 3
+  if (!startingMode.value || (!primaryUseCase.value && !switchModeOnly.value)) {
+    validationMessage.value = switchModeOnly.value ? 'Choose a mode before saving.' : 'Choose a use case and starting mode before starting.'
+    currentStep.value = !primaryUseCase.value && !switchModeOnly.value ? 2 : 3
     return
   }
 
   await saveAndRoute({
     onboardingCompleted: true,
-    primaryUseCase: primaryUseCase.value,
+    primaryUseCase: primaryUseCase.value ?? auth.user?.primaryUseCase ?? null,
     startingMode: startingMode.value,
     preferredDashboardMode: startingMode.value,
-    routeName: selectedModePlan.value.routeName,
-    message: 'Onboarding saved. Your first workflow is ready.',
+    routeName: switchModeOnly.value ? 'dashboard' : 'guided-first-loop',
+    message: switchModeOnly.value ? 'Mode saved. Dashboard updated.' : 'Onboarding saved. Start the first valuable loop.',
   })
+}
+
+function startModeSwitch() {
+  switchModeOnly.value = true
+  startingMode.value = normalizeNavigationMode(auth.user?.preferredDashboardMode, auth.user?.startingMode)
+  primaryUseCase.value = auth.user?.primaryUseCase ?? primaryUseCase.value
+  validationMessage.value = ''
+  currentStep.value = 3
+}
+
+async function cancelModeSwitch() {
+  await router.push({ name: 'dashboard' })
 }
 
 async function saveAndRoute(options: {
@@ -360,6 +389,14 @@ async function saveAndRoute(options: {
   justify-content: space-between;
   gap: var(--space-4);
   align-items: flex-start;
+}
+
+.onboarding-card__header-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .onboarding-card h1,
@@ -554,6 +591,7 @@ async function saveAndRoute(options: {
   }
 
   .onboarding-card__header,
+  .onboarding-card__header-actions,
   .workflow-card {
     align-items: flex-start;
     flex-direction: column;

@@ -1,8 +1,8 @@
 <template>
   <div class="page-shell capture-inbox-page">
     <AppSectionHeader
-      title="Capture Inbox"
-      eyebrow="Quick Capture"
+      title="Process Captures"
+      eyebrow="Quick Capture Queue"
       :description="bookId ? 'Captures filtered to the selected book.' : 'Turn raw reading thoughts into notes, quotes, actions, or reviewed concepts.'"
       :level="1"
     >
@@ -24,10 +24,10 @@
 
     <AppCard class="task-first-panel" variant="highlight" as="section">
       <div>
-        <div class="eyebrow">Next inbox action</div>
+        <div class="eyebrow">Next processing action</div>
         <h2>{{ inboxTask.title }}</h2>
         <p>{{ inboxTask.description }}</p>
-        <div class="task-first-panel__metrics" aria-label="Capture inbox summary">
+        <div class="task-first-panel__metrics" aria-label="Process captures summary">
           <AppBadge variant="primary">{{ unprocessedBlocks.length }} unprocessed</AppBadge>
           <AppBadge variant="accent">{{ conceptReviewBlocks.length }} need concept review</AppBadge>
           <AppBadge variant="neutral">{{ capture.latestBlocks.length }} loaded</AppBadge>
@@ -54,12 +54,12 @@
 
     <UseCaseSuggestionPanel
       :slugs="['capture-idea-while-reading', 'capture-to-quote', 'capture-to-action-item', 'review-concept-marker']"
-      eyebrow="Inbox playbook"
+      eyebrow="Process playbook"
       title="Process one capture at a time"
       description="The inbox stays useful when each raw thought becomes one source-backed note, quote, action, or reviewed concept."
     />
 
-    <AppCard class="capture-filters" as="section" aria-label="Capture inbox filters">
+    <AppCard class="capture-filters" as="section" aria-label="Process capture filters">
       <label>
         <span>Status</span>
         <el-select v-model="statusFilter" aria-label="Filter captures by status" @change="loadInbox">
@@ -74,7 +74,7 @@
         <el-select v-model="typeFilter" aria-label="Filter captures by parsed type">
           <el-option label="All types" value="ALL" />
           <el-option label="Quote" value="QUOTE" />
-          <el-option label="Action item" value="ACTION_ITEM" />
+          <el-option label="Action" value="ACTION_ITEM" />
           <el-option label="Question" value="QUESTION" />
           <el-option label="Inspiration" value="INSPIRATION" />
           <el-option label="Related concept" value="RELATED_CONCEPT" />
@@ -84,11 +84,11 @@
       <AppButton variant="secondary" :loading="capture.loading" @click="loadInbox">Refresh</AppButton>
     </AppCard>
 
-    <AppLoadingState v-if="capture.loading" label="Loading capture inbox" />
+    <AppLoadingState v-if="capture.loading" label="Loading captures to process" />
 
     <AppErrorState
       v-else-if="errorMessage"
-      title="Capture inbox could not load"
+      title="Process Captures could not load"
       :description="errorMessage"
       retry-label="Retry"
       @retry="loadInbox"
@@ -102,7 +102,7 @@
     >
       <template #actions>
         <RouterLink to="/help/capture-inbox" custom v-slot="{ navigate }">
-          <AppButton variant="secondary" @click="navigate">Learn capture inbox</AppButton>
+          <AppButton variant="secondary" @click="navigate">Learn Process Captures</AppButton>
         </RouterLink>
         <RouterLink to="/use-cases/capture-idea-while-reading" custom v-slot="{ navigate }">
           <AppButton variant="ghost" @click="navigate">See capture workflow</AppButton>
@@ -110,7 +110,7 @@
       </template>
     </AppEmptyState>
 
-    <section v-else class="capture-grid" aria-label="Capture inbox items">
+    <section v-else class="capture-grid" aria-label="Process capture items">
       <AppCard v-for="block in displayBlocks" :key="block.captureId" class="capture-card" as="article">
         <div class="capture-card__header">
           <label class="capture-card__select">
@@ -144,7 +144,7 @@
           <AppBadge v-for="concept in block.concepts" :key="`concept-${concept}`" variant="info" size="sm">[[{{ concept }}]]</AppBadge>
         </div>
         <div class="capture-card__source">
-          <strong>Source reference</strong>
+          <strong>Source link</strong>
           <span>{{ sourceSummary(block) }}</span>
         </div>
         <ul v-if="block.parserWarnings.length" class="capture-card__warnings" aria-label="Parser warnings">
@@ -169,7 +169,7 @@
               <el-dropdown-menu>
                 <el-dropdown-item command="NOTE">Convert to Note</el-dropdown-item>
                 <el-dropdown-item command="QUOTE">Convert to Quote</el-dropdown-item>
-                <el-dropdown-item command="ACTION_ITEM">Convert to Action Item</el-dropdown-item>
+                <el-dropdown-item command="ACTION_ITEM">Convert to Action</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -271,7 +271,7 @@ const inboxTask = computed(() => {
 
   return {
     title: 'Capture one reading thought first',
-    description: 'The inbox fills from Quick Capture on a book detail page. Add or open a book, then save one raw idea with a page marker when known.',
+    description: 'The processing queue fills from Quick Capture on a book detail page. Add or open a book, then save one raw idea with a page marker when known.',
     block: null,
   }
 })
@@ -297,7 +297,7 @@ async function loadInbox() {
       loadConceptOptions(),
     ])
   } catch {
-    errorMessage.value = 'Check your connection and permissions, then try loading the capture inbox again.'
+    errorMessage.value = 'Check your connection and permissions, then try loading captures again.'
   }
 }
 
@@ -420,7 +420,7 @@ async function saveCaptureConceptReview(payload: ConceptReviewPayload) {
     await reviewCaptureConcepts(selectedConceptBlock.value.captureId, payload)
     await loadConceptOptions()
     conceptDialogOpen.value = false
-    ElMessage.success('Parsed concepts reviewed and source references preserved.')
+    ElMessage.success('Parsed concepts reviewed and source links preserved.')
   } catch {
     ElMessage.error('Concept review failed. Check required fields and permissions.')
   } finally {
@@ -462,7 +462,7 @@ function sourceSummary(block: RecentNoteBlock) {
   const page = pageLabel(source.pageStart, source.pageEnd)
   return [source.locationLabel, page, source.sourceConfidence ? `confidence ${source.sourceConfidence}` : null]
     .filter(Boolean)
-    .join(' | ') || 'Source reference saved.'
+    .join(' | ') || 'Source link saved.'
 }
 
 function pageLabel(pageStart: number | null, pageEnd: number | null) {
@@ -510,9 +510,9 @@ function clearConverting(kind: ConversionKind) {
 
 async function promptActionItemTitle(block: RecentNoteBlock) {
   try {
-    const result = await ElMessageBox.prompt('Review the action item title before conversion. Leave it blank to use the backend default.', 'Convert to Action Item', {
+    const result = await ElMessageBox.prompt('Review the action title before conversion. Leave it blank to use the backend default.', 'Convert to Action', {
       inputValue: defaultActionTitle(block),
-      inputPlaceholder: 'Action item title',
+      inputPlaceholder: 'Action title',
       confirmButtonText: 'Convert',
       cancelButtonText: 'Cancel',
       distinguishCancelAndClose: true,
@@ -547,14 +547,14 @@ async function handleConversionSuccess(kind: ConversionKind, conversion: RawCapt
     return
   }
 
-  ElMessage.success('Capture converted to a source-backed action item.')
+  ElMessage.success('Capture converted to a source-backed action.')
   if (router.hasRoute('action-items')) {
     await router.push({ name: 'action-items' })
   }
 }
 
 function conversionErrorMessage(error: unknown, kind: ConversionKind) {
-  const target = kind === 'ACTION_ITEM' ? 'action item' : kind.toLowerCase()
+  const target = kind === 'ACTION_ITEM' ? 'action' : kind.toLowerCase()
 
   if (!axios.isAxiosError(error)) {
     return `Capture conversion to ${target} failed.`

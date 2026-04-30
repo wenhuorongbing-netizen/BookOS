@@ -47,6 +47,17 @@ Audit result summary:
 | POST | `/api/demo/reset` | `DemoWorkspaceController` | `reset` | USER/ADMIN | none | `ApiResponse<DemoWorkspaceStatusResponse>` | VERIFIED |
 | DELETE | `/api/demo` | `DemoWorkspaceController` | `delete` | USER/ADMIN | none | `ApiResponse<Void>` | VERIFIED |
 
+## Executable Use Cases
+
+| Method | Path | Controller class | Controller method | Auth requirement | Request DTO | Response DTO | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/use-cases/progress` | `UseCaseProgressController` | `list` | USER/ADMIN | none | `ApiResponse<List<UseCaseProgressResponse>>` | VERIFIED |
+| GET | `/api/use-cases/progress/{slug}` | `UseCaseProgressController` | `get` | USER/ADMIN | none | `ApiResponse<UseCaseProgressResponse>` | VERIFIED |
+| POST | `/api/use-cases/progress/{slug}/start` | `UseCaseProgressController` | `start` | USER/ADMIN | none | `ApiResponse<UseCaseProgressResponse>` | VERIFIED |
+| PUT | `/api/use-cases/progress/{slug}/steps/{stepKey}/complete` | `UseCaseProgressController` | `completeStep` | USER/ADMIN | none | `ApiResponse<UseCaseProgressResponse>` | VERIFIED |
+| PUT | `/api/use-cases/progress/{slug}/reset` | `UseCaseProgressController` | `reset` | USER/ADMIN | none | `ApiResponse<UseCaseProgressResponse>` | VERIFIED |
+| POST | `/api/use-cases/progress/events` | `UseCaseProgressController` | `recordEvent` | USER/ADMIN | `UseCaseEventRequest` | `ApiResponse<UseCaseEventResponse>` | VERIFIED |
+
 ## Books And User Library
 
 | Method | Path | Controller class | Controller method | Auth requirement | Request DTO | Response DTO | Status |
@@ -265,3 +276,4 @@ Audit result summary:
 | POST | `/api/projects/{projectId}/apply/concept` | `ProjectController` | `applyConcept` | USER/ADMIN | `ApplySourceRequest` | `ApiResponse<ProjectApplicationResponse>` | VERIFIED |
 | POST | `/api/projects/{projectId}/apply/knowledge-object` | `ProjectController` | `applyKnowledgeObject` | USER/ADMIN | `ApplySourceRequest` | `ApiResponse<ProjectApplicationResponse>` | VERIFIED |
 | POST | `/api/projects/{projectId}/create-prototype-task-from-daily` | `ProjectController` | `createPrototypeTaskFromDaily` | USER/ADMIN | `ProjectPrototypeTaskFromDailyRequest` | `ApiResponse<ProjectApplicationResponse>` | VERIFIED |
+| POST | `/api/projects/{projectId}/wizard/apply-knowledge` | `ProjectController` | `applyKnowledgeWizard` | USER/ADMIN | `ProjectApplyKnowledgeWizardRequest` | `ApiResponse<ProjectApplyKnowledgeWizardResponse>` | VERIFIED |

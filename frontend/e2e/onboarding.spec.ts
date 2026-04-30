@@ -24,6 +24,34 @@ test('new user can skip onboarding and return to dashboard', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Shape BookOS around your workflow' })).toHaveCount(0)
 })
 
+test('existing user can switch mode without replaying full onboarding', async ({ page, request }) => {
+  const runId = uniqueRunId()
+  await registerFreshUser(page, runId, 'Mode Switch User')
+
+  await page.getByRole('button', { name: 'Skip for now' }).click()
+  await expect(page).toHaveURL(/\/dashboard/)
+
+  await page.goto('/onboarding?restart=1')
+  await page.getByRole('button', { name: 'Switch mode' }).click()
+  await expect(page.getByText('Mode switch', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Switch your active mode' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0)
+
+  await page.getByRole('button', { name: /Researcher Mode/i }).click()
+  await page.getByRole('button', { name: 'Save mode' }).click()
+  await expect(page).toHaveURL(/\/dashboard/)
+  await expect(page.getByRole('heading', { name: 'Researcher Mode landing' })).toBeVisible()
+
+  const token = await tokenFromPage(page)
+  const currentUser = await apiGet<{
+    onboardingCompleted: boolean
+    preferredDashboardMode: string | null
+  }>(request, '/auth/me', token)
+
+  expect(currentUser.onboardingCompleted).toBe(true)
+  expect(currentUser.preferredDashboardMode).toBe('RESEARCHER')
+})
+
 test('new user can complete Reader Mode onboarding and preferences persist', async ({ page, request }) => {
   const runId = uniqueRunId()
   await registerFreshUser(page, runId, 'Reader User')
@@ -37,7 +65,7 @@ test('new user can complete Reader Mode onboarding and preferences persist', asy
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Your next 3 actions' })).toBeVisible()
   await page.getByRole('button', { name: 'Start workflow' }).click()
-  await expect(page).toHaveURL(/\/books\/new/)
+  await expect(page).toHaveURL(/\/guided\/first-loop/)
 
   const token = await tokenFromPage(page)
   const currentUser = await apiGet<{
@@ -66,7 +94,7 @@ test('new user can complete Game Designer Mode onboarding', async ({ page, reque
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(page.getByText('Apply a quote or concept to the project.')).toBeVisible()
   await page.getByRole('button', { name: 'Start workflow' }).click()
-  await expect(page).toHaveURL(/\/books\/new/)
+  await expect(page).toHaveURL(/\/guided\/first-loop/)
 
   const token = await tokenFromPage(page)
   const currentUser = await apiGet<{

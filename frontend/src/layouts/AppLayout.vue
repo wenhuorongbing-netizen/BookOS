@@ -8,6 +8,8 @@
         :user-name="auth.user?.displayName ?? 'BookOS User'"
         :current-book-title="currentBookTitle"
         :current-book-id="currentBookId"
+        :current-book-source="currentBookSource"
+        :current-book-loading="currentReadingLoading"
         @logout="handleLogout"
       />
       <nav v-if="breadcrumbItems.length" class="app-layout__breadcrumbs" aria-label="Breadcrumb">
@@ -45,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import RightRail from '../components/RightRail.vue'
 import Sidebar from '../components/Sidebar.vue'
@@ -55,8 +57,10 @@ import SourceReferenceDrawer from '../components/source/SourceReferenceDrawer.vu
 import TopNav from '../components/TopNav.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
+import { getCurrentlyReading } from '../api/userBooks'
 import { useAuthStore } from '../stores/auth'
 import { useRightRailStore } from '../stores/rightRail'
+import type { UserBookRecord } from '../types'
 import { normalizeNavigationMode } from '../utils/navigationMode'
 
 const auth = useAuthStore()
@@ -65,8 +69,19 @@ const route = useRoute()
 const router = useRouter()
 
 const title = computed(() => String(route.meta.title ?? 'BookOS'))
-const currentBookTitle = computed(() => rightRail.sourceReference?.bookTitle ?? 'No active book selected')
-const currentBookId = computed(() => rightRail.sourceReference?.bookId ?? null)
+const currentReadingBooks = ref<UserBookRecord[]>([])
+const currentReadingLoading = ref(false)
+const currentReadingError = ref(false)
+const currentReadingFallback = computed(() => currentReadingBooks.value[0] ?? null)
+const currentBookTitle = computed(
+  () => rightRail.sourceReference?.bookTitle ?? currentReadingFallback.value?.title ?? 'No active book selected',
+)
+const currentBookId = computed(() => rightRail.sourceReference?.bookId ?? currentReadingFallback.value?.bookId ?? null)
+const currentBookSource = computed(() => {
+  if (rightRail.sourceReference?.bookId) return 'PINNED_SOURCE'
+  if (currentReadingFallback.value) return 'CURRENTLY_READING'
+  return currentReadingError.value ? 'UNAVAILABLE' : 'NONE'
+})
 const currentMode = computed(() =>
   normalizeNavigationMode(auth.user?.preferredDashboardMode, auth.user?.startingMode),
 )
@@ -104,6 +119,40 @@ const advancedReturn = computed(() => {
     routeName: 'dashboard',
   }
 })
+
+onMounted(() => {
+  void loadCurrentReading()
+})
+
+watch(
+  () => auth.user?.id,
+  () => {
+    currentReadingBooks.value = []
+    void loadCurrentReading()
+  },
+)
+
+watch(
+  () => route.fullPath,
+  () => {
+    void loadCurrentReading()
+  },
+)
+
+async function loadCurrentReading() {
+  if (!auth.isAuthenticated || currentReadingLoading.value) return
+
+  currentReadingLoading.value = true
+  currentReadingError.value = false
+  try {
+    currentReadingBooks.value = await getCurrentlyReading()
+  } catch {
+    currentReadingBooks.value = []
+    currentReadingError.value = true
+  } finally {
+    currentReadingLoading.value = false
+  }
+}
 
 function handleLogout() {
   auth.logout()

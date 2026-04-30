@@ -123,6 +123,12 @@ class EndpointContractIntegrationTest {
             endpoint(RequestMethod.POST, "/api/demo/start"),
             endpoint(RequestMethod.POST, "/api/demo/reset"),
             endpoint(RequestMethod.DELETE, "/api/demo"),
+            endpoint(RequestMethod.GET, "/api/use-cases/progress"),
+            endpoint(RequestMethod.GET, "/api/use-cases/progress/{slug}"),
+            endpoint(RequestMethod.POST, "/api/use-cases/progress/{slug}/start"),
+            endpoint(RequestMethod.PUT, "/api/use-cases/progress/{slug}/steps/{stepKey}/complete"),
+            endpoint(RequestMethod.PUT, "/api/use-cases/progress/{slug}/reset"),
+            endpoint(RequestMethod.POST, "/api/use-cases/progress/events"),
             endpoint(RequestMethod.GET, "/api/export/json"),
             endpoint(RequestMethod.GET, "/api/export/book/{bookId}/json"),
             endpoint(RequestMethod.GET, "/api/export/book/{bookId}/markdown"),
@@ -204,7 +210,8 @@ class EndpointContractIntegrationTest {
             endpoint(RequestMethod.POST, "/api/projects/{projectId}/apply/quote"),
             endpoint(RequestMethod.POST, "/api/projects/{projectId}/apply/concept"),
             endpoint(RequestMethod.POST, "/api/projects/{projectId}/apply/knowledge-object"),
-            endpoint(RequestMethod.POST, "/api/projects/{projectId}/create-prototype-task-from-daily")
+            endpoint(RequestMethod.POST, "/api/projects/{projectId}/create-prototype-task-from-daily"),
+            endpoint(RequestMethod.POST, "/api/projects/{projectId}/wizard/apply-knowledge")
     );
 
     @Autowired

@@ -40,7 +40,7 @@
 
         <AppCard class="list-card">
           <AppSectionHeader title="Applications" eyebrow="Preserved sources" :level="2" compact />
-          <AppEmptyState v-if="!applications.length" title="No applications yet" description="Use Apply to Project from quotes, concepts, knowledge objects, or source references." compact />
+          <AppEmptyState v-if="!applications.length" title="No applications yet" description="Use Apply to Project from quotes, concepts, design knowledge, or source links." compact />
           <article v-for="application in applications" v-else :key="application.id" class="record-card">
             <div class="record-card__topline">
               <AppBadge variant="primary">{{ application.applicationType }}</AppBadge>

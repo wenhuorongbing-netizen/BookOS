@@ -3,10 +3,13 @@
     <AppSectionHeader
       eyebrow="BookOS Help"
       :title="selectedTopic ? selectedTopic.term : 'Learn BookOS terms'"
-      :description="selectedTopic ? selectedTopic.shortDefinition : 'Short, practical explanations for source references, graph links, project applications, AI drafts, review, mastery, and import safety.'"
+      :description="selectedTopic ? selectedTopic.shortDefinition : 'Short, practical explanations for source links, Knowledge Graph links, project applications, Draft Assistant, review, learning progress, and import safety.'"
       :level="1"
     >
       <template #actions>
+        <RouterLink :to="{ name: 'guided-first-loop' }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Start first loop</AppButton>
+        </RouterLink>
         <RouterLink v-if="selectedTopic" :to="{ name: 'help' }" custom v-slot="{ navigate }">
           <AppButton variant="secondary" @click="navigate">All topics</AppButton>
         </RouterLink>

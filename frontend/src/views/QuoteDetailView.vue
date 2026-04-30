@@ -23,7 +23,7 @@
           </RouterLink>
           <AppButton variant="ghost" @click="openSource">Open Source</AppButton>
           <RouterLink :to="{ name: 'graph-book', params: { bookId: quote.bookId } }" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+            <AppButton variant="secondary" @click="navigate">Knowledge Graph</AppButton>
           </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
@@ -45,7 +45,7 @@
         description="Quotes are most useful when they become a design rationale, project application, or source-linked discussion instead of staying as isolated highlights."
         primary-label="Apply to Project"
         secondary-label="Open Source"
-        :loop="['Quote', 'Source reference', 'Project application', 'Design action']"
+        :loop="['Quote', 'Source link', 'Project application', 'Design action']"
         @primary="applyProjectOpen = true"
         @secondary="openSource"
       />
@@ -87,7 +87,7 @@
         </AppCard>
 
         <AppCard class="quote-source" as="aside">
-          <AppSectionHeader title="Source Reference" eyebrow="Traceability" :level="2" compact />
+          <AppSectionHeader title="Source Link" eyebrow="Traceability" :level="2" compact />
 
           <dl v-if="quote.sourceReference" class="quote-meta">
             <div>
@@ -110,8 +110,8 @@
 
           <AppEmptyState
             v-else
-            title="No source reference"
-            description="This quote was created manually or without a note/capture source reference."
+            title="No source link"
+            description="This quote was created manually or without a note/capture source link."
             compact
           />
         </AppCard>

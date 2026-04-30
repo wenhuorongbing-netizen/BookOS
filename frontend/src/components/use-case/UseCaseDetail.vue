@@ -5,8 +5,15 @@
         <p class="eyebrow">Hands-on use case</p>
         <h1>{{ useCase.title }}</h1>
         <p>{{ useCase.summary }}</p>
+        <div class="use-case-detail__actions">
+          <AppButton v-if="!started" variant="primary" :loading="mutating" @click="$emit('start')">Start checklist</AppButton>
+          <UseCaseActionButton v-else :to="continueRoute" label="Continue checklist" variant="primary" />
+          <AppButton variant="secondary" :loading="loading" @click="$emit('refresh')">Verify automatically</AppButton>
+          <AppButton variant="ghost" :disabled="!progress" :loading="mutating" @click="$emit('reset')">Reset progress</AppButton>
+        </div>
+        <AppErrorState v-if="errorMessage" title="Progress unavailable" :description="errorMessage" compact />
       </div>
-      <UseCaseProgress :step-count="useCase.steps.length" :time-required="useCase.timeRequired" />
+      <UseCaseProgress :step-count="useCase.steps.length" :time-required="useCase.timeRequired" :progress="progress" />
     </AppCard>
 
     <div class="use-case-detail__grid">
@@ -31,7 +38,14 @@
 
     <AppCard class="use-case-detail__panel" as="section">
       <h2>Steps</h2>
-      <UseCaseStepList :steps="useCase.steps" />
+      <UseCaseStepList
+        :use-case-slug="useCase.slug"
+        :steps="useCase.steps"
+        :progress="progress"
+        :started="started"
+        @complete="$emit('complete-step', $event)"
+        @refresh="$emit('refresh')"
+      />
     </AppCard>
 
     <div class="use-case-detail__grid">
@@ -43,7 +57,7 @@
       </AppCard>
 
       <AppCard class="use-case-detail__panel" as="section">
-        <h2>What source references will be preserved</h2>
+        <h2>What source links will be preserved</h2>
         <ul>
           <li v-for="item in useCase.sourceReferences" :key="item">{{ item }}</li>
         </ul>
@@ -60,16 +74,38 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { UseCaseTemplate } from '../../data/useCases'
+import type { UserUseCaseProgressRecord } from '../../types'
 import AppCard from '../ui/AppCard.vue'
+import AppButton from '../ui/AppButton.vue'
+import AppErrorState from '../ui/AppErrorState.vue'
 import UseCaseActionButton from './UseCaseActionButton.vue'
 import UseCaseProgress from './UseCaseProgress.vue'
 import UseCaseRelatedObjects from './UseCaseRelatedObjects.vue'
 import UseCaseStepList from './UseCaseStepList.vue'
 
-defineProps<{
+const props = defineProps<{
   useCase: UseCaseTemplate
+  progress: UserUseCaseProgressRecord | null
+  loading: boolean
+  mutating: boolean
+  errorMessage: string
 }>()
+
+defineEmits<{
+  start: []
+  reset: []
+  refresh: []
+  'complete-step': [stepKey: string]
+}>()
+
+const started = computed(() => Boolean(props.progress?.startedAt && props.progress.status !== 'NOT_STARTED'))
+const continueRoute = computed(() => {
+  const completed = new Set(props.progress?.effectiveCompletedStepKeys ?? [])
+  const nextStep = props.useCase.steps.find((step, index) => !completed.has(step.key ?? `${props.useCase.slug}-step-${index + 1}`))
+  return nextStep?.route ?? props.useCase.primaryRoute
+})
 </script>
 
 <style scoped>
@@ -108,6 +144,12 @@ defineProps<{
 .use-case-detail__hero-copy {
   display: grid;
   gap: var(--space-3);
+}
+
+.use-case-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .use-case-detail__grid {

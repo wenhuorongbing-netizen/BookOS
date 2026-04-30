@@ -147,14 +147,20 @@ Run production build:
 npm run build
 ```
 
-Run browser E2E smoke tests:
+Run browser E2E tests:
 
 ```powershell
 npx playwright install chromium
 npm run e2e
 ```
 
-The E2E suite starts the backend with the `test` profile on port `18080`, starts Vite on port `5174`, uses H2/Flyway test data, and does not require production secrets or external AI. Details are documented in `docs/e2e-smoke-tests.md`.
+Run only the first-15-minutes usability paths:
+
+```powershell
+npm run e2e:usability
+```
+
+The E2E suites start the backend with the `test` profile on port `18080`, start Vite on port `5174`, use H2/Flyway test data, and do not require production secrets or external AI. Details are documented in `docs/e2e-smoke-tests.md`.
 
 Frontend URL defaults to `http://localhost:5173`. Vite proxies `/api` to `VITE_API_PROXY_TARGET`, which defaults to `http://localhost:8080`.
 

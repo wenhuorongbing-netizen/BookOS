@@ -86,7 +86,7 @@
 
       <template v-if="conceptCount > 0">
         <p class="insight-card__prompt">
-          This book connects to {{ conceptCount }} {{ conceptCount === 1 ? 'concept' : 'concepts' }} captured from your notes and source references.
+          This book connects to {{ conceptCount }} {{ conceptCount === 1 ? 'concept' : 'concepts' }} captured from your notes and source links.
         </p>
         <div class="mini-graph" role="img" :aria-label="graphDescription">
           <span class="mini-graph__node mini-graph__node--book">{{ book.title }}</span>
@@ -99,13 +99,13 @@
             {{ concept.name }}
           </span>
         </div>
-        <AppButton variant="secondary" @click="$emit('open-graph')">Open Graph</AppButton>
+        <AppButton variant="secondary" @click="$emit('open-graph')">Open Knowledge Graph</AppButton>
       </template>
 
       <AppEmptyState
         v-else
         title="No ontology links yet"
-        description="Review parsed [[Concept]] items or create knowledge objects to build a source-backed ontology preview."
+        description="Review parsed [[Concept]] items or create design knowledge to build a source-backed ontology preview."
         compact
       />
     </AppCard>

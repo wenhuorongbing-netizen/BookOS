@@ -1,15 +1,26 @@
 <template>
   <div class="page-shell knowledge-page">
     <AppSectionHeader
-      title="Knowledge Objects"
+      title="Design Knowledge"
       eyebrow="Structured design knowledge"
       description="Create and browse source-backed concepts, principles, lenses, exercises, methods, and prototype tasks."
       :level="1"
     >
       <template #actions>
-        <AppButton variant="primary" @click="dialogOpen = true">Create Knowledge Object</AppButton>
+        <AppButton variant="primary" @click="dialogOpen = true">Create Design Knowledge</AppButton>
       </template>
     </AppSectionHeader>
+
+    <DetailNextStepCard
+      :title="knowledgeNextStep.title"
+      :description="knowledgeNextStep.description"
+      :primary-label="knowledgeNextStep.primaryLabel"
+      :primary-to="knowledgeNextStep.primaryTo"
+      :secondary-label="knowledgeNextStep.secondaryLabel"
+      :secondary-to="knowledgeNextStep.secondaryTo"
+      :loop="knowledgeWorkflowLoop"
+      @primary="handleKnowledgePrimary"
+    />
 
     <AppCard class="knowledge-filter" as="section">
       <label class="field">
@@ -30,11 +41,11 @@
       </label>
     </AppCard>
 
-    <AppErrorState v-if="errorMessage" title="Knowledge objects could not load" :description="errorMessage" retry-label="Retry" @retry="loadPage" />
-    <AppLoadingState v-else-if="loading" label="Loading knowledge objects" />
-    <AppEmptyState v-else-if="!filteredObjects.length" title="No knowledge objects found" description="Create one manually or review parsed concepts from reading sources." compact />
+    <AppErrorState v-if="errorMessage" title="Design knowledge could not load" :description="errorMessage" retry-label="Retry" @retry="loadPage" />
+    <AppLoadingState v-else-if="loading" label="Loading design knowledge" />
+    <AppEmptyState v-else-if="!filteredObjects.length" title="No design knowledge found" description="Create one manually or review parsed concepts from reading sources." compact />
 
-    <section v-else class="knowledge-grid" aria-label="Knowledge object results">
+    <section v-else class="knowledge-grid" aria-label="Design knowledge results">
       <AppCard v-for="item in filteredObjects" :key="item.id" class="knowledge-card" as="article">
         <div class="knowledge-card__topline">
           <AppBadge variant="info" size="sm">{{ item.type }}</AppBadge>
@@ -64,7 +75,7 @@
       </AppCard>
     </section>
 
-    <el-dialog v-model="dialogOpen" title="Create Knowledge Object" width="min(720px, calc(100vw - 32px))" align-center>
+    <el-dialog v-model="dialogOpen" title="Create Design Knowledge" width="min(720px, calc(100vw - 32px))" align-center>
       <form class="knowledge-form" @submit.prevent="saveObject">
         <div class="knowledge-form__grid">
           <label class="field">
@@ -85,7 +96,7 @@
 
         <label class="field">
           <span>Title</span>
-          <el-input v-model="form.title" maxlength="220" show-word-limit placeholder="Knowledge object title" />
+          <el-input v-model="form.title" maxlength="220" show-word-limit placeholder="Design knowledge title" />
         </label>
         <label class="field">
           <span>Description</span>
@@ -108,7 +119,7 @@
         </div>
 
         <label class="field">
-          <span>Ontology layer</span>
+          <span>Knowledge map layer</span>
           <el-select v-model="form.ontologyLayer" clearable placeholder="Optional layer">
             <el-option v-for="layer in ontologyLayers" :key="layer" :label="layer" :value="layer" />
           </el-select>
@@ -142,6 +153,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import type { BookRecord, ConceptRecord, KnowledgeObjectRecord, KnowledgeObjectType, SourceConfidence, Visibility } from '../types'
 
 const supportedTypes: KnowledgeObjectType[] = [
@@ -179,6 +191,7 @@ const searchText = ref('')
 const typeFilter = ref<KnowledgeObjectType | ''>('')
 const layerFilter = ref('')
 const dialogOpen = ref(false)
+const knowledgeWorkflowLoop = ['Choose source', 'Structure knowledge', 'Apply or review']
 const form = reactive({
   type: 'CONCEPT' as KnowledgeObjectType,
   title: '',
@@ -196,6 +209,29 @@ const filteredObjects = computed(() => {
   return objects.value.filter((item) => [item.title, item.description ?? '', item.type, ...item.tags].some((value) => value.toLowerCase().includes(query)))
 })
 
+const knowledgeNextStep = computed(() => {
+  const item = filteredObjects.value[0] ?? objects.value[0]
+  if (item) {
+    return {
+      title: 'Open one design knowledge record',
+      description: 'Review a single principle, lens, exercise, or prototype task before adding more structure.',
+      primaryLabel: 'Open Design Knowledge',
+      primaryTo: { name: 'knowledge-detail', params: { id: item.id } },
+      secondaryLabel: 'Review Concepts',
+      secondaryTo: '/concepts',
+    }
+  }
+
+  return {
+    title: 'Create only the knowledge you can use',
+    description: 'Start with a small principle, lens, exercise, or prototype task. Avoid building an ontology before you have sources.',
+    primaryLabel: 'Create Design Knowledge',
+    primaryTo: null,
+    secondaryLabel: 'Review Concepts',
+    secondaryTo: '/concepts',
+  }
+})
+
 onMounted(loadPage)
 
 async function loadPage() {
@@ -207,7 +243,7 @@ async function loadPage() {
     concepts.value = conceptResult
     await loadObjects()
   } catch {
-    errorMessage.value = 'Check backend availability and permissions, then try loading knowledge objects again.'
+    errorMessage.value = 'Check backend availability and permissions, then try loading design knowledge again.'
   } finally {
     loading.value = false
   }
@@ -218,6 +254,10 @@ async function loadObjects() {
     type: typeFilter.value || undefined,
     layer: layerFilter.value || undefined,
   })
+}
+
+function handleKnowledgePrimary() {
+  dialogOpen.value = true
 }
 
 async function saveObject() {
@@ -243,9 +283,9 @@ async function saveObject() {
     form.description = ''
     form.ontologyLayer = ''
     form.tagsInput = ''
-    ElMessage.success('Knowledge object created.')
+    ElMessage.success('Design knowledge created.')
   } catch {
-    ElMessage.error('Knowledge object could not be created.')
+    ElMessage.error('Design knowledge could not be created.')
   } finally {
     saving.value = false
   }

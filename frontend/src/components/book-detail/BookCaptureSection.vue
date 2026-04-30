@@ -166,7 +166,7 @@
           </dl>
           <p>{{ parsedPreview.cleanText || 'No clean text extracted yet.' }}</p>
           <div class="quick-capture__source-preview">
-            <strong>Source reference preview</strong>
+            <strong>Source link preview</strong>
             <span>Book: {{ book.title }}</span>
             <span>{{ parsedPreview.pageStart ? `Page: ${pageLabel(parsedPreview.pageStart, parsedPreview.pageEnd)}` : 'Page: unknown, stored as null' }}</span>
             <span>Confidence: {{ parsedPreview.pageStart ? 'MEDIUM' : 'LOW' }}</span>
@@ -226,7 +226,7 @@
         </label>
       </div>
 
-      <AppLoadingState v-if="capture.loading" label="Loading capture inbox" />
+      <AppLoadingState v-if="capture.loading" label="Loading captures to process" />
       <AppErrorState
         v-else-if="capture.error"
         title="Recent captures unavailable"
@@ -675,7 +675,7 @@ async function convertActionBlock(block: RecentNoteBlock) {
   try {
     await capture.convertToActionItem(block.captureId, block.title)
     lastSavedBlock.value = null
-    ElMessage.success('Capture converted to a source-backed action item.')
+    ElMessage.success('Capture converted to a source-backed action.')
   } catch {
     ElMessage.error('Action item conversion failed.')
   } finally {
@@ -707,7 +707,7 @@ async function saveCaptureConceptReview(payload: ConceptReviewPayload) {
     await reviewCaptureConcepts(selectedConceptBlock.value.captureId, payload)
     await loadConceptOptions()
     conceptDialogOpen.value = false
-    ElMessage.success('Concept review saved with source references.')
+    ElMessage.success('Concept review saved with source links.')
   } catch {
     ElMessage.error('Concept review failed.')
   } finally {

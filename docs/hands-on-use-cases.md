@@ -11,6 +11,14 @@ Rules for every use case:
 - Source-backed objects should preserve book, capture, note, page if known, and source confidence where available.
 - AI suggestions are drafts only and must never overwrite source content automatically.
 
+Executable checklist behavior:
+
+- In the app, `/use-cases` and `/use-cases/:slug` present these scenarios as trackable checklists.
+- Progress is stored per user and persists after reload.
+- Some steps can be verified automatically from real user-owned records.
+- Steps that cannot be detected yet can be marked manually complete, but this never creates fake records.
+- Resetting a checklist clears only checklist progress; it does not delete user content.
+
 ## Practice Safely in the Demo Workspace
 
 Who this is for: New users who want to learn BookOS without polluting their real library, concepts, analytics, or projects.
@@ -28,17 +36,32 @@ Steps:
 
 1. Open `/demo`.
 2. Click `Start Demo Workspace`.
-3. Open the demo book, quote, action item, project, graph, or forum thread from the demo page.
-4. Inspect source references and confirm unknown pages are shown as unknown.
+3. Open the demo book, quote, action, project, Knowledge Graph, or forum thread from the demo page.
+4. Inspect source links and confirm unknown pages are shown as unknown.
 5. Reset the demo when you want a clean practice state, or delete demo data when finished.
 
 What you will create:
 
-- Demo-labeled book, captures, quote, action item, concepts, knowledge objects, project records, forum thread, and graph links.
+- Demo-labeled book, captures, quote, action, concepts, design knowledge, project records, forum thread, and Knowledge Graph links.
 
-Source references preserved: demo source references are original sample records with `LOW` confidence and `null` page numbers when no page is known.
+Source links preserved: demo source links are original sample records with `LOW` confidence and `null` page numbers when no page is known.
 
 Where to go next: repeat any hands-on use case using demo records, then create your first real book or project when ready.
+
+Demo training paths available from `/demo`:
+
+- Demo: Capture and Convert opens the Note-Taker capture conversion checklist.
+- Demo: Open Source opens the quote/action source verification checklist.
+- Demo: Apply Quote to Project opens the game project application checklist.
+- Demo: Review Concept opens the concept review checklist.
+- Demo: Explore Graph opens the Knowledge Graph checklist.
+- Demo: Forum Discussion opens the source-linked forum checklist.
+- Demo: Export Demo Data opens the export checklist.
+
+Graduation actions:
+
+- `Graduate to Real Book` sends the user to real book creation.
+- `Delete Demo and Start Real Workflow` removes only demo-scoped records, then opens the first valuable loop.
 
 ## Track a Book From Start to Finish
 
@@ -67,7 +90,7 @@ What you will create:
 - Reading status.
 - Progress and rating data.
 
-Source references preserved: no derived source reference is created until you add notes, captures, quotes, or actions.
+Source links preserved: no derived source link is created until you add notes, captures, quotes, or actions.
 
 Where to go next: capture while reading, create a note, or open current reading.
 
@@ -98,9 +121,9 @@ What you will create:
 - Concept markers.
 - Book source context.
 
-Source references preserved: book ID is preserved; page stays null when unknown; known page marker is preserved without inventing extra pages.
+Source links preserved: book ID is preserved; page stays null when unknown; known page marker is preserved without inventing extra pages.
 
-Where to go next: convert to quote, convert to action item, or review concept marker.
+Where to go next: convert to quote, convert to action, or review concept marker.
 
 ## Turn a Capture Into a Quote
 
@@ -124,18 +147,18 @@ Steps:
 What you will create:
 
 - Quote.
-- Quote source reference.
+- Quote source link.
 - Searchable quote record.
 
-Source references preserved: raw capture link, book context, and page only if supplied.
+Source links preserved: raw capture link, book context, and page only if supplied.
 
 Where to go next: open source from quote or apply quote to project.
 
-## Turn a Capture Into an Action Item
+## Turn a Capture Into an Action
 
 Who this is for: Readers and designers who want notes to become visible next actions.
 
-Goal: Create an action item that stays linked to the book or capture that inspired it.
+Goal: Create an action that stays linked to the book or capture that inspired it.
 
 Time required: 3-5 minutes.
 
@@ -153,9 +176,9 @@ What you will create:
 
 - Action item.
 - Completion state.
-- Action source reference.
+- Action source link.
 
-Source references preserved: book and raw capture links are preserved; unknown page remains unknown.
+Source links preserved: book and raw capture links are preserved; unknown page remains unknown.
 
 Where to go next: open source from action or apply to project.
 
@@ -176,7 +199,7 @@ Steps:
 1. Open `/captures/inbox`.
 2. Open concept review for a capture with parsed concept markers.
 3. Accept an existing concept, rename before saving, create a new concept, or skip.
-4. Open `/concepts` and confirm source references and backlinks.
+4. Open `/concepts` and confirm source links and related links.
 
 What you will create:
 
@@ -184,7 +207,7 @@ What you will create:
 - Concept tags.
 - Concept source link.
 
-Source references preserved: capture source is preserved; page data comes only from the original capture.
+Source links preserved: capture source is preserved; page data comes only from the original capture.
 
 Where to go next: inspect graph connections or apply concept to project.
 
@@ -198,7 +221,7 @@ Time required: 2-3 minutes.
 
 Prerequisites:
 
-- At least one quote or action item with a source reference.
+- At least one quote or action with a source link.
 
 Steps:
 
@@ -209,7 +232,7 @@ Steps:
 
 What you will create: no new object; this is a verification workflow.
 
-Source references preserved: existing source reference is read and opened; unknown page is displayed as unknown instead of guessed.
+Source links preserved: existing source link is read and opened; unknown page is displayed as unknown instead of guessed.
 
 Where to go next: apply quote to project or start a source-linked forum discussion.
 
@@ -233,7 +256,7 @@ Steps:
 2. Click `Apply to Project`.
 3. Choose project, application type, title, and design note.
 4. Open `/projects` and inspect the Project Cockpit.
-5. Confirm the application source reference is visible.
+5. Confirm the application source link is visible.
 
 What you will create:
 
@@ -241,7 +264,7 @@ What you will create:
 - Project knowledge link where supported.
 - Source-backed design note.
 
-Source references preserved: quote source reference is preserved; book and page remain traceable when available.
+Source links preserved: quote source link is preserved; book and page remain traceable when available.
 
 Where to go next: create a design decision or run a lens review.
 
@@ -272,7 +295,7 @@ What you will create:
 - Optional score.
 - Source-backed review answer.
 
-Source references preserved: lens source is preserved when attached; project review remains user-owned.
+Source links preserved: lens source is preserved when attached; project review remains user-owned.
 
 Where to go next: create a design decision or playtest finding.
 
@@ -294,7 +317,7 @@ Steps:
 1. Open `/projects`.
 2. Navigate to the playtest area for the relevant project.
 3. Create a finding with observation, severity, recommendation, and status.
-4. Attach a source reference only when a reading source directly informed the finding.
+4. Attach a source link only when a reading source directly informed the finding.
 
 What you will create:
 
@@ -302,7 +325,7 @@ What you will create:
 - Recommendation.
 - Optional source-backed evidence link.
 
-Source references preserved: source reference is optional; no page is invented when the finding comes from project work only.
+Source links preserved: source link is optional; no page is invented when the finding comes from project work only.
 
 Where to go next: inspect project graph or start a project critique thread.
 
@@ -331,7 +354,7 @@ What you will create:
 - Daily reflection.
 - Optional project application or task when supported.
 
-Source references preserved: template prompts are labeled as templates; source-backed prompts preserve their source reference.
+Source links preserved: template prompts are labeled as templates; source-backed prompts preserve their source link.
 
 Where to go next: open Projects or Review.
 
@@ -345,7 +368,7 @@ Time required: 4-7 minutes.
 
 Prerequisites:
 
-- A quote, concept, book, project, or source reference worth discussing.
+- A quote, concept, book, project, or source link worth discussing.
 
 Steps:
 
@@ -360,7 +383,7 @@ What you will create:
 - Forum comment.
 - Optional related source context.
 
-Source references preserved: private source context must not be exposed to users who cannot access it; thread context should link to real entities only.
+Source links preserved: private source context must not be exposed to users who cannot access it; thread context should link to real entities only.
 
 Where to go next: search discussions or apply discussion outcomes to a project.
 
@@ -385,7 +408,7 @@ Steps:
 
 What you will create: no new object; this is a rediscovery workflow.
 
-Source references preserved: search results expose source reference IDs only when the user can access them.
+Source links preserved: search results expose source link IDs only when the user can access them.
 
 Where to go next: inspect graph or export knowledge.
 
@@ -399,20 +422,20 @@ Time required: 3-6 minutes.
 
 Prerequisites:
 
-- Real links from concepts, source references, project applications, or entity links.
+- Real links from concepts, source links, project applications, or relationships.
 
 Steps:
 
 1. Open `/graph`.
 2. Filter by entity type, relationship type, book, concept, project, or source confidence.
-3. Open a node detail page or source reference.
+3. Open a node detail page or source link.
 4. Create a manual relationship only when the graph workspace supports it and both entities are accessible.
 
 What you will create:
 
 - Optional manual relationship when supported by the graph workspace.
 
-Source references preserved: graph edges must come from real source references or explicit entity links; unknown pages remain unknown.
+Source links preserved: Knowledge Graph edges must come from real source links or explicit relationships; unknown pages remain unknown.
 
 Where to go next: review concepts or open projects.
 
@@ -442,7 +465,7 @@ What you will create:
 - Markdown export.
 - CSV export where useful.
 
-Source references preserved: export includes only source references the current user can access; unknown pages remain null or unknown in export output.
+Source links preserved: export includes only source links the current user can access; unknown pages remain null or unknown in export output.
 
 Safety note: exports may include private user-generated content. Treat downloaded files as sensitive.
 
@@ -474,7 +497,7 @@ What you will create:
 - AI interaction record.
 - Optional accepted draft state.
 
-Source references preserved: source inputs used for the suggestion should be recorded; drafts do not become authoritative content automatically.
+Source links preserved: source inputs used for the suggestion should be recorded; drafts do not become authoritative content automatically.
 
 Safety note: AI suggestions are drafts only. BookOS must work without any external AI key and must never overwrite source content automatically.
 

@@ -26,7 +26,7 @@
           v-model="query"
           clearable
           size="large"
-          placeholder="Search books, notes, quotes, action items, concepts, projects..."
+          placeholder="Search books, notes, quotes, actions, concepts, projects..."
           aria-label="Global search query"
           @keydown.enter.prevent="openFirstResult"
         />
@@ -115,6 +115,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, type InputInstance } from 'element-plus'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { searchBookOS } from '../../api/search'
+import { recordUseCaseEvent } from '../../api/useCaseProgress'
 import { useOpenSource } from '../../composables/useOpenSource'
 import { useAuthStore } from '../../stores/auth'
 import type { SearchResultRecord, SearchResultType } from '../../types'
@@ -134,6 +135,7 @@ const results = ref<SearchResultRecord[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 const searchInput = ref<InputInstance | null>(null)
+const searchEventRecorded = ref(false)
 let searchTimer: number | undefined
 
 interface RouteShortcut {
@@ -150,9 +152,9 @@ const typeOptions: Array<{ label: string; value: SearchResultType }> = [
   { label: 'Notes', value: 'NOTE' },
   { label: 'Captures', value: 'CAPTURE' },
   { label: 'Quotes', value: 'QUOTE' },
-  { label: 'Action Items', value: 'ACTION_ITEM' },
+  { label: 'Actions', value: 'ACTION_ITEM' },
   { label: 'Concepts', value: 'CONCEPT' },
-  { label: 'Knowledge Objects', value: 'KNOWLEDGE_OBJECT' },
+  { label: 'Design Knowledge', value: 'KNOWLEDGE_OBJECT' },
   { label: 'Forum Threads', value: 'FORUM_THREAD' },
   { label: 'Projects', value: 'GAME_PROJECT' },
   { label: 'Project Problems', value: 'PROJECT_PROBLEM' },
@@ -180,7 +182,7 @@ const routeShortcuts: RouteShortcut[] = [
     keywords: ['books', 'reading', 'add book'],
   },
   {
-    label: 'Capture Inbox',
+    label: 'Process Captures',
     description: 'Review quick captures and convert them into notes, quotes, actions, or concepts.',
     group: 'Primary',
     to: { name: 'capture-inbox' },
@@ -202,7 +204,7 @@ const routeShortcuts: RouteShortcut[] = [
   },
   {
     label: 'Review',
-    description: 'Start source-backed review sessions and update mastery.',
+    description: 'Start source-backed review sessions and update learning progress.',
     group: 'Primary',
     to: { name: 'review' },
     keywords: ['learning', 'mastery', 'review session'],
@@ -216,10 +218,10 @@ const routeShortcuts: RouteShortcut[] = [
   },
   {
     label: 'Actions',
-    description: 'Manage source-backed action items.',
+    description: 'Manage source-backed actions.',
     group: 'Secondary',
     to: { name: 'action-items' },
-    keywords: ['action items', 'tasks', 'todo'],
+    keywords: ['actions', 'action items', 'tasks', 'todo'],
   },
   {
     label: 'Concepts',
@@ -229,11 +231,11 @@ const routeShortcuts: RouteShortcut[] = [
     keywords: ['concept', 'ontology'],
   },
   {
-    label: 'Knowledge',
-    description: 'Open knowledge objects, lenses, principles, and exercises.',
+    label: 'Design Knowledge',
+    description: 'Open design knowledge, lenses, principles, and exercises.',
     group: 'Secondary',
     to: { name: 'knowledge' },
-    keywords: ['knowledge objects', 'lenses', 'principles'],
+    keywords: ['design knowledge', 'knowledge objects', 'lenses', 'principles'],
   },
   {
     label: 'Daily',
@@ -265,10 +267,10 @@ const routeShortcuts: RouteShortcut[] = [
   },
   {
     label: 'Knowledge Graph',
-    description: 'Explore source-backed relationships and entity links.',
+    description: 'Explore source-backed relationships.',
     group: 'Advanced',
     to: { name: 'graph' },
-    keywords: ['graph', 'relationships', 'entity links', 'backlinks'],
+    keywords: ['knowledge graph', 'graph', 'relationships', 'entity links', 'backlinks', 'related links'],
   },
   {
     label: 'Analytics',
@@ -285,14 +287,14 @@ const routeShortcuts: RouteShortcut[] = [
     keywords: ['backup', 'restore', 'json', 'markdown', 'csv'],
   },
   {
-    label: 'AI Drafts',
-    description: 'Open the dashboard AI draft panel; AI remains draft-only.',
+    label: 'Draft Assistant',
+    description: 'Open draft-only assistant suggestions; AI remains optional and draft-only.',
     group: 'Advanced',
     to: { name: 'dashboard', query: { focus: 'ai' } },
     keywords: ['mock ai', 'suggestions', 'drafts'],
   },
   {
-    label: 'Admin Ontology',
+    label: 'Ontology Import',
     description: 'Admin-only ontology seed and import tools.',
     group: 'Admin',
     to: { name: 'admin-ontology' },
@@ -345,6 +347,7 @@ function handleShortcut(event: KeyboardEvent) {
 
 function openSearch() {
   open.value = true
+  searchEventRecorded.value = false
   void focusSearch()
 }
 
@@ -368,11 +371,22 @@ async function runSearch() {
   errorMessage.value = ''
   try {
     results.value = await searchBookOS({ q: trimmedQuery.value, type: typeFilter.value })
+    recordSearchUsed()
   } catch (error) {
     errorMessage.value = searchErrorMessage(error)
   } finally {
     loading.value = false
   }
+}
+
+function recordSearchUsed() {
+  if (searchEventRecorded.value) return
+  searchEventRecorded.value = true
+  void recordUseCaseEvent({
+    eventType: 'SEARCH_USED',
+    contextType: typeFilter.value || 'GLOBAL_SEARCH',
+    contextId: trimmedQuery.value.slice(0, 120),
+  }).catch(() => undefined)
 }
 
 function openFirstResult() {
@@ -457,6 +471,9 @@ function routeTarget(result: SearchResultRecord) {
 }
 
 function typeLabel(type: SearchResultType) {
+  if (type === 'ACTION_ITEM') return 'Action'
+  if (type === 'KNOWLEDGE_OBJECT') return 'Design Knowledge'
+  if (type === 'GAME_PROJECT' || type === 'PROJECT') return 'Project'
   return type.replaceAll('_', ' ').toLowerCase().replace(/^\w|\s\w/g, (match) => match.toUpperCase())
 }
 

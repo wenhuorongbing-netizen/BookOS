@@ -1,8 +1,8 @@
 # BookOS Public Beta 0.1 Readiness Review
 
-Last updated: 2026-04-30.
+Last updated: 2026-05-01.
 
-Current checked-out SHA: `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae`.
+Current checked-out SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
 
 Release tag target: `v0.1.0-beta`.
 
@@ -26,7 +26,7 @@ This release does not claim production-hosted operations, advanced graph analysi
 - Vue 3 + TypeScript + Vite frontend is present.
 - Routes and views exist for the major beta modules: dashboard, library, book detail, notes, captures, quotes, action items, concepts, knowledge, daily, forum, graph, projects, analytics, review/mastery, import/export, and admin ontology import.
 - UI uses the BookOS cockpit design system and right rail/source drawer patterns.
-- Playwright E2E smoke tests are present and documented, but are not yet a required CI gate.
+- Playwright E2E tests are present and documented. The full suite and the first-15-minutes usability suite are available through a manual `BookOS E2E Release Gate` workflow, but they are not required push/pull-request gates yet.
 
 ## Database and Migration Status
 
@@ -49,7 +49,7 @@ This release does not claim production-hosted operations, advanced graph analysi
 - Backend job uses Java 21 and runs Maven tests.
 - Frontend job uses Node 24, `npm ci`, typecheck, and production build.
 - CI does not require production secrets.
-- E2E is intentionally documented as local/optional until stable enough for required CI gating.
+- E2E is intentionally documented as local/manual workflow-dispatch until stable enough for required CI gating.
 
 ## Security Status
 
@@ -95,7 +95,7 @@ This release does not claim production-hosted operations, advanced graph analysi
 ## Known Limitations
 
 - Public beta deployment still requires operator-managed TLS, database backup policy, environment variables, and monitoring.
-- E2E browser tests are not mandatory CI gates yet.
+- E2E browser tests are not mandatory push/pull-request CI gates yet.
 - Graph workspace is practical but not advanced.
 - Forum moderation is basic and not realtime.
 - Review/mastery is lightweight and not advanced spaced repetition.
@@ -104,15 +104,16 @@ This release does not claim production-hosted operations, advanced graph analysi
 
 ## Latest Local Verification
 
-Run date: 2026-04-30.
+Run date: 2026-05-01.
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| Current SHA | PASS | `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae` |
-| Backend tests | PASS | `.\mvnw.cmd test`, 60 tests passed. |
+| Current SHA | PASS | `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578` |
+| Backend tests | PASS | `.\mvnw.cmd test`, 68 tests passed. |
 | Frontend typecheck | PASS | `npm run typecheck` passed. |
 | Frontend production build | PASS | `npm run build` passed. |
-| Playwright E2E smoke | PASS | `npm run e2e`, 2 tests passed. |
+| Playwright usability E2E | PASS | `npm run e2e:usability`, 6 tests passed. |
+| Playwright full E2E | PASS | `npm run e2e`, 31 tests passed. |
 | Compose config | PASS | `docker compose -f docker-compose.yml config` and `docker compose -f docker-compose.full.yml config` passed with `JWT_SECRET` set. |
 | Full-stack Docker build | PASS | `docker compose -f docker-compose.full.yml build` passed after lockfile sync. |
 | Full-stack Docker health smoke | PASS | Isolated project `bookos_beta_check` started MySQL/backend/frontend; backend health returned `{"status":"UP","groups":["liveness","readiness"]}` and frontend returned HTTP 200. |

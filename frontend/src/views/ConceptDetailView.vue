@@ -16,7 +16,7 @@
           </RouterLink>
           <AppButton variant="ghost" :disabled="!primarySource" @click="openPrimarySource">Open Source</AppButton>
           <RouterLink :to="{ name: 'graph-concept', params: { conceptId: concept.id } }" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Graph Context</AppButton>
+            <AppButton variant="secondary" @click="navigate">Knowledge Graph</AppButton>
           </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
@@ -63,7 +63,7 @@
           <AppSectionHeader title="Related Objects" eyebrow="Knowledge OS" :level="2" compact />
           <dl class="related-meta">
             <div>
-              <dt>Knowledge objects</dt>
+              <dt>Design knowledge</dt>
               <dd>{{ knowledgeObjects.length }}</dd>
             </div>
             <div>
@@ -75,11 +75,11 @@
               <dd>{{ relatedNoteIds.length }}</dd>
             </div>
             <div>
-              <dt>Related action items</dt>
+              <dt>Related actions</dt>
               <dd>{{ relatedActionItems.length }}</dd>
             </div>
             <div>
-              <dt>Mastery</dt>
+              <dt>Learning progress</dt>
               <dd>{{ mastery ? `${mastery.familiarityScore}/5 familiar` : 'Not reviewed' }}</dd>
             </div>
           </dl>
@@ -87,8 +87,8 @@
       </section>
 
       <AppCard class="related-list" as="section">
-        <AppSectionHeader title="Knowledge Objects" eyebrow="Connected records" :level="2" compact />
-        <AppEmptyState v-if="!knowledgeObjects.length" title="No knowledge objects yet" description="Reviewed concepts can be connected to principles, lenses, exercises, and prototype tasks." compact />
+        <AppSectionHeader title="Design Knowledge" eyebrow="Connected records" :level="2" compact />
+        <AppEmptyState v-if="!knowledgeObjects.length" title="No design knowledge yet" description="Reviewed concepts can be connected to principles, lenses, exercises, and prototype tasks." compact />
         <div v-else class="related-items">
           <RouterLink v-for="item in knowledgeObjects" :key="item.id" :to="{ name: 'knowledge-detail', params: { id: item.id } }" class="related-item">
             <AppBadge variant="info" size="sm">{{ item.type }}</AppBadge>

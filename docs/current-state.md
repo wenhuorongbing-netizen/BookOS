@@ -7,9 +7,9 @@ This document records the implementation state of the current `main` branch. Old
 ## Repository State
 
 - Current verified branch: `main`.
-- Current verified SHA: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
-- Current `origin/main` SHA at review time: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
-- Working tree status at Prompt 9 demo workspace start: contained uncommitted checkpoint changes from prior usability/onboarding/help prompts plus new demo workspace edits.
+- Current verified SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+- Current `origin/main` SHA at review time: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+- Working tree status at Product Slimming baseline start: clean before documentation updates.
 - MVP release-candidate infrastructure, Dockerfiles, CI, endpoint inventory, data model overview, graph workspace, admin ontology import, and release docs are committed on `main`.
 
 ## Implemented Backend Modules
@@ -43,6 +43,60 @@ This document records the implementation state of the current `main` branch. Old
 - Analytics, review, mastery, and import/export workspaces with loading, empty, and error states.
 - Demo Workspace page for starting, resetting, deleting, and navigating clearly labeled original sample records.
 - Responsive BookOS design system and cockpit shell.
+
+## Product Slimming Baseline
+
+The Product Slimming sprint starts from the verified `main` branch at `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+
+Route verification at this SHA confirms that the following usability features are implemented as real routes and views:
+
+- First-run onboarding: `/onboarding` using `OnboardingView.vue`.
+- Hands-on use cases: `/use-cases` and `/use-cases/:slug` using `UseCasesView.vue` and `UseCaseDetailView.vue`.
+- In-app help: `/help` and `/help/:topic` using `HelpView.vue`.
+- Demo Workspace: `/demo` using `DemoWorkspaceView.vue`.
+- Project apply-knowledge wizard: `/projects/:id/wizard/apply-knowledge` using `ProjectApplyKnowledgeWizardView.vue`.
+
+The sprint goal is not to remove capabilities. The goal is to reduce default cognitive load by making the first-day path obvious, moving advanced modules behind progressive disclosure, and replacing implementation-heavy labels with user-facing workflow language.
+
+Current Product Slimming Sprint 1 implementation:
+
+- Essential first-day: Dashboard, Library, Process Captures, Notes, Projects for Game Designer Mode, Review entry points when source-backed records exist.
+- Essential weekly: Review, Quotes, Actions, Concepts, Daily, Projects, Forum from source context.
+- Contextual: Source references, backlinks, graph entry points, apply-to-project actions, AI draft panel.
+- Advanced: Knowledge Graph workspace, Analytics, Learning Progress, Import/Export, Design Knowledge management, AI Drafts, and Demo Workspace.
+- Admin-only: Admin Ontology.
+- Keep hidden until data exists: empty graph shortcuts, learning progress summaries, project analytics, AI draft prompts without source context, forum source-linked prompts without source context.
+
+Sprint 1 preserves every route and deep link while reducing default sidebar choices:
+
+- `Capture Inbox` is now exposed as `Process Captures`.
+- `Knowledge Objects` is now exposed as `Design Knowledge`.
+- `Mastery` is now exposed as `Learning Progress`.
+- Demo Workspace and Knowledge Graph remain reachable through Advanced/More, dashboard links, use cases, or global search instead of appearing as first-day peers.
+
+Current Product Slimming Sprint 2 implementation:
+
+- Hands-on use cases are executable checklists instead of static reading material only.
+- User progress is persisted in `user_use_case_progress` and scoped to the authenticated user.
+- `/use-cases` shows started/in-progress progress when records exist.
+- `/use-cases/:slug` supports Start, Continue, Reset, automatic verification, and manual completion where the system cannot yet detect the action.
+- Automatic step completion uses only real owned records such as books, captures, converted notes/quotes/actions, concepts, projects, project applications, forum activity, source references, and AI drafts.
+- Manual completion remains explicit and does not create fake books, captures, quotes, projects, pages, or source references.
+- Implemented executable tracks: first 15 minutes, Reader Mode, Note-Taker Mode, Game Designer Mode, Researcher Mode, Community Mode, and Advanced Mode.
+
+Current Product Slimming Sprint 3 implementation:
+
+- Lightweight use-case interaction events are persisted in `user_use_case_events` and scoped to the authenticated user.
+- `POST /api/use-cases/progress/events` records only route/workflow evidence events: `SOURCE_OPENED`, `SEARCH_USED`, `GRAPH_OPENED`, and `EXPORT_STARTED`.
+- Open Source actions record `SOURCE_OPENED` after the source drawer/source route is invoked.
+- Global search records `SEARCH_USED` only after a successful search request.
+- The graph workspace records `GRAPH_OPENED` only after a real graph API load succeeds.
+- Import/Export records `EXPORT_STARTED` only after an export action successfully prepares a download.
+- The `first-15-minutes` checklist now auto-detects the Open Source step from real `SOURCE_OPENED` events.
+- The `advanced-mode-search-graph-export-ai` checklist now auto-detects search, graph, and export steps from real route events.
+- Events do not create books, notes, captures, quotes, projects, source references, demo data, fake page numbers, or fake completion records.
+
+No external usability sessions have been conducted from this repository state. Existing usability conclusions are internal product/QA assessments only.
 
 ## Known Limitations
 

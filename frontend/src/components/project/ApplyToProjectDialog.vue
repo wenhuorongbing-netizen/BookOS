@@ -18,7 +18,7 @@
       <template v-else>
         <p class="apply-project__source">
           Applying <strong>{{ sourceLabel }}</strong>
-          <span v-if="sourceReference">with source reference #{{ sourceReference.id }}</span>
+          <span v-if="sourceReference">with source link #{{ sourceReference.id }}</span>
         </p>
 
         <el-form label-position="top" @submit.prevent="submit">

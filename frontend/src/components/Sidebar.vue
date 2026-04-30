@@ -68,7 +68,7 @@
               </a>
             </RouterLink>
           </div>
-          <p v-else class="sidebar__advanced-help">Graph, analytics, import/export, AI drafts, and admin tools stay available through More or search.</p>
+          <p v-else class="sidebar__advanced-help">Knowledge Graph, analytics, import/export, Draft Assistant, and admin tools stay available through More or search.</p>
         </section>
 
         <button class="sidebar__nav-link sidebar__search-action" type="button" @click="openSearch">
@@ -140,10 +140,10 @@ const primaryItems: NavItem[] = [
     activePaths: ['/notes'],
   },
   {
-    label: 'Capture',
+    label: 'Process Captures',
     to: '/captures/inbox',
-    short: 'CA',
-    activePaths: ['/captures'],
+    short: 'PC',
+    activePaths: ['/captures', '/capture'],
   },
   {
     label: 'Projects',
@@ -170,7 +170,7 @@ const secondaryItems: NavItem[] = [
     label: 'Actions',
     to: '/action-items',
     short: 'AC',
-    activePaths: ['/action-items'],
+    activePaths: ['/action-items', '/actions'],
   },
   {
     label: 'Concepts',
@@ -179,9 +179,9 @@ const secondaryItems: NavItem[] = [
     activePaths: ['/concepts'],
   },
   {
-    label: 'Knowledge',
+    label: 'Design Knowledge',
     to: '/knowledge',
-    short: 'KO',
+    short: 'DK',
     activePaths: ['/knowledge'],
   },
   {
@@ -239,7 +239,7 @@ const advancedItems: NavItem[] = [
     activePaths: ['/import-export'],
   },
   {
-    label: 'AI Drafts',
+    label: 'Draft Assistant',
     to: '/dashboard?focus=ai',
     short: 'AI',
     activePaths: [],
@@ -258,20 +258,20 @@ const currentModeHelp = computed(() => {
   return 'Reading, capture, notes, and review are promoted.'
 })
 const primaryByMode: Record<NavigationMode, string[]> = {
-  READER: ['Dashboard', 'Library', 'Capture', 'Notes', 'Review'],
-  NOTE_TAKER: ['Dashboard', 'Library', 'Capture', 'Notes', 'Review'],
-  GAME_DESIGNER: ['Dashboard', 'Library', 'Capture', 'Projects', 'Review'],
+  READER: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Review'],
+  NOTE_TAKER: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Review'],
+  GAME_DESIGNER: ['Dashboard', 'Library', 'Process Captures', 'Projects', 'Review'],
   RESEARCHER: ['Dashboard', 'Library', 'Notes', 'Concepts', 'Review'],
-  COMMUNITY: ['Dashboard', 'Library', 'Capture', 'Notes', 'Forum', 'Review'],
-  ADVANCED: ['Dashboard', 'Library', 'Capture', 'Notes', 'Projects', 'Concepts', 'Review'],
+  COMMUNITY: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Forum', 'Review'],
+  ADVANCED: ['Dashboard', 'Library', 'Process Captures', 'Notes', 'Projects', 'Concepts', 'Review'],
 }
 const secondaryByMode: Record<NavigationMode, string[]> = {
-  READER: ['Quotes', 'Actions', 'Concepts', 'Demo'],
-  NOTE_TAKER: ['Quotes', 'Actions', 'Concepts', 'Knowledge', 'Demo'],
-  GAME_DESIGNER: ['Quotes', 'Concepts', 'Knowledge', 'Daily', 'Forum', 'Demo'],
-  RESEARCHER: ['Knowledge', 'Knowledge Graph', 'Quotes', 'Projects', 'Demo'],
-  COMMUNITY: ['Quotes', 'Concepts', 'Knowledge', 'Daily', 'Forum', 'Demo'],
-  ADVANCED: ['Quotes', 'Actions', 'Knowledge', 'Daily', 'Forum', 'Use Cases', 'Help', 'Demo'],
+  READER: ['Quotes', 'Actions', 'Concepts'],
+  NOTE_TAKER: ['Quotes', 'Actions', 'Concepts', 'Design Knowledge'],
+  GAME_DESIGNER: ['Quotes', 'Concepts', 'Design Knowledge', 'Daily', 'Forum'],
+  RESEARCHER: ['Design Knowledge', 'Quotes', 'Projects'],
+  COMMUNITY: ['Quotes', 'Concepts', 'Design Knowledge', 'Daily'],
+  ADVANCED: ['Quotes', 'Actions', 'Design Knowledge', 'Daily', 'Forum', 'Use Cases', 'Help', 'Demo'],
 }
 
 const allNavigationItems = computed(() => [...primaryItems, ...secondaryItems, ...routeOnlyItems, ...advancedItems])
