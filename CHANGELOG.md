@@ -6,7 +6,7 @@ All notable public-beta changes are tracked here.
 
 Release date target: not tagged yet.
 
-Current reviewed source SHA: `1734e5399d5edc6f8fcd683228d9b26d58f1b847`.
+Current reviewed source SHA: `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae`.
 
 ### Added
 

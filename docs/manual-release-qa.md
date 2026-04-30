@@ -1,6 +1,6 @@
 # BookOS Manual Release QA
 
-Last updated: 2026-04-29.
+Last updated: 2026-04-30.
 
 Use this template before tagging BookOS Public Beta 0.1.
 
@@ -19,15 +19,15 @@ Use this template before tagging BookOS Public Beta 0.1.
 
 Record `PASS`, `FAIL`, or `NOT RUN`.
 
-- Backend tests: PASS on 2026-04-29, `.\mvnw.cmd test`, 50 tests.
-- Frontend typecheck: PASS on 2026-04-29, `npm run typecheck`.
-- Frontend production build: PASS on 2026-04-29, `npm run build`.
-- Docker Compose config: PASS on 2026-04-29 for local MySQL and full stack.
+- Backend tests: PASS on 2026-04-30, `.\mvnw.cmd test`, 60 tests.
+- Frontend typecheck: PASS on 2026-04-30, `npm run typecheck`.
+- Frontend production build: PASS on 2026-04-30, `npm run build`.
+- Docker Compose config: PASS on 2026-04-30 for local MySQL and full stack.
 - Docker backend image build: PASS on 2026-04-29 via `docker compose -f docker-compose.full.yml build`.
 - Docker frontend image build: PASS on 2026-04-29 via `docker compose -f docker-compose.full.yml build`.
 - Full-stack Docker health smoke: PASS on 2026-04-29 with isolated Compose project `bookos_beta_check`.
-- Playwright E2E smoke: PASS on 2026-04-29, `npm run e2e`, 2 tests.
-- Secret/artifact scan: PASS on 2026-04-29 for common token patterns and committed artifact paths.
+- Playwright E2E smoke: PASS on 2026-04-30, `npm run e2e`, 2 tests.
+- Secret/artifact scan: PASS on 2026-04-30 for common token patterns and committed artifact paths.
 
 Note: full manual browser QA and responsive checks still need human sign-off before tagging.
 

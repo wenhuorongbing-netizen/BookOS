@@ -1,6 +1,6 @@
 # BookOS Environment Variables
 
-Last updated: 2026-04-29.
+Last updated: 2026-04-30.
 
 This document is the public beta environment reference. Do not commit `.env` files or real secrets.
 

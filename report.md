@@ -892,3 +892,307 @@ Run a browser smoke test focused specifically on Analytics, Review, and Mastery 
 ### Next Recommended Prompt
 
 Run a browser-focused graph/source smoke test: create a project application and manual relationship from the UI, open it in `/graph/project/:id`, verify source drawer and page-unknown behavior, and decide whether `BacklinkResponse` should include `projectId` for direct project subroute navigation.
+
+## Prompt 9 — AI Provider Strict Acceptance and Secret Safety Review
+
+### Date and Local Time
+
+- 2026-04-30 13:15:42 +02:00
+
+### Current SHA
+
+- Branch: `main`
+- SHA: `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae`
+
+### Provider Modes Verified
+
+- `MockAIProvider` remains the default test/local provider through `AI_PROVIDER=mock`.
+- `OpenAICompatibleProvider` is optional and selected only through environment-backed configuration.
+- Missing OpenAI-compatible key returns a safe unavailable-provider response and does not make external calls.
+- OpenAI-compatible provider unit coverage uses a local mocked HTTP server only.
+- `AI_ENABLED=false` is documented as hard-off mode.
+
+### Endpoints Verified
+
+- `GET /api/ai/status`
+- `POST /api/ai/suggestions/note-summary`
+- `POST /api/ai/suggestions/extract-actions`
+- `POST /api/ai/suggestions/extract-concepts`
+- `POST /api/ai/suggestions/design-lenses`
+- `POST /api/ai/suggestions/project-applications`
+- `POST /api/ai/suggestions/forum-thread`
+- `GET /api/ai/suggestions`
+- `PUT /api/ai/suggestions/{id}/accept`
+- `PUT /api/ai/suggestions/{id}/reject`
+- `PUT /api/ai/suggestions/{id}/edit`
+
+### Safety Rules Verified
+
+- AI suggestions are persisted as `DRAFT`.
+- Accepting a suggestion changes only suggestion status/timestamps and does not overwrite source content.
+- Editing a suggestion changes only the draft fields and requires the suggestion to still be `DRAFT`.
+- Rejecting a suggestion changes only suggestion status/timestamps.
+- Source references used as AI input are recorded on the suggestion.
+- Cross-user suggestion list/edit/accept access is blocked by `suggestionId + userId` lookups.
+- Source material resolution requires owned source reference, note, capture, or accessible book context.
+- Provider request input metadata omits secrets and records only provider/task/book/source metadata.
+
+### Secret Handling Result
+
+- Provider status response hides API keys, authorization headers, and raw secret variable names.
+- No real external AI call is required or executed by tests.
+- Tracked artifact scan found no tracked `.env`, archive, log, `target`, `dist`, or `node_modules` artifact.
+- Secret-pattern scan found only the expected placeholder configuration line in `application.yml`: `${OPENAI_COMPATIBLE_API_KEY:}`.
+
+### JSON Validation Result
+
+- Malformed JSON is rejected.
+- Invented page numbers are rejected.
+- JSON with overwrite targets is rejected.
+- JSON `type` is now required to match the requested `AISuggestionType`.
+- A schema/runtime mismatch was found and fixed: the database enum only allowed the original three AI suggestion types while the controller exposes six tasks.
+
+### Tests Added
+
+- Added validator coverage for mismatched suggestion type and nested overwrite target rejection.
+- Added integration coverage for all six AI generation endpoints creating validated draft suggestions with source references.
+- Existing/provider tests cover mocked OpenAI-compatible HTTP behavior, missing-key fail-safe behavior, provider status secret hiding, cross-user suggestion denial, and no-overwrite accept/edit/reject lifecycle.
+
+### Files Created
+
+- `backend/src/main/resources/db/migration/V9__expand_ai_suggestion_types.sql`
+- `docs/ai-safety.md`
+
+### Files Modified
+
+- `README.md`
+- `backend/src/main/java/com/bookos/backend/ai/service/AISuggestionValidator.java`
+- `backend/src/test/java/com/bookos/backend/ai/AIProviderServiceTest.java`
+- `backend/src/test/java/com/bookos/backend/integration/SearchGraphAIIntegrationTest.java`
+- `docs/database-migrations.md`
+- `docs/environment-variables.md`
+- `report.md`
+
+### Commands Run
+
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse HEAD`
+- `git status --short`
+- `rg -n "AIProvider|MockAI|OpenAI|AISuggestion|AIInteraction|/api/ai|ai\\.provider|AI_ENABLED|OPENAI|Json|JSON|status" backend/src/main/java backend/src/test/java frontend/src docs README.md .env.example backend/src/main/resources -S`
+- `rg --files backend/src/main/java/com/bookos/backend | rg "(/ai/|/config/|/security/)"`
+- `rg --files frontend/src | rg "(RightRail|rightRail|ai|AI|api)"`
+- `rg --files docs | rg "(ai|environment|security|current|api)"`
+- `.\mvnw.cmd "-Dtest=AIProviderServiceTest,AIProviderConfigurationIntegrationTest,AIProviderSecretStatusIntegrationTest,SearchGraphAIIntegrationTest,SecurityBoundaryIntegrationTest" test`
+- `.\mvnw.cmd test`
+- `npm ci`
+- `npm run typecheck`
+- `npm run build`
+- `npm run e2e`
+- `git ls-files | rg '(^|/)(backend\\.zip|.*\\.7z|.*\\.log|.*\\.out|.*\\.err|\\.env)$|frontend/dist|backend/target|frontend/node_modules'`
+- `rg -n "sk-[A-Za-z0-9_-]{20,}|OPENAI_COMPATIBLE_API_KEY\\s*=\\s*[^\\s#]+|api-key\\s*:\\s*[^\\s#]+" --glob '!backend/target/**' --glob '!frontend/dist/**' --glob '!frontend/node_modules/**' .`
+
+### Verification Result
+
+- Initial targeted AI/security test run exposed a real endpoint/schema bug: `POST /api/ai/suggestions/design-lenses` returned 500 because the database enum did not include all implemented AI suggestion types.
+- After `V9__expand_ai_suggestion_types.sql`, targeted AI/security tests: PASS. 19 tests, 0 failures, 0 errors.
+- Backend full suite: PASS. 60 tests, 0 failures, 0 errors, 0 skipped.
+- Frontend clean install: PASS. `npm ci` completed with 0 vulnerabilities.
+- Frontend typecheck: PASS.
+- Frontend production build: PASS.
+- Playwright E2E: PASS. 2 tests passed.
+- Tracked artifact/environment check: PASS. No tracked archives, logs, `.env`, backend `target`, frontend `dist`, or `node_modules`.
+
+### Remaining AI Risks
+
+- OpenAI-compatible provider has mocked HTTP coverage only; no real provider smoke test was run by design.
+- Provider status intentionally reports whether an external provider is configured, but not which key or secret value.
+- AI generation still accepts freeform user-selected text; the backend truncates input but does not perform semantic privacy classification.
+- Right Rail exposes the draft workflow, but deeper browser assertions for each AI task selector remain limited to the existing E2E smoke path.
+- Mockito dynamic-agent warnings remain in backend test output.
+
+### Next Recommended Prompt
+
+Run a browser-focused AI workflow smoke test: configure local MockAIProvider, generate each draft type from an explicit source reference in the Right Rail, confirm the source drawer opens, edit/accept/reject drafts, and verify no source content changes after acceptance.
+
+## Prompt 10 — Public Beta 0.1 Final Release Gate and PO-Ready Report
+
+### Date and Local Time
+
+2026-04-30 13:24:20 +02:00
+
+### Current SHA
+
+- Branch: `main`
+- SHA: `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae`
+- Working tree state: release documentation changes are local/uncommitted at the end of this gate.
+
+### Executive Summary
+
+BookOS Public Beta 0.1 is functionally ready for a controlled beta release with caveats. The release gate verified backend tests, frontend install/typecheck/build, browser E2E smoke, Docker Compose config, full-stack Compose config, direct health endpoints, repo hygiene, release documentation, AI draft safety, and source-reference documentation.
+
+No P0 release blocker was found. The recommendation is **Release with caveats**, not unconditional release, because broad public exposure still needs final human mobile/tablet QA, real deployment environment smoke, and operator backup/monitoring setup.
+
+### Product Goal
+
+BookOS is a reading record system, book notes library, game design knowledge operating system, source-referenced knowledge graph, structured forum, and project application cockpit. The beta goal is to prove the core loop: reading material becomes notes, captures, quotes, action items, concepts, source references, search/graph context, forum discussion, and project design actions.
+
+### What Is Implemented
+
+- Auth, user roles, JWT access, BCrypt password hashing, current-user flow.
+- Book library, user library, reading progress, status, rating, book detail cockpit.
+- Notes, note blocks, Quick Capture, deterministic emoji/page/tag/`[[Concept]]` parser, capture inbox, and conversion.
+- Quotes, action items, concepts, knowledge objects, source references, entity links, backlinks, search, and graph.
+- Daily sentence/design prompt MVP, structured forum MVP, Game Project Mode MVP, analytics/review/mastery MVP, import/export MVP.
+- Draft-only AI suggestions using MockAIProvider by default and optional OpenAI-compatible provider configuration.
+- Flyway migrations through `V9`, Dockerfiles, local MySQL compose, full-stack compose, CI workflows, E2E smoke tests, and beta release docs.
+
+### What Is Verified
+
+- Backend full test suite passes: 60 tests, 0 failures, 0 errors, 0 skipped.
+- Frontend clean install passes: 147 packages, 0 vulnerabilities.
+- Frontend typecheck and production build pass.
+- Playwright E2E passes: 2 browser tests.
+- `docker compose config` passes.
+- `docker compose -f docker-compose.full.yml config` passes with a non-secret validation `JWT_SECRET`.
+- `GET /api/health` returns `UP` service data.
+- `GET /actuator/health` returns `UP`.
+- No tracked `.env`, archives, logs, `backend/target`, `frontend/dist`, or `frontend/node_modules`.
+- Secret-pattern scan found no high-confidence committed secrets.
+
+### What Is Not Verified
+
+- GitHub-hosted CI was not remotely executed in this prompt; local-equivalent commands passed and workflows exist.
+- Full Docker image build and full-stack container runtime smoke were not rerun in this prompt; release docs preserve the previous successful full-stack Docker health smoke.
+- Real external OpenAI-compatible provider was not called by design.
+- Full human responsive/mobile/tablet QA is not complete.
+- Production-like backup restore on a real beta MySQL volume was not executed.
+
+### Test Results
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Backend tests | `.\mvnw.cmd test` | PASS, 60 tests |
+| Frontend install | `npm ci` | PASS, 147 packages, 0 vulnerabilities |
+| Frontend typecheck | `npm run typecheck` | PASS |
+| Frontend build | `npm run build` | PASS |
+| Playwright browser install | `npx playwright install chromium` | PASS |
+| E2E smoke | `npm run e2e` | PASS, 2 tests |
+| Local MySQL compose config | `docker compose config` | PASS |
+| Full-stack compose config | `docker compose -f docker-compose.full.yml config` | PASS with validation `JWT_SECRET` |
+| API health | `GET /api/health` on test-profile backend | PASS |
+| Actuator health | `GET /actuator/health` on test-profile backend | PASS |
+| Repo hygiene | `git ls-files` artifact/env scan | PASS |
+| Secret scan | token regex scan excluding generated folders | PASS |
+
+### E2E Results
+
+- `admin-ontology.spec.ts`: PASS. Admin can dry-run default ontology import without production secrets.
+- `mvp-core-loop.spec.ts`: PASS. Browser MVP loop covers registration/login, dashboard, book/library, note/capture/parser/conversion, quote/action/source, concept review, search, graph, MockAIProvider draft flow, project mode, forum, import/export route access, and logout.
+
+### CI Status
+
+- `.github/workflows/ci.yml` exists for backend and frontend verification.
+- `.github/workflows/e2e.yml` exists for optional browser smoke.
+- CI requires no production secrets.
+- Local-equivalent commands passed in this gate.
+
+### Docker Status
+
+- `docker-compose.yml` renders valid local MySQL config.
+- `docker-compose.full.yml` renders valid MySQL/backend/frontend config when `JWT_SECRET` is supplied.
+- `backend/Dockerfile` and `frontend/Dockerfile` are present.
+- Full-stack Compose healthchecks are configured.
+- No secrets are baked into images by docs/config.
+
+### Security Status
+
+- Password hashing, JWT external secret, CORS configuration, Markdown sanitization, admin ontology protection, user-scoped search/graph/source/AI/project behavior, and owner-scoped tests are documented.
+- `docs/security-checklist.md` was added for PO/operator release review.
+- No P0 data leak was found during this release gate.
+
+### AI Safety Status
+
+- MockAIProvider remains default.
+- External OpenAI-compatible provider is optional and environment-controlled.
+- App works without external AI key.
+- Provider status hides secrets.
+- Suggestions are draft-only.
+- Accept/edit/reject does not overwrite source content automatically.
+- No real external AI call was made.
+
+### Source Reference Status
+
+- Source reference rules are documented as release invariants.
+- Unknown page numbers remain `null`; page numbers must not be invented.
+- Source references are preserved across core derived objects where implemented.
+- Source-opening and source drawer behavior are covered by backend/frontend paths and E2E smoke at the core-loop level.
+
+### P0 Blockers
+
+None found.
+
+### P1 Issues
+
+- Full human mobile/tablet responsive QA remains before broad public exposure.
+- Real target-environment deployment smoke, TLS/proxy validation, and backup schedule verification remain operator tasks.
+- E2E is available and passing locally but is not yet a mandatory CI gate.
+
+### P2 Issues
+
+- Graph workspace is real-data-backed but still lightweight for large graphs.
+- Review/mastery is MVP-level and not advanced spaced repetition.
+- Forum moderation is basic and not realtime.
+- Import conflict resolution UX is limited.
+- External AI provider has mocked HTTP coverage only; no real-provider smoke is included by design.
+- Mockito dynamic-agent warnings appear in backend test output but do not fail tests.
+
+### Module Readiness Table
+
+| Module | Status | Score | Notes |
+| --- | --- | ---: | --- |
+| Auth | PASS | 5 | Register/login/me, JWT, roles, tests. |
+| Books | PASS | 5 | CRUD and book detail foundations are usable. |
+| User library | PASS | 5 | Status, progress, rating, and library flows. |
+| Notes | PASS | 4 | Usable notes and source-linked detail; editor remains MVP-level. |
+| Captures | PASS | 5 | Quick Capture, inbox, parser metadata, conversions. |
+| Parser | PASS | 5 | Deterministic emoji/page/tag/concept parser with tests. |
+| Quotes | PASS | 5 | CRUD, archive, detail, source-open. |
+| Action items | PASS | 5 | CRUD, complete/reopen, archive, source-open. |
+| Source references | PASS | 5 | Core invariant implemented and documented. |
+| Entity links | PASS | 4 | Safe relationship model; editor UX remains technical. |
+| Backlinks | PASS | 4 | Key pages show related links; breadth can improve. |
+| Concepts | PASS | 4 | Review/list/detail/source workflows. |
+| Knowledge objects | PASS | 4 | MVP workspace and ontology import support. |
+| Daily | PASS | 4 | Source-backed/template-labeled daily MVP. |
+| Forum | PASS | 4 | Structured MVP with source context and basic moderation. |
+| Search | PASS | 4 | Cross-module search with ownership scoping. |
+| Graph | PASS | 4 | Real-data graph and filters; not advanced analysis. |
+| Projects | PASS | 4 | Project Mode MVP is usable and source-linked. |
+| Analytics | PASS | 4 | Real-data analytics MVP with honest empty states. |
+| Review | PASS | 4 | Source-backed review sessions are usable. |
+| Mastery | PASS | 3 | Lightweight MVP scoring and updates. |
+| Import/export | PASS | 4 | User-owned JSON/Markdown/CSV MVP; conflict UX limited. |
+| AI | PASS | 4 | Draft-only mock/default plus optional external provider config. |
+| Admin ontology | PASS | 4 | Admin-only dry-run/import workflow and E2E smoke. |
+
+### MVP Readiness Score
+
+88 / 100
+
+Rationale: the MVP product loop is implemented, tested, and browser-smoked. Remaining gaps are mostly operational maturity, responsive human QA, and depth of advanced modules.
+
+### Public Beta Readiness Score
+
+84 / 100
+
+Rationale: appropriate for controlled public beta with clear caveats. Not ready for unsupervised broad production rollout until deployment/backup/monitoring/mobile QA are completed in the target environment.
+
+### Release Recommendation
+
+Release with caveats.
+
+Do not tag yet unless the release owner explicitly approves after reviewing the updated release docs and `report.md`.
+
+### Next Milestone Recommendation
+
+Run a final human QA pass on desktop/tablet/mobile against the release checklist, then execute a real target-environment deployment smoke with MySQL backup/restore verification. If clean, create `v0.1.0-beta`.

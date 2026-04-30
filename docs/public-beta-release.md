@@ -1,8 +1,8 @@
 # BookOS Public Beta 0.1 Readiness Review
 
-Last updated: 2026-04-29.
+Last updated: 2026-04-30.
 
-Current checked-out SHA: `1734e5399d5edc6f8fcd683228d9b26d58f1b847`.
+Current checked-out SHA: `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae`.
 
 Release tag target: `v0.1.0-beta`.
 
@@ -16,7 +16,7 @@ This release does not claim production-hosted operations, advanced graph analysi
 
 - Java 21 Spring Boot backend is present.
 - Maven wrapper is present.
-- Flyway migrations are present through `V8`.
+- Flyway migrations are present through `V9`.
 - Hibernate normal runtime mode validates the migrated schema.
 - Actuator health endpoint is enabled.
 - Authentication, ownership checks, validation, source references, search/graph scoping, forum permissions, and AI draft-only workflow are implemented in code and covered by existing backend tests where practical.
@@ -104,15 +104,15 @@ This release does not claim production-hosted operations, advanced graph analysi
 
 ## Latest Local Verification
 
-Run date: 2026-04-29.
+Run date: 2026-04-30.
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| Current SHA | PASS | `1734e5399d5edc6f8fcd683228d9b26d58f1b847` |
-| Backend tests | PASS | `.\mvnw.cmd test`, 50 tests passed. |
+| Current SHA | PASS | `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae` |
+| Backend tests | PASS | `.\mvnw.cmd test`, 60 tests passed. |
 | Frontend typecheck | PASS | `npm run typecheck` passed. |
 | Frontend production build | PASS | `npm run build` passed. |
-| Playwright E2E smoke | PASS | `npm run e2e`, 2 tests passed in 32.1s. |
+| Playwright E2E smoke | PASS | `npm run e2e`, 2 tests passed. |
 | Compose config | PASS | `docker compose -f docker-compose.yml config` and `docker compose -f docker-compose.full.yml config` passed with `JWT_SECRET` set. |
 | Full-stack Docker build | PASS | `docker compose -f docker-compose.full.yml build` passed after lockfile sync. |
 | Full-stack Docker health smoke | PASS | Isolated project `bookos_beta_check` started MySQL/backend/frontend; backend health returned `{"status":"UP","groups":["liveness","readiness"]}` and frontend returned HTTP 200. |

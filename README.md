@@ -384,3 +384,6 @@ Release candidate guidance is documented in `docs/mvp-release-candidate.md`.
 The complete endpoint inventory is documented in `docs/api-endpoint-inventory.md`.
 The current data model overview is documented in `docs/data-model-overview.md`.
 AI provider safety rules are documented in `docs/ai-safety.md`.
+Public beta release gate results are documented in `docs/release-test-results.md`.
+Accepted beta limitations are documented in `docs/known-limitations.md`.
+Security release checks are documented in `docs/security-checklist.md`.

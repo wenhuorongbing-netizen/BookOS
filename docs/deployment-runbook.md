@@ -1,12 +1,12 @@
 # BookOS Public Beta Deployment Runbook
 
-Last updated: 2026-04-29.
+Last updated: 2026-04-30.
 
 Target release: BookOS Public Beta 0.1.
 
 ## Preconditions
 
-- Current source reviewed at SHA `1734e5399d5edc6f8fcd683228d9b26d58f1b847` or a later intentional release SHA.
+- Current source reviewed at SHA `f71d53ffdf58d9f2c7b8e3429af8605b4b8ad3ae` or a later intentional release SHA.
 - No generated artifacts, archives, logs, `target`, `dist`, or `node_modules` committed.
 - `JWT_SECRET` and database credentials are supplied by environment variables.
 - MySQL backup exists before upgrading an existing environment.
