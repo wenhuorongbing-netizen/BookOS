@@ -235,6 +235,16 @@ class SearchGraphAIIntegrationTest {
                                 && node.path("entityId").asLong() == conceptId))
                 .isTrue();
 
+        mockMvc.perform(get("/api/graph/concept/{conceptId}", conceptId)
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nodes[?(@.type == 'CONCEPT')]").isNotEmpty())
+                .andExpect(jsonPath("$.data.nodes[?(@.type == 'SOURCE_REFERENCE')]").isNotEmpty());
+
+        mockMvc.perform(get("/api/graph/concept/{conceptId}", conceptId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+
         mockMvc.perform(post("/api/entity-links")
                         .header("Authorization", "Bearer " + intruderToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -270,6 +280,104 @@ class SearchGraphAIIntegrationTest {
         mockMvc.perform(delete("/api/entity-links/{id}", systemLinkId)
                         .header("Authorization", "Bearer " + ownerToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void projectSourceTraceabilityBacklinksAndGraphRemainOwnerScoped() throws Exception {
+        String ownerToken = register("project-trace-owner-%s@bookos.local".formatted(UUID.randomUUID()), "Project Trace Owner");
+        String intruderToken = register("project-trace-intruder-%s@bookos.local".formatted(UUID.randomUUID()), "Project Trace Intruder");
+        Long bookId = createBookAndAddToLibrary(ownerToken, "Project Trace Book " + UUID.randomUUID());
+        JsonNode capture = createCapture(ownerToken, bookId, "\\uD83D\\uDCAC p.64 Source traceability for project work.");
+        Long sourceReferenceId = capture.path("sourceReferences").get(0).path("id").asLong();
+        Long quoteId = convertCaptureToQuote(ownerToken, capture.path("id").asLong());
+        Long projectId = createProject(ownerToken, "Source Traceability Project " + UUID.randomUUID());
+
+        Long problemId = createProjectProblem(ownerToken, projectId, sourceReferenceId);
+        Long applicationId = createProjectApplication(ownerToken, projectId, quoteId, sourceReferenceId);
+        Long decisionId = createDesignDecision(ownerToken, projectId, sourceReferenceId);
+        Long findingId = createPlaytestFinding(ownerToken, projectId, sourceReferenceId);
+        Long lensReviewId = createProjectLensReview(ownerToken, projectId, sourceReferenceId);
+
+        assertProjectSourceLookup(ownerToken, "PROJECT_PROBLEM", problemId, sourceReferenceId);
+        assertProjectSourceLookup(ownerToken, "PROJECT_APPLICATION", applicationId, sourceReferenceId);
+        assertProjectSourceLookup(ownerToken, "DESIGN_DECISION", decisionId, sourceReferenceId);
+        assertProjectSourceLookup(ownerToken, "PLAYTEST_FINDING", findingId, sourceReferenceId);
+        assertProjectSourceLookup(ownerToken, "PROJECT_LENS_REVIEW", lensReviewId, sourceReferenceId);
+
+        mockMvc.perform(get("/api/source-references")
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .param("entityType", "PROJECT_APPLICATION")
+                        .param("entityId", String.valueOf(applicationId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        String linkResponse = mockMvc.perform(post("/api/entity-links")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceType": "PROJECT_APPLICATION",
+                                  "sourceId": %d,
+                                  "targetType": "DESIGN_DECISION",
+                                  "targetId": %d,
+                                  "relationType": "EVIDENCE_FOR",
+                                  "sourceReferenceId": %d,
+                                  "note": "Project application informs this decision."
+                                }
+                                """.formatted(applicationId, decisionId, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.createdBy").value("USER"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long entityLinkId = objectMapper.readTree(linkResponse).path("data").path("id").asLong();
+
+        mockMvc.perform(get("/api/backlinks")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .param("entityType", "PROJECT_APPLICATION")
+                        .param("entityId", String.valueOf(applicationId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].entityType").value("DESIGN_DECISION"))
+                .andExpect(jsonPath("$.data[0].sourceReference.id").value(sourceReferenceId))
+                .andExpect(jsonPath("$.data[0].sourceReference.pageStart").value(64));
+
+        mockMvc.perform(get("/api/backlinks")
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .param("entityType", "PROJECT_APPLICATION")
+                        .param("entityId", String.valueOf(applicationId)))
+                .andExpect(status().isNotFound());
+
+        JsonNode projectGraph = objectMapper.readTree(mockMvc.perform(get("/api/graph/project/{projectId}", projectId)
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).path("data");
+        assertThat(StreamSupport.stream(projectGraph.path("nodes").spliterator(), false)
+                        .anyMatch(node -> "PROJECT_APPLICATION".equals(node.path("type").asText())
+                                && node.path("entityId").asLong() == applicationId))
+                .isTrue();
+        assertThat(StreamSupport.stream(projectGraph.path("nodes").spliterator(), false)
+                        .anyMatch(node -> "SOURCE_REFERENCE".equals(node.path("type").asText())
+                                && node.path("entityId").asLong() == sourceReferenceId))
+                .isTrue();
+        assertThat(StreamSupport.stream(projectGraph.path("edges").spliterator(), false)
+                        .anyMatch(edge -> edge.path("entityLinkId").asLong() == entityLinkId
+                                && "USER".equals(edge.path("createdBy").asText())
+                                && "EVIDENCE_FOR".equals(edge.path("type").asText())))
+                .isTrue();
+        assertThat(projectGraph.toString()).doesNotContain("Fake", "MDA Framework", "Game Feel");
+
+        mockMvc.perform(get("/api/graph/project/{projectId}", projectId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/entity-links/{id}", entityLinkId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/entity-links/{id}", entityLinkId)
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -408,6 +516,143 @@ class SearchGraphAIIntegrationTest {
                 .andExpect(status().isCreated());
 
         return bookId;
+    }
+
+    private Long createProject(String token, String title) throws Exception {
+        String response = mockMvc.perform(post("/api/projects")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "%s",
+                                  "description": "Graph/source traceability test project.",
+                                  "genre": "Puzzle",
+                                  "platform": "Web",
+                                  "stage": "IDEATION",
+                                  "visibility": "PRIVATE",
+                                  "progressPercent": 10
+                                }
+                                """.formatted(title)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private Long createProjectProblem(String token, Long projectId, Long sourceReferenceId) throws Exception {
+        String response = mockMvc.perform(post("/api/projects/{projectId}/problems", projectId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Traceability problem",
+                                  "description": "Problem linked to a source reference.",
+                                  "status": "OPEN",
+                                  "priority": "HIGH",
+                                  "relatedSourceReferenceId": %d
+                                }
+                                """.formatted(sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private Long createProjectApplication(String token, Long projectId, Long quoteId, Long sourceReferenceId) throws Exception {
+        String response = mockMvc.perform(post("/api/projects/{projectId}/applications", projectId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceEntityType": "QUOTE",
+                                  "sourceEntityId": %d,
+                                  "sourceReferenceId": %d,
+                                  "applicationType": "TRACE_TEST",
+                                  "title": "Apply traceability quote",
+                                  "description": "Use this source-backed quote in a project application.",
+                                  "status": "OPEN"
+                                }
+                                """.formatted(quoteId, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private Long createDesignDecision(String token, Long projectId, Long sourceReferenceId) throws Exception {
+        String response = mockMvc.perform(post("/api/projects/{projectId}/decisions", projectId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Traceability decision",
+                                  "decision": "Keep the source-backed choice.",
+                                  "rationale": "The related source explains why this decision exists.",
+                                  "tradeoffs": "The choice needs validation.",
+                                  "sourceReferenceId": %d,
+                                  "status": "OPEN"
+                                }
+                                """.formatted(sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private Long createPlaytestFinding(String token, Long projectId, Long sourceReferenceId) throws Exception {
+        String response = mockMvc.perform(post("/api/projects/{projectId}/playtest-findings", projectId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Traceability finding",
+                                  "observation": "Players reacted to the source-backed mechanic.",
+                                  "severity": "MEDIUM",
+                                  "recommendation": "Run another source-backed test.",
+                                  "sourceReferenceId": %d,
+                                  "status": "OPEN"
+                                }
+                                """.formatted(sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private Long createProjectLensReview(String token, Long projectId, Long sourceReferenceId) throws Exception {
+        String response = mockMvc.perform(post("/api/projects/{projectId}/lens-reviews", projectId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "question": "Does the project preserve source traceability?",
+                                  "answer": "Yes, this review points back to a source reference.",
+                                  "score": 7,
+                                  "status": "REVIEWED",
+                                  "sourceReferenceId": %d
+                                }
+                                """.formatted(sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private void assertProjectSourceLookup(String token, String entityType, Long entityId, Long sourceReferenceId) throws Exception {
+        mockMvc.perform(get("/api/source-references")
+                        .header("Authorization", "Bearer " + token)
+                        .param("entityType", entityType)
+                        .param("entityId", String.valueOf(entityId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(sourceReferenceId))
+                .andExpect(jsonPath("$.data[0].pageStart").value(64))
+                .andExpect(jsonPath("$.data[0].sourceConfidence").value("HIGH"));
     }
 
     private String register(String email, String displayName) throws Exception {

@@ -34,11 +34,11 @@
           </div>
           <div>
             <dt>Page start</dt>
-            <dd>{{ sourceDrawerSource?.pageStart ?? sourceDrawerTarget?.pageStart ?? 'Unknown' }}</dd>
+            <dd>{{ sourceDrawerSource?.pageStart ?? sourceDrawerTarget?.pageStart ?? 'Page unknown' }}</dd>
           </div>
           <div>
             <dt>Page end</dt>
-            <dd>{{ sourceDrawerSource?.pageEnd ?? sourceDrawerSource?.pageStart ?? sourceDrawerTarget?.pageStart ?? 'Unknown' }}</dd>
+            <dd>{{ sourceDrawerSource?.pageEnd ?? sourceDrawerSource?.pageStart ?? sourceDrawerTarget?.pageStart ?? 'Page unknown' }}</dd>
           </div>
           <div>
             <dt>Location</dt>

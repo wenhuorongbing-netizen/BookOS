@@ -11,7 +11,13 @@
     <AppErrorState v-else-if="errorMessage" title="Analytics could not load" :description="errorMessage" retry-label="Retry" @retry="loadAnalytics" />
 
     <template v-else-if="reading && knowledge">
-      <section class="stat-grid" aria-label="Reading analytics summary">
+      <AppEmptyState
+        v-if="!hasAnyAnalytics"
+        title="No learning activity yet"
+        description="Analytics will appear after you add books, reading sessions, notes, captures, quotes, concepts, projects, or review items."
+      />
+
+      <section v-else class="stat-grid" aria-label="Reading analytics summary">
         <AppStat label="Library books" :value="reading.libraryBooks" tone="primary" />
         <AppStat label="Currently reading" :value="reading.currentlyReadingBooks" tone="accent" />
         <AppStat label="Notes" :value="reading.notesCount" tone="info" />
@@ -22,7 +28,7 @@
         <AppStat label="Review completion" :value="`${knowledge.completedReviewItems}/${knowledge.reviewItems}`" tone="success" />
       </section>
 
-      <section class="analytics-grid">
+      <section v-if="hasAnyAnalytics" class="analytics-grid">
         <AppCard class="analytics-card" as="section">
           <AppSectionHeader title="Reading Progress" eyebrow="Real activity" compact />
           <dl class="metric-list">
@@ -70,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getKnowledgeAnalytics, getReadingAnalytics } from '../api/learning'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -85,6 +91,26 @@ const reading = ref<ReadingAnalyticsRecord | null>(null)
 const knowledge = ref<KnowledgeAnalyticsRecord | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
+
+const hasAnyAnalytics = computed(() => {
+  if (!reading.value || !knowledge.value) return false
+  return [
+    reading.value.libraryBooks,
+    reading.value.notesCount,
+    reading.value.capturesCount,
+    reading.value.quotesCount,
+    reading.value.openActionItems,
+    reading.value.completedActionItems,
+    reading.value.conceptsCount,
+    reading.value.dailyReflectionsCount,
+    reading.value.projectApplicationsCount,
+    reading.value.reviewSessionsCount,
+    reading.value.totalMinutesRead,
+    knowledge.value.knowledgeObjectsCount,
+    knowledge.value.masteryTargets,
+    knowledge.value.reviewItems,
+  ].some((value) => value > 0)
+})
 
 onMounted(loadAnalytics)
 

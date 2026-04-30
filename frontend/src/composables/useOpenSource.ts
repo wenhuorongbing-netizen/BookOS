@@ -147,7 +147,13 @@ function sourceReferenceLookup(target: OpenSourceTarget) {
     sourceType === 'FORUM_THREAD' ||
     sourceType === 'DAILY_PROMPT' ||
     sourceType === 'DAILY_DESIGN_PROMPT' ||
-    sourceType === 'DAILY_SENTENCE'
+    sourceType === 'DAILY_SENTENCE' ||
+    sourceType === 'PROJECT_PROBLEM' ||
+    sourceType === 'PROJECT_APPLICATION' ||
+    sourceType === 'DESIGN_DECISION' ||
+    sourceType === 'PLAYTEST_FINDING' ||
+    sourceType === 'PROJECT_LENS_REVIEW' ||
+    sourceType === 'PROJECT_KNOWLEDGE_LINK'
   ) {
     return { entityType: sourceType, entityId: target.sourceId }
   }

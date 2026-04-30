@@ -12,13 +12,28 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
   const noteText = `Prototype rhythm idea ${runId}`
   const conceptName = `E2E Core Loop ${runId}`
   const forumTitle = `E2E source discussion ${runId}`
+  const projectTitle = `E2E Project ${runId}`
+  const projectApplicationTitle = `Apply quote to prototype ${runId}`
+  const projectProblemTitle = `Clarify feedback timing ${runId}`
+  const decisionTitle = `Use readable input feedback ${runId}`
+  const findingTitle = `Players miss timing cue ${runId}`
 
-  await test.step('register a fresh user in the browser', async () => {
+  await test.step('register a fresh user, log out, and log back in through the browser', async () => {
     await page.goto('/register')
     await page.getByLabel('Display Name').fill(displayName)
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Password').fill(password)
     await page.getByRole('button', { name: 'Register' }).click()
+    await expect(page).toHaveURL(/\/dashboard/)
+    await expect(page.getByText('Turn reading into source-backed design work')).toBeVisible()
+
+    await page.getByRole('button', { name: new RegExp(`Open profile menu for ${displayName}`) }).click()
+    await page.getByRole('menuitem', { name: 'Logout' }).click()
+    await expect(page).toHaveURL(/\/login/)
+
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Password').fill(password)
+    await page.getByRole('button', { name: 'Login' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
     await expect(page.getByText('Turn reading into source-backed design work')).toBeVisible()
   })
@@ -149,6 +164,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
   })
 
   let conceptId = 0
+  let projectId = 0
 
   await test.step('review parsed concept and open concept detail', async () => {
     const conceptCapture = await apiPost<{ id: number }>(request, '/captures', token, {
@@ -170,6 +186,64 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await expect(page.getByRole('heading', { name: conceptName })).toBeVisible()
   })
 
+  await test.step('create a project in the browser', async () => {
+    await page.goto('/projects/new')
+    await page.getByRole('textbox', { name: 'Title' }).fill(projectTitle)
+    await page.getByLabel('Description').fill('E2E project for source-backed reading application.')
+    await page.getByLabel('Genre').fill('Puzzle')
+    await page.getByLabel('Platform').fill('Web')
+    await page.getByRole('button', { name: 'Create Project' }).click()
+    await expect(page).toHaveURL(/\/projects\/\d+$/)
+    projectId = Number(new URL(page.url()).pathname.split('/').pop())
+    expect(projectId).toBeGreaterThan(0)
+    await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible()
+  })
+
+  await test.step('apply a quote to the project through the browser workflow', async () => {
+    await page.goto(`/quotes/${quoteId}`)
+    await page.getByRole('button', { name: 'Apply to Project' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Apply to Project' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByLabel('Application title').fill(projectApplicationTitle)
+    await dialog.getByLabel('Design note').fill('Use the quote as source-backed evidence for the prototype feedback loop.')
+    await dialog.getByRole('button', { name: 'Create Application' }).click()
+    await expect(page.getByText('Project application created.').first()).toBeVisible()
+
+    await page.goto(`/projects/${projectId}`)
+    await expect(page.getByText(projectApplicationTitle).first()).toBeVisible()
+  })
+
+  await test.step('create project problem, design decision, and playtest finding', async () => {
+    await page.goto(`/projects/${projectId}/problems`)
+    await page.getByRole('textbox', { name: 'Title' }).fill(projectProblemTitle)
+    await page.getByLabel('Description').fill('The prototype needs a clearer feedback window.')
+    await page.getByRole('button', { name: 'Create Problem' }).click()
+    await expect(page.getByText('Problem created.').first()).toBeVisible()
+    await expect(page.getByText(projectProblemTitle).first()).toBeVisible()
+
+    await page.goto(`/projects/${projectId}/decisions`)
+    await page.getByRole('textbox', { name: 'Title' }).fill(decisionTitle)
+    await page.getByLabel('Decision').fill('Make input acknowledgement visible within one frame.')
+    await page.getByLabel('Rationale').fill('The quote and action item point to faster feedback as a design need.')
+    await page.getByLabel('Tradeoffs').fill('More UI feedback may add visual noise.')
+    await page.getByRole('button', { name: 'Create Decision' }).click()
+    await expect(page.getByText('Decision created.').first()).toBeVisible()
+    await expect(page.getByText(decisionTitle).first()).toBeVisible()
+
+    await page.goto(`/projects/${projectId}/playtests`)
+    await page.getByRole('textbox', { name: 'Title' }).first().fill(`E2E Playtest Plan ${runId}`)
+    await page.getByLabel('Hypothesis').fill('Players will understand timing better with immediate feedback.')
+    await page.getByRole('button', { name: 'Create Plan' }).click()
+    await expect(page.getByText('Playtest plan created.').first()).toBeVisible()
+
+    await page.getByRole('textbox', { name: 'Title' }).nth(1).fill(findingTitle)
+    await page.getByLabel('Observation').fill('Players missed the first timing cue during the smoke scenario.')
+    await page.getByLabel('Recommendation').fill('Add an earlier visual pulse tied to input acknowledgement.')
+    await page.getByRole('button', { name: 'Create Finding' }).click()
+    await expect(page.getByText('Playtest finding created.').first()).toBeVisible()
+    await expect(page.getByText(findingTitle).first()).toBeVisible()
+  })
+
   await test.step('search and graph routes use real data or honest empty state', async () => {
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+K' : 'Control+K')
     await page.getByLabel('Global search query').fill(bookTitle)
@@ -180,6 +254,10 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await page.goto(`/graph/book/${bookId}`)
     await expect(page.getByRole('heading', { name: 'Knowledge Graph' })).toBeVisible()
     await expect(page.getByText(/Real data only|No graph links yet/)).toBeVisible()
+
+    await page.goto(`/graph/project/${projectId}`)
+    await expect(page.getByRole('heading', { name: 'Knowledge Graph' })).toBeVisible()
+    await expect(page.getByText(/PROJECT|Real data only|No graph links yet/).first()).toBeVisible()
   })
 
   await test.step('MockAIProvider draft workflow remains draft-only', async () => {
@@ -214,6 +292,14 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await page.getByLabel('Add comment').fill(`Comment from E2E ${runId}`)
     await page.getByRole('button', { name: 'Post Comment' }).click()
     await expect(page.getByText(`Comment from E2E ${runId}`)).toBeVisible()
+  })
+
+  await test.step('open export page and export user JSON', async () => {
+    await page.goto('/import-export')
+    await expect(page.getByRole('heading', { name: 'Data Portability' })).toBeVisible()
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Export All JSON' }).click()
+    await expect(await download.then((file) => file.suggestedFilename())).toBe('bookos-export.json')
   })
 
   await test.step('logout through the profile menu', async () => {

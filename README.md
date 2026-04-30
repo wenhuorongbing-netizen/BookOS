@@ -242,7 +242,7 @@ Notes, captures, parser, and sources:
 - `GET /api/notes/{id}`
 - `PUT /api/notes/{id}`
 - `DELETE /api/notes/{id}`
-- `POST /api/notes/{noteId}/blocks`
+- `POST /api/notes/{id}/blocks`
 - `PUT /api/note-blocks/{id}`
 - `DELETE /api/note-blocks/{id}`
 - `POST /api/captures`
@@ -261,7 +261,9 @@ Notes, captures, parser, and sources:
 - `GET /api/captures/{captureId}/source-references`
 - `GET /api/entity-links`
 - `POST /api/entity-links`
+- `PUT /api/entity-links/{id}`
 - `DELETE /api/entity-links/{id}`
+- `GET /api/backlinks`
 
 Quotes and action items:
 
@@ -328,11 +330,12 @@ Forum:
 
 Search, graph, and AI:
 
-- `GET /api/search?q=&type=&bookId=`
+- `GET /api/search` with optional query parameters `q`, `type`, and `bookId`
 - `GET /api/graph`
 - `GET /api/graph/book/{bookId}`
 - `GET /api/graph/concept/{conceptId}`
 - `GET /api/graph/project/{projectId}`
+- Graph endpoints use real user-owned/visible records and include user-created entity links when they touch visible nodes.
 - `GET /api/ai/status`
 - `POST /api/ai/suggestions/note-summary`
 - `POST /api/ai/suggestions/extract-actions`

@@ -210,6 +210,10 @@ public class GraphService {
                         || "GAME_PROJECT".equals(thread.getRelatedEntityType()) && Objects.equals(thread.getRelatedEntityId(), projectId))
                 .forEach(thread -> addForumThread(builder, user, thread));
 
+        entityLinkRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+                .filter(link -> touchesGraph(link, builder.nodes))
+                .forEach(link -> addEntityLink(builder, link));
+
         return builder.toResponse(filter, Set.of(nodeId("PROJECT", projectId)));
     }
 

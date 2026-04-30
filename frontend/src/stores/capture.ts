@@ -131,6 +131,14 @@ export const useCaptureStore = defineStore('capture', () => {
     captures.value = captures.value.filter((item) => item.id !== captureId)
   }
 
+  function resetPrivateState() {
+    captures.value = []
+    loading.value = false
+    error.value = ''
+    bookmarkVersion.value += 1
+    clearCaptureBookmarks()
+  }
+
   return {
     captures,
     loading,
@@ -147,6 +155,7 @@ export const useCaptureStore = defineStore('capture', () => {
     archive,
     toggleBookmark,
     forBook,
+    resetPrivateState,
   }
 })
 
@@ -224,4 +233,15 @@ function bookmarkKey(captureId: number) {
 
 function isBookmarked(captureId: number) {
   return window.localStorage.getItem(bookmarkKey(captureId)) === 'true'
+}
+
+function clearCaptureBookmarks() {
+  const keys: string[] = []
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index)
+    if (key?.startsWith('bookos.capture.bookmark.')) {
+      keys.push(key)
+    }
+  }
+  keys.forEach((key) => window.localStorage.removeItem(key))
 }

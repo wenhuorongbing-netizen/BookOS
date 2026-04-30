@@ -54,6 +54,8 @@ class DailyIntegrationTest {
         JsonNode first = objectMapper.readTree(firstToday).path("data");
         Long firstSentenceId = first.path("sentence").path("id").asLong();
         Long firstPromptId = first.path("prompt").path("id").asLong();
+        String promptSourceType = first.path("prompt").path("sourceType").asText();
+        Long promptSourceId = first.path("prompt").path("sourceId").asLong();
 
         mockMvc.perform(get("/api/daily/today")
                         .header("Authorization", "Bearer " + token))
@@ -84,6 +86,15 @@ class DailyIntegrationTest {
                                 """.formatted(firstPromptId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.reflectionText").value("This lens should become a small control-feel prototype."));
+
+        mockMvc.perform(get("/api/mastery/target")
+                        .header("Authorization", "Bearer " + token)
+                        .queryParam("targetType", promptSourceType)
+                        .queryParam("targetId", String.valueOf(promptSourceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.familiarityScore").value(1))
+                .andExpect(jsonPath("$.data.usefulnessScore").value(1))
+                .andExpect(jsonPath("$.data.sourceReference.id").value(sourceReferenceId));
 
         mockMvc.perform(post("/api/daily/create-prototype-task")
                         .header("Authorization", "Bearer " + token)

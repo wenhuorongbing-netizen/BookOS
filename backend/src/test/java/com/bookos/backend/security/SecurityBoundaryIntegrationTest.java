@@ -95,6 +95,85 @@ class SecurityBoundaryIntegrationTest {
     }
 
     @Test
+    void crossUserKnowledgeProjectImportExportAndLearningBoundariesAreDenied() throws Exception {
+        String unique = "extended-boundary-" + UUID.randomUUID();
+        String ownerToken = register("extended-owner-%s@bookos.local".formatted(UUID.randomUUID()), "Extended Boundary Owner");
+        String intruderToken = register("extended-intruder-%s@bookos.local".formatted(UUID.randomUUID()), "Extended Boundary Intruder");
+        Long bookId = createBookAndAddToLibrary(ownerToken, "Extended Private Book " + unique);
+        JsonNode capture = createCapture(ownerToken, bookId, "\\uD83D\\uDCA1 p.40 " + unique + " private concept [[Extended Boundary Concept]]");
+        Long sourceReferenceId = capture.path("sourceReferences").get(0).path("id").asLong();
+        Long conceptId = createConcept(ownerToken, bookId, sourceReferenceId, unique);
+        Long projectId = createProject(ownerToken, unique);
+        Long reviewSessionId = createBookReview(ownerToken, bookId);
+
+        mockMvc.perform(get("/api/concepts/{id}", conceptId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/projects/{id}", projectId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/graph/project/{projectId}", projectId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/export/book/{bookId}/json", bookId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isForbidden());
+
+        JsonNode intruderExport = objectMapper.readTree(mockMvc.perform(get("/api/export/json")
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).path("data");
+        assertThat(intruderExport.toString()).doesNotContain(unique);
+
+        mockMvc.perform(get("/api/review/sessions/{id}", reviewSessionId)
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(put("/api/mastery/target")
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "targetType": "CONCEPT",
+                                  "targetId": %d,
+                                  "familiarityScore": 4,
+                                  "usefulnessScore": 5,
+                                  "sourceReferenceId": %d
+                                }
+                                """.formatted(conceptId, sourceReferenceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sourceReference.id").value(sourceReferenceId));
+
+        mockMvc.perform(get("/api/mastery/target")
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .param("targetType", "CONCEPT")
+                        .param("targetId", String.valueOf(conceptId)))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/analytics/reading")
+                        .header("Authorization", "Bearer " + intruderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.libraryBooks").value(0))
+                .andExpect(jsonPath("$.data.capturesCount").value(0));
+
+        mockMvc.perform(post("/api/projects/{projectId}/apply/concept", projectId)
+                        .header("Authorization", "Bearer " + intruderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceId": %d,
+                                  "title": "Invalid cross-user concept application"
+                                }
+                                """.formatted(conceptId)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void forumRelatedEntityAndSourceContextAreScoped() throws Exception {
         String unique = "forum-boundary-" + UUID.randomUUID();
         String ownerToken = register("forum-owner-%s@bookos.local".formatted(UUID.randomUUID()), "Forum Boundary Owner");
@@ -310,6 +389,69 @@ class SecurityBoundaryIntegrationTest {
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(response).path("data").path("targetId").asLong();
+    }
+
+    private Long createConcept(String token, Long bookId, Long sourceReferenceId, String unique) throws Exception {
+        String response = mockMvc.perform(post("/api/concepts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Extended Boundary Concept %s",
+                                  "description": "Private concept for ownership boundary testing.",
+                                  "visibility": "PRIVATE",
+                                  "bookId": %d,
+                                  "sourceReferenceId": %d,
+                                  "ontologyLayer": "Security",
+                                  "tags": ["security"]
+                                }
+                                """.formatted(unique, bookId, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private Long createProject(String token, String unique) throws Exception {
+        String response = mockMvc.perform(post("/api/projects")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Extended Boundary Project %s",
+                                  "description": "Private project for ownership boundary testing.",
+                                  "genre": "Puzzle",
+                                  "platform": "Web",
+                                  "stage": "IDEATION",
+                                  "visibility": "PRIVATE",
+                                  "progressPercent": 5
+                                }
+                                """.formatted(unique)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private Long createBookReview(String token, Long bookId) throws Exception {
+        String response = mockMvc.perform(post("/api/review/generate-from-book")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "id": %d,
+                                  "title": "Private book review",
+                                  "mode": "SOURCE_REVIEW",
+                                  "limit": 4
+                                }
+                                """.formatted(bookId)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
     }
 
     private Long createAISuggestion(String token, Long bookId, Long sourceReferenceId) throws Exception {

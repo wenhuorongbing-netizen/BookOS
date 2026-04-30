@@ -166,6 +166,12 @@ export const useRightRailStore = defineStore('rightRail', () => {
     }
   }
 
+  function resetPrivateState() {
+    sourceReference.value = null
+    aiDrafts.value = []
+    actionItems.value = []
+  }
+
   return {
     sourceReference,
     aiDrafts,
@@ -182,6 +188,7 @@ export const useRightRailStore = defineStore('rightRail', () => {
     acceptAiDraft,
     discardAiDraft,
     toggleActionItem,
+    resetPrivateState,
   }
 })
 

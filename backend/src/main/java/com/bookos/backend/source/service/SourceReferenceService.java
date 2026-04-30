@@ -13,6 +13,12 @@ import com.bookos.backend.knowledge.service.ConceptService;
 import com.bookos.backend.note.entity.BookNote;
 import com.bookos.backend.note.entity.NoteBlock;
 import com.bookos.backend.parser.dto.ParsedNoteResponse;
+import com.bookos.backend.project.repository.DesignDecisionRepository;
+import com.bookos.backend.project.repository.PlaytestFindingRepository;
+import com.bookos.backend.project.repository.ProjectApplicationRepository;
+import com.bookos.backend.project.repository.ProjectKnowledgeLinkRepository;
+import com.bookos.backend.project.repository.ProjectLensReviewRepository;
+import com.bookos.backend.project.repository.ProjectProblemRepository;
 import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.dto.SourceReferenceResponse;
 import com.bookos.backend.source.entity.SourceReference;
@@ -41,6 +47,12 @@ public class SourceReferenceService {
     private final ForumThreadRepository forumThreadRepository;
     private final DailyDesignPromptRepository dailyDesignPromptRepository;
     private final DailySentenceRepository dailySentenceRepository;
+    private final ProjectProblemRepository projectProblemRepository;
+    private final ProjectApplicationRepository projectApplicationRepository;
+    private final DesignDecisionRepository designDecisionRepository;
+    private final PlaytestFindingRepository playtestFindingRepository;
+    private final ProjectLensReviewRepository projectLensReviewRepository;
+    private final ProjectKnowledgeLinkRepository projectKnowledgeLinkRepository;
 
     @Transactional(readOnly = true)
     public SourceReferenceResponse getSourceReference(String email, Long id) {
@@ -195,6 +207,24 @@ public class SourceReferenceService {
                     .orElse(List.of());
             case "DAILY_SENTENCE" -> dailySentenceRepository.findByIdAndUserId(entityId, user.getId())
                     .map(sentence -> sourceById(user, sentence.getSourceReferenceId()))
+                    .orElse(List.of());
+            case "PROJECT_PROBLEM" -> projectProblemRepository.findByIdAndProjectOwnerId(entityId, user.getId())
+                    .map(problem -> sourceById(user, problem.getRelatedSourceReference() == null ? null : problem.getRelatedSourceReference().getId()))
+                    .orElse(List.of());
+            case "PROJECT_APPLICATION" -> projectApplicationRepository.findByIdAndProjectOwnerId(entityId, user.getId())
+                    .map(application -> sourceById(user, application.getSourceReference() == null ? null : application.getSourceReference().getId()))
+                    .orElse(List.of());
+            case "DESIGN_DECISION" -> designDecisionRepository.findByIdAndProjectOwnerId(entityId, user.getId())
+                    .map(decision -> sourceById(user, decision.getSourceReference() == null ? null : decision.getSourceReference().getId()))
+                    .orElse(List.of());
+            case "PLAYTEST_FINDING" -> playtestFindingRepository.findByIdAndProjectOwnerId(entityId, user.getId())
+                    .map(finding -> sourceById(user, finding.getSourceReference() == null ? null : finding.getSourceReference().getId()))
+                    .orElse(List.of());
+            case "PROJECT_LENS_REVIEW" -> projectLensReviewRepository.findByIdAndProjectOwnerId(entityId, user.getId())
+                    .map(review -> sourceById(user, review.getSourceReference() == null ? null : review.getSourceReference().getId()))
+                    .orElse(List.of());
+            case "PROJECT_KNOWLEDGE_LINK" -> projectKnowledgeLinkRepository.findByIdAndProjectOwnerId(entityId, user.getId())
+                    .map(link -> sourceById(user, link.getSourceReference() == null ? null : link.getSourceReference().getId()))
                     .orElse(List.of());
             case "SOURCE_REFERENCE" -> sourceReferenceRepository.findByIdAndUserId(entityId, user.getId()).stream().toList();
             default -> throw new IllegalArgumentException("Unsupported source reference entity type: " + entityType);

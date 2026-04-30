@@ -1,6 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getCurrentUser, login as loginApi, register as registerApi } from '../api/auth'
+import { useCaptureStore } from './capture'
+import { useRightRailStore } from './rightRail'
 import type { AuthPayload, AuthUser, LoginPayload, RegisterPayload } from '../types'
 
 const TOKEN_KEY = 'bookos.token'
@@ -14,6 +16,11 @@ function persistSession(payload: AuthPayload) {
 function clearPersistedSession() {
   window.localStorage.removeItem(TOKEN_KEY)
   window.localStorage.removeItem(USER_KEY)
+}
+
+function clearPrivateSessionState() {
+  useCaptureStore().resetPrivateState()
+  useRightRailStore().resetPrivateState()
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -62,6 +69,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     user.value = null
     clearPersistedSession()
+    clearPrivateSessionState()
   }
 
   return {

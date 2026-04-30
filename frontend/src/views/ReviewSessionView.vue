@@ -99,6 +99,8 @@ async function completeItem(item: ReviewItemRecord) {
     })
     await loadSession()
     ElMessage.success('Review saved.')
+  } catch {
+    ElMessage.error('Review item could not be saved. Check permissions and backend availability.')
   } finally {
     savingId.value = null
   }

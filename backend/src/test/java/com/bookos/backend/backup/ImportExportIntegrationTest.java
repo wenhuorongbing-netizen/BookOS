@@ -178,6 +178,93 @@ class ImportExportIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(csv).contains("bookTitle").contains("Exported source-backed quote");
     }
 
+    @Test
+    void bookJsonActionCsvConceptCsvAndCrossUserBookExportAreScoped() throws Exception {
+        String ownerToken = register("export-scope-owner-%s@example.test".formatted(UUID.randomUUID()), "Export Scope Owner");
+        String intruderToken = register("export-scope-intruder-%s@example.test".formatted(UUID.randomUUID()), "Export Scope Intruder");
+        Long bookId = createBookAndAddToLibrary(ownerToken, "Scoped Export Book " + UUID.randomUUID());
+        Long quoteId = createSourceBackedQuote(ownerToken, bookId);
+        Long sourceReferenceId = quoteSourceReferenceId(ownerToken, quoteId);
+        String actionTitle = "Scoped exported action " + UUID.randomUUID();
+        String conceptName = "Scoped Export Concept " + UUID.randomUUID();
+
+        mockMvc.perform(post("/api/action-items")
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bookId": %d,
+                                  "title": "%s",
+                                  "description": "Action item with source reference.",
+                                  "priority": "HIGH",
+                                  "sourceReferenceId": %d,
+                                  "visibility": "PRIVATE"
+                                }
+                                """.formatted(bookId, actionTitle, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.sourceReference.id").value(sourceReferenceId));
+
+        mockMvc.perform(post("/api/concepts")
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "%s",
+                                  "description": "Concept exported from a source-backed book.",
+                                  "visibility": "PRIVATE",
+                                  "bookId": %d,
+                                  "sourceReferenceId": %d,
+                                  "ontologyLayer": "Projects & Application",
+                                  "tags": ["export", "scope"]
+                                }
+                                """.formatted(conceptName, bookId, sourceReferenceId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.firstSourceReference.id").value(sourceReferenceId));
+
+        mockMvc.perform(get("/api/export/book/{bookId}/json", bookId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.books[0].id").value(bookId))
+                .andExpect(jsonPath("$.data.quotes[0].sourceReferenceId").value(sourceReferenceId))
+                .andExpect(jsonPath("$.data.actionItems[0].title").value(actionTitle))
+                .andExpect(jsonPath("$.data.concepts[0].name").value(conceptName))
+                .andExpect(jsonPath("$.data.sourceReferences[0].id").value(sourceReferenceId));
+
+        mockMvc.perform(get("/api/export/book/{bookId}/json", bookId)
+                        .header("Authorization", bearer(intruderToken)))
+                .andExpect(status().isForbidden());
+
+        String actionCsv = mockMvc.perform(get("/api/export/action-items/csv")
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(actionCsv)
+                .contains("bookTitle")
+                .contains(actionTitle)
+                .contains(String.valueOf(sourceReferenceId));
+
+        String conceptCsv = mockMvc.perform(get("/api/export/concepts/csv")
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(conceptCsv)
+                .contains("name")
+                .contains(conceptName)
+                .contains("Projects & Application");
+
+        String intruderActionCsv = mockMvc.perform(get("/api/export/action-items/csv")
+                        .header("Authorization", bearer(intruderToken)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(intruderActionCsv).doesNotContain(actionTitle);
+    }
+
     private Long createBookAndAddToLibrary(String token, String title) throws Exception {
         String response = mockMvc.perform(post("/api/books")
                         .header("Authorization", bearer(token))
@@ -231,6 +318,17 @@ class ImportExportIntegrationTest {
                 .getResponse()
                 .getContentAsString();
         return data(conversionResponse).path("targetId").asLong();
+    }
+
+    private Long quoteSourceReferenceId(String token, Long quoteId) throws Exception {
+        String quoteResponse = mockMvc.perform(get("/api/quotes/{id}", quoteId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sourceReference.id").isNumber())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return data(quoteResponse).path("sourceReference").path("id").asLong();
     }
 
     private String register(String email, String displayName) throws Exception {

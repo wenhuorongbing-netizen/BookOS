@@ -1207,7 +1207,8 @@ public class ImportExportService {
     }
 
     private void collectPageWarnings(String content, ImportPlan plan) {
-        if (content.contains("p.") || content.contains("page") || content.contains("第") || content.contains("页")) {
+        String lower = content.toLowerCase(Locale.ROOT);
+        if (lower.contains("p.") || lower.contains("page") || content.contains("\u7b2c") || content.contains("\u9875")) {
             plan.warnings.add("Markdown page markers will be parsed by the deterministic note parser. Missing pages remain null.");
         }
     }

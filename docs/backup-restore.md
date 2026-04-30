@@ -1,8 +1,10 @@
 # BookOS Backup and Restore Guide
 
-Last updated: 2026-04-29.
+Last updated: 2026-04-30.
 
 BookOS stores durable user data in MySQL. Back up MySQL before release deployments, migration tests, or destructive local resets.
+
+Database backups are the operational recovery mechanism. BookOS import/export is a user-owned data portability workflow, not a full database restore replacement.
 
 ## Local Docker Backup
 
@@ -83,6 +85,18 @@ Backups must include:
 - Game projects and project application records.
 - Reading sessions, review sessions, mastery, analytics source records.
 - Import/export related persisted records, if any.
+
+## App-Level Import/Export
+
+Use `/import-export` or the import/export API when a user wants to move their own knowledge records between BookOS instances:
+
+- `GET /api/export/json` exports the current user's portable BookOS JSON package.
+- `GET /api/export/book/{bookId}/json` and `GET /api/export/book/{bookId}/markdown` export one book the current user has in their library.
+- `GET /api/export/quotes/csv`, `GET /api/export/action-items/csv`, and `GET /api/export/concepts/csv` export current-user CSV files.
+- `POST /api/import/preview` validates and previews a payload without writing records.
+- `POST /api/import/commit` writes supported non-duplicate records only after explicit confirmation.
+
+Portability exports are owner-scoped and intentionally do not include another user's private data. Unknown or malformed imported page numbers remain `null`; BookOS must not invent page numbers. Source references are preserved or remapped where possible, but MVP import does not restore every archival export section yet, such as project applications, authored forum threads, or daily reflections.
 
 ## Restore Risks
 

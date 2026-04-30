@@ -123,6 +123,8 @@ async function createManualSession() {
       mode: 'SOURCE_REVIEW',
     })
     await router.push({ name: 'review-detail', params: { id: session.id } })
+  } catch {
+    ElMessage.error('Review session could not be created. Check the form and backend availability.')
   } finally {
     saving.value = false
   }
@@ -143,6 +145,8 @@ async function generateSession() {
           ? await generateReviewFromProject(payload)
           : await generateReviewFromBook(payload)
     await router.push({ name: 'review-detail', params: { id: session.id } })
+  } catch {
+    ElMessage.error('Review generation failed. Confirm the source ID belongs to an accessible book, concept, or project.')
   } finally {
     saving.value = false
   }

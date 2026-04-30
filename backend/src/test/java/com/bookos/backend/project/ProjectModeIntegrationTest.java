@@ -100,6 +100,22 @@ class ProjectModeIntegrationTest {
                 .andExpect(jsonPath("$.data.sourceReference.id").value(quote.sourceReferenceId()))
                 .andExpect(jsonPath("$.data.sourceReference.pageStart").value(77));
 
+        mockMvc.perform(post("/api/projects/{projectId}/apply/source-reference", projectId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceId": %d,
+                                  "title": "Apply direct source reference",
+                                  "description": "Convert a source reference into a project action."
+                                }
+                                """.formatted(quote.sourceReferenceId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.sourceEntityType").value("SOURCE_REFERENCE"))
+                .andExpect(jsonPath("$.data.sourceEntityId").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.sourceReference.id").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.sourceReference.pageStart").value(77));
+
         mockMvc.perform(post("/api/projects/{projectId}/apply/quote", projectId)
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -111,6 +127,24 @@ class ProjectModeIntegrationTest {
                                 """.formatted(quote.quoteId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.sourceEntityType").value("QUOTE"))
+                .andExpect(jsonPath("$.data.sourceReference.id").value(quote.sourceReferenceId()))
+                .andExpect(jsonPath("$.data.sourceReference.pageStart").value(77));
+
+        mockMvc.perform(post("/api/projects/{projectId}/decisions", projectId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Use source-backed jump timing",
+                                  "decision": "Add anticipation before the jump window.",
+                                  "rationale": "The source-backed quote points at readable intention.",
+                                  "tradeoffs": "Clearer timing may reduce difficulty.",
+                                  "sourceReferenceId": %d,
+                                  "status": "OPEN"
+                                }
+                                """.formatted(quote.sourceReferenceId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.title").value("Use source-backed jump timing"))
                 .andExpect(jsonPath("$.data.sourceReference.id").value(quote.sourceReferenceId()))
                 .andExpect(jsonPath("$.data.sourceReference.pageStart").value(77));
     }

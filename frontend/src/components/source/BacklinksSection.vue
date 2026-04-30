@@ -163,6 +163,7 @@ function routeFor(entityType: string, entityId: number) {
   if (entityType === 'CONCEPT') return { name: 'concept-detail', params: { id: entityId } }
   if (entityType === 'KNOWLEDGE_OBJECT') return { name: 'knowledge-detail', params: { id: entityId } }
   if (entityType === 'FORUM_THREAD') return { name: 'forum-thread', params: { id: entityId } }
+  if (entityType === 'PROJECT' || entityType === 'GAME_PROJECT') return { name: 'project-detail', params: { id: entityId } }
   if (entityType === 'DAILY_PROMPT' || entityType === 'DAILY_DESIGN_PROMPT' || entityType === 'DAILY_SENTENCE') {
     return { name: 'daily' }
   }
@@ -172,7 +173,7 @@ function routeFor(entityType: string, entityId: number) {
 function pageLabel(source: SourceReferenceRecord) {
   if (source.pageStart != null && source.pageEnd != null) return `p.${source.pageStart}-${source.pageEnd}`
   if (source.pageStart != null) return `p.${source.pageStart}`
-  return 'No page'
+  return 'Page unknown'
 }
 
 function confidenceVariant(confidence: SourceConfidence) {

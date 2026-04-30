@@ -16,6 +16,13 @@ import com.bookos.backend.link.dto.BacklinkResponse;
 import com.bookos.backend.link.entity.EntityLink;
 import com.bookos.backend.link.repository.EntityLinkRepository;
 import com.bookos.backend.note.repository.BookNoteRepository;
+import com.bookos.backend.project.repository.DesignDecisionRepository;
+import com.bookos.backend.project.repository.GameProjectRepository;
+import com.bookos.backend.project.repository.PlaytestFindingRepository;
+import com.bookos.backend.project.repository.ProjectApplicationRepository;
+import com.bookos.backend.project.repository.ProjectKnowledgeLinkRepository;
+import com.bookos.backend.project.repository.ProjectLensReviewRepository;
+import com.bookos.backend.project.repository.ProjectProblemRepository;
 import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.entity.SourceReference;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
@@ -51,6 +58,13 @@ public class BacklinkService {
     private final KnowledgeObjectRepository knowledgeObjectRepository;
     private final ForumThreadRepository forumThreadRepository;
     private final DailyDesignPromptRepository dailyDesignPromptRepository;
+    private final GameProjectRepository gameProjectRepository;
+    private final ProjectProblemRepository projectProblemRepository;
+    private final ProjectApplicationRepository projectApplicationRepository;
+    private final DesignDecisionRepository designDecisionRepository;
+    private final PlaytestFindingRepository playtestFindingRepository;
+    private final ProjectLensReviewRepository projectLensReviewRepository;
+    private final ProjectKnowledgeLinkRepository projectKnowledgeLinkRepository;
     private final UserService userService;
 
     @Transactional(readOnly = true)
@@ -124,6 +138,27 @@ public class BacklinkService {
             case "DAILY_PROMPT", "DAILY_DESIGN_PROMPT" -> dailyDesignPromptRepository.findByIdAndUserId(id, user.getId())
                     .map(prompt -> new EntitySummary("Daily prompt", excerpt(prompt.getQuestion())))
                     .orElseThrow(() -> new NoSuchElementException("Daily design prompt not found."));
+            case "PROJECT", "GAME_PROJECT" -> gameProjectRepository.findByIdAndOwnerIdAndArchivedAtIsNull(id, user.getId())
+                    .map(project -> new EntitySummary(project.getTitle(), excerpt(project.getDescription(), project.getGenre(), project.getStage())))
+                    .orElseThrow(() -> new NoSuchElementException("Project not found."));
+            case "PROJECT_PROBLEM" -> projectProblemRepository.findByIdAndProjectOwnerId(id, user.getId())
+                    .map(problem -> new EntitySummary(problem.getTitle(), excerpt(problem.getDescription(), problem.getPriority(), problem.getStatus())))
+                    .orElseThrow(() -> new NoSuchElementException("Project problem not found."));
+            case "PROJECT_APPLICATION" -> projectApplicationRepository.findByIdAndProjectOwnerId(id, user.getId())
+                    .map(application -> new EntitySummary(application.getTitle(), excerpt(application.getDescription(), application.getApplicationType(), application.getStatus())))
+                    .orElseThrow(() -> new NoSuchElementException("Project application not found."));
+            case "DESIGN_DECISION" -> designDecisionRepository.findByIdAndProjectOwnerId(id, user.getId())
+                    .map(decision -> new EntitySummary(decision.getTitle(), excerpt(decision.getDecision(), decision.getRationale(), decision.getTradeoffs())))
+                    .orElseThrow(() -> new NoSuchElementException("Design decision not found."));
+            case "PLAYTEST_FINDING" -> playtestFindingRepository.findByIdAndProjectOwnerId(id, user.getId())
+                    .map(finding -> new EntitySummary(finding.getTitle(), excerpt(finding.getObservation(), finding.getRecommendation(), finding.getSeverity())))
+                    .orElseThrow(() -> new NoSuchElementException("Playtest finding not found."));
+            case "PROJECT_LENS_REVIEW" -> projectLensReviewRepository.findByIdAndProjectOwnerId(id, user.getId())
+                    .map(review -> new EntitySummary(review.getQuestion(), excerpt(review.getAnswer(), review.getStatus())))
+                    .orElseThrow(() -> new NoSuchElementException("Project lens review not found."));
+            case "PROJECT_KNOWLEDGE_LINK" -> projectKnowledgeLinkRepository.findByIdAndProjectOwnerId(id, user.getId())
+                    .map(link -> new EntitySummary("Project knowledge link", excerpt(link.getNote(), link.getRelationshipType(), link.getTargetType())))
+                    .orElseThrow(() -> new NoSuchElementException("Project knowledge link not found."));
             default -> throw new IllegalArgumentException("Unsupported backlink entity type: " + type);
         };
     }

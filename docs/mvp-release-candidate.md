@@ -2,7 +2,7 @@
 
 Last updated: 2026-04-29.
 
-Current reviewed `main` SHA: `1734e5399d5edc6f8fcd683228d9b26d58f1b847`.
+Current reviewed `main` SHA: `9951c85b42b170c54b009c3c6a8e4bf50336e73a`.
 
 ## CI/CD Status
 
@@ -96,12 +96,12 @@ RC minimum:
 
 ## Roadmap After MVP
 
-1. Browser automation smoke tests for the core reading loop and forum moderation.
+1. Expand browser automation smoke tests beyond the current MVP E2E suite.
 2. Full graph editing and richer graph visualization.
-3. Project mode with source-backed application records.
+3. Project mode collaboration, richer planning automation, and advanced project analytics.
 4. Advanced forum moderation dashboard and audit trail.
 5. Production monitoring and audit UI for optional external AI provider usage.
-6. Import/export for books, notes, captures, and ontology seed packs.
+6. Import/export conflict-resolution UX, larger backup validation, and ontology seed pack review flows.
 7. Production deployment hardening: HTTPS, managed secrets, database backups, and monitoring.
 
 ## Final Test Summary Template
