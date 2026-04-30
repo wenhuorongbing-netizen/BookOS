@@ -2,10 +2,12 @@ package com.bookos.backend.user.service;
 
 import com.bookos.backend.common.enums.RoleName;
 import com.bookos.backend.user.dto.CurrentUserResponse;
+import com.bookos.backend.user.dto.OnboardingPreferenceRequest;
 import com.bookos.backend.user.dto.UserAdminResponse;
 import com.bookos.backend.user.dto.UserProfileResponse;
 import com.bookos.backend.user.entity.Role;
 import com.bookos.backend.user.entity.User;
+import com.bookos.backend.user.entity.UserProfile;
 import com.bookos.backend.user.repository.RoleRepository;
 import com.bookos.backend.user.repository.UserRepository;
 import java.util.List;
@@ -40,7 +42,26 @@ public class UserService {
                 user.getEmail(),
                 user.getProfile().getDisplayName(),
                 user.getProfile().getBio(),
-                user.getRole().getName());
+                user.getRole().getName(),
+                user.getProfile().isOnboardingCompleted(),
+                user.getProfile().getPrimaryUseCase(),
+                user.getProfile().getStartingMode(),
+                user.getProfile().getPreferredDashboardMode());
+    }
+
+    @Transactional
+    public CurrentUserResponse updateOnboarding(String email, OnboardingPreferenceRequest request) {
+        User user = getByEmailRequired(email);
+        UserProfile profile = user.getProfile();
+
+        if (request.onboardingCompleted() != null) {
+            profile.setOnboardingCompleted(request.onboardingCompleted());
+        }
+        profile.setPrimaryUseCase(normalizePreference(request.primaryUseCase()));
+        profile.setStartingMode(normalizePreference(request.startingMode()));
+        profile.setPreferredDashboardMode(normalizePreference(request.preferredDashboardMode()));
+
+        return toCurrentUserResponse(user);
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +87,17 @@ public class UserService {
                 user.getId(),
                 user.getEmail(),
                 user.getProfile().getDisplayName(),
-                user.getRole().getName());
+                user.getRole().getName(),
+                user.getProfile().isOnboardingCompleted(),
+                user.getProfile().getPrimaryUseCase(),
+                user.getProfile().getStartingMode(),
+                user.getProfile().getPreferredDashboardMode());
+    }
+
+    private String normalizePreference(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

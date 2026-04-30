@@ -26,6 +26,7 @@ const items = [
   { name: 'project-problems', label: 'Problems' },
   { name: 'project-applications', label: 'Applications' },
   { name: 'project-decisions', label: 'Decisions' },
+  { name: 'project-apply-knowledge-wizard', label: 'Guided Flow' },
   { name: 'project-playtests', label: 'Playtests' },
   { name: 'project-lens-reviews', label: 'Lens Reviews' },
 ]

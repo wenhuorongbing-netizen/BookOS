@@ -6,4 +6,8 @@ public record CurrentUserResponse(
         Long id,
         String email,
         String displayName,
-        RoleName role) {}
+        RoleName role,
+        boolean onboardingCompleted,
+        String primaryUseCase,
+        String startingMode,
+        String preferredDashboardMode) {}

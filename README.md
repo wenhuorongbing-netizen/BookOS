@@ -2,7 +2,7 @@
 
 BookOS is a full-stack reading record system, book notes library, source-referenced knowledge OS, game design knowledge cockpit, and structured forum.
 
-Current repository status: the app has moved beyond the original Milestone 1 foundation. It now includes authentication, personal book library, notes, quick capture, deterministic parser, source references, quotes, action items, concept review, knowledge objects, daily resurfacing, structured forum, global search, graph exploration, game project mode, reading analytics/review/mastery, import/export, and draft-only AI suggestions through MockAIProvider or an optional OpenAI-compatible provider.
+Current repository status: the app has moved beyond the original Milestone 1 foundation. It now includes authentication, personal book library, notes, quick capture, deterministic parser, source references, quotes, action items, concept review, knowledge objects, daily resurfacing, structured forum, global search, graph exploration, game project mode, reading analytics/review/mastery, import/export, a safe demo workspace, and draft-only AI suggestions through MockAIProvider or an optional OpenAI-compatible provider.
 
 ## Current Milestone Status
 
@@ -10,8 +10,8 @@ Implemented:
 
 - Java 21 + Spring Boot backend with JWT authentication, role checks, validation, JPA/Hibernate, MySQL configuration, and H2-backed tests.
 - Vue 3 + TypeScript + Vite frontend with Pinia, Vue Router, Element Plus, responsive BookOS cockpit shell, right rail, and design-system primitives.
-- Auth, books, user library, notes, note blocks, captures, parser, source references, backlinks/entity links, quotes, action items, concepts, knowledge objects, daily quote/prompt resurfacing, structured forum, search, graph exploration, game projects, reading sessions, review sessions, mastery, import/export, and draft-only AI APIs.
-- Frontend workspaces for library, notes, captures, quotes, action items, concepts, knowledge objects, forum, book detail cockpit, global search, graph workspace, game projects, analytics/review/mastery, import/export, and source drawer.
+- Auth, books, user library, notes, note blocks, captures, parser, source references, backlinks/entity links, quotes, action items, concepts, knowledge objects, daily quote/prompt resurfacing, structured forum, search, graph exploration, game projects, reading sessions, review sessions, mastery, import/export, demo workspace, and draft-only AI APIs.
+- Frontend workspaces for library, notes, captures, quotes, action items, concepts, knowledge objects, forum, book detail cockpit, global search, graph workspace, game projects, analytics/review/mastery, import/export, demo workspace, and source drawer.
 
 Known limitations:
 
@@ -23,6 +23,7 @@ Known limitations:
 - Project mode is usable for MVP project records, project problems, applications, decisions, playtests, and lens reviews, but advanced project analytics and planning automation remain future work.
 - Import/export supports MVP JSON, Markdown, and CSV flows, but large-scale migration tooling and conflict-resolution UX remain limited.
 - Reading analytics, review sessions, and mastery tracking use real local data, but advanced spaced-repetition scheduling is intentionally not implemented.
+- Demo Workspace records are clearly labeled and excluded from normal analytics by default, but some list pages may still show demo records as ordinary rows with demo labels until deeper filtering is added.
 
 ## Product Rules
 
@@ -217,7 +218,16 @@ Auth:
 Users:
 
 - `GET /api/users/me/profile`
+- `PUT /api/users/me/onboarding`
 - `GET /api/users`
+
+Demo Workspace:
+
+- `GET /api/demo/status`
+- `POST /api/demo/start`
+- `POST /api/demo/reset`
+- `DELETE /api/demo`
+- Demo records are current-user scoped, explicitly labeled, and excluded from normal analytics unless `includeDemo=true`.
 
 Books and library:
 

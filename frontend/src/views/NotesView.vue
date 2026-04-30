@@ -2,8 +2,8 @@
   <div class="page-shell notes-page">
     <AppSectionHeader
       title="Book Notes"
-      eyebrow="Phase 3"
-      :description="book ? `Structured notes for ${book.title}.` : 'Open a book to create source-backed notes.'"
+      eyebrow="Notes"
+      :description="book ? `Write and review source-backed notes for ${book.title}.` : 'Choose a book first so every note can preserve its source.'"
       :level="1"
     >
       <template #actions>
@@ -15,6 +15,35 @@
         </RouterLink>
       </template>
     </AppSectionHeader>
+
+    <AppCard class="task-first-panel" variant="highlight" as="section">
+      <div>
+        <div class="eyebrow">Next note action</div>
+        <h2>{{ noteTask.title }}</h2>
+        <p>{{ noteTask.description }}</p>
+        <div class="task-first-panel__metrics" aria-label="Notes summary">
+          <AppBadge variant="primary">{{ notes.length }} notes</AppBadge>
+          <AppBadge variant="accent">{{ parsedBlockCount }} parsed blocks</AppBadge>
+          <AppBadge variant="neutral">{{ book ? book.title : 'No book selected' }}</AppBadge>
+        </div>
+      </div>
+      <div class="task-first-panel__actions">
+        <RouterLink v-if="noteTask.routeName" :to="{ name: noteTask.routeName, params: noteTask.routeParams }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">{{ noteTask.primaryLabel }}</AppButton>
+        </RouterLink>
+        <AppButton v-else variant="primary" @click="scrollToComposer">{{ noteTask.primaryLabel }}</AppButton>
+        <RouterLink to="/use-cases/capture-idea-while-reading" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">See note workflow</AppButton>
+        </RouterLink>
+      </div>
+    </AppCard>
+
+    <UseCaseSuggestionPanel
+      :slugs="['capture-idea-while-reading', 'review-concept-marker', 'open-source-from-quote-or-action']"
+      eyebrow="Notes playbook"
+      title="Make notes source-backed, not just long text"
+      description="Use page markers, tags, and [[Concept]] links so notes become searchable and traceable."
+    />
 
     <AppErrorState
       v-if="errorMessage"
@@ -41,6 +70,7 @@
 
     <template v-else>
       <AppCard class="note-composer" as="section">
+        <span id="note-composer" class="sr-only">Note composer</span>
         <AppSectionHeader
           title="Write a source-backed note"
           eyebrow="Markdown note"
@@ -189,6 +219,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 import { useRightRailStore } from '../stores/rightRail'
 import { renderSafeMarkdown } from '../utils/markdown'
 import type { BookNoteRecord, BookRecord, NoteBlockType, ParsedNoteResult, Visibility } from '../types'
@@ -218,6 +249,37 @@ const bookId = computed(() => {
 })
 const canCreateNote = computed(() => Boolean(noteForm.title.trim() && noteForm.markdown.trim()))
 const renderedDraft = computed(() => renderSafeMarkdown(noteForm.markdown))
+const parsedBlockCount = computed(() => notes.value.reduce((total, note) => total + note.blocks.length, 0))
+const latestNote = computed(() => notes.value[0] ?? null)
+const noteTask = computed(() => {
+  if (!book.value) {
+    return {
+      title: 'Choose a source book',
+      description: 'Notes are most useful when attached to a real book, page, and source reference.',
+      primaryLabel: 'Open Library',
+      routeName: 'my-library',
+      routeParams: {},
+    }
+  }
+
+  if (latestNote.value) {
+    return {
+      title: `Review ${latestNote.value.title}`,
+      description: 'Open the latest note to inspect parsed blocks, backlinks, and source references.',
+      primaryLabel: 'Open latest note',
+      routeName: 'note-detail',
+      routeParams: { id: latestNote.value.id },
+    }
+  }
+
+  return {
+    title: `Write the first note for ${book.value.title}`,
+    description: 'Start with one markdown note. Add p. markers and [[Concept]] links only when they are known from the source.',
+    primaryLabel: 'Start writing',
+    routeName: '',
+    routeParams: {},
+  }
+})
 
 onMounted(loadPage)
 onUnmounted(() => {
@@ -293,6 +355,10 @@ async function handleCreateNote() {
 
 function openBlockSource(note: BookNoteRecord, blockId: number) {
   router.push({ name: 'note-detail', params: { id: note.id }, hash: `#block-${blockId}` })
+}
+
+function scrollToComposer() {
+  document.getElementById('note-composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function formatType(type: NoteBlockType) {

@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { getCurrentUser, login as loginApi, register as registerApi } from '../api/auth'
+import { getCurrentUser, login as loginApi, register as registerApi, updateOnboardingPreferences } from '../api/auth'
 import { useCaptureStore } from './capture'
 import { useRightRailStore } from './rightRail'
-import type { AuthPayload, AuthUser, LoginPayload, RegisterPayload } from '../types'
+import type { AuthPayload, AuthUser, LoginPayload, OnboardingPreferencePayload, RegisterPayload } from '../types'
 
 const TOKEN_KEY = 'bookos.token'
 const USER_KEY = 'bookos.user'
@@ -65,6 +65,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateOnboarding(payload: OnboardingPreferencePayload) {
+    user.value = await updateOnboardingPreferences(payload)
+    window.localStorage.setItem(USER_KEY, JSON.stringify(user.value))
+    return user.value
+  }
+
   function logout() {
     token.value = null
     user.value = null
@@ -80,6 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     hydrate,
+    updateOnboarding,
     logout,
   }
 })

@@ -3,6 +3,7 @@
     <div class="top-nav__title">
       <div class="eyebrow">BookOS Workspace</div>
       <div class="top-nav__route-title">{{ title }}</div>
+      <AppBadge variant="primary" size="sm">{{ currentModeLabel }}</AppBadge>
     </div>
 
     <div class="top-nav__search">
@@ -70,6 +71,19 @@
         </button>
         <div v-if="profileMenuOpen" id="profile-menu" class="top-nav__profile-menu" role="menu">
           <div class="top-nav__profile-name" role="presentation">{{ userName }}</div>
+          <div class="top-nav__mode-picker" role="group" aria-label="Navigation mode">
+            <div class="top-nav__mode-label">Navigation mode</div>
+            <button
+              v-for="mode in navigationModes"
+              :key="mode.value"
+              type="button"
+              role="menuitemradio"
+              :aria-checked="mode.value === currentMode ? 'true' : 'false'"
+              @click="setNavigationMode(mode.value)"
+            >
+              {{ mode.label }}
+            </button>
+          </div>
           <button type="button" role="menuitem" @click="handleLogout">Logout</button>
         </div>
       </div>
@@ -79,6 +93,9 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { useAuthStore } from '../stores/auth'
+import { navigationModeLabel, navigationModes, normalizeNavigationMode, type NavigationMode } from '../utils/navigationMode'
 import AppBadge from './ui/AppBadge.vue'
 import AppButton from './ui/AppButton.vue'
 import AppIconButton from './ui/AppIconButton.vue'
@@ -94,9 +111,15 @@ const emit = defineEmits<{
   logout: []
 }>()
 
+const auth = useAuthStore()
 const searchQuery = ref('')
 const bookMenuOpen = ref(false)
 const profileMenuOpen = ref(false)
+const modeSaving = ref(false)
+const currentMode = computed(() =>
+  normalizeNavigationMode(auth.user?.preferredDashboardMode, auth.user?.startingMode),
+)
+const currentModeLabel = computed(() => navigationModeLabel(currentMode.value))
 const initials = computed(() => {
   const value = props.userName
     .split(/\s+/)
@@ -141,6 +164,26 @@ function handleLogout() {
   closeMenus()
   emit('logout')
 }
+
+async function setNavigationMode(mode: NavigationMode) {
+  if (modeSaving.value || mode === currentMode.value) return
+
+  modeSaving.value = true
+  try {
+    await auth.updateOnboarding({
+      preferredDashboardMode: mode,
+      onboardingCompleted: auth.user?.onboardingCompleted ?? true,
+      primaryUseCase: auth.user?.primaryUseCase ?? null,
+      startingMode: auth.user?.startingMode ?? mode,
+    })
+    ElMessage.success(`Navigation changed to ${navigationModeLabel(mode)}.`)
+    closeMenus()
+  } catch {
+    ElMessage.error('Navigation mode could not be saved.')
+  } finally {
+    modeSaving.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -164,6 +207,9 @@ function handleLogout() {
 
 .top-nav__title {
   min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
 }
 
 .top-nav__route-title {
@@ -295,6 +341,30 @@ function handleLogout() {
   color: var(--bookos-text-primary);
   text-align: left;
   cursor: pointer;
+}
+
+.top-nav__mode-picker {
+  padding: var(--space-2);
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface-muted);
+}
+
+.top-nav__mode-label {
+  color: var(--bookos-text-tertiary);
+  font-size: var(--type-micro);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.top-nav__mode-picker button[aria-checked='true'] {
+  border-color: color-mix(in srgb, var(--bookos-primary) 44%, var(--bookos-border));
+  background: var(--bookos-primary-soft);
+  color: var(--bookos-primary-hover);
+  font-weight: 900;
 }
 
 @media (max-width: 1240px) {

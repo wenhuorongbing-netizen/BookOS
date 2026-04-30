@@ -39,7 +39,32 @@
       <AppLoadingState v-if="loading" label="Searching BookOS" compact />
       <AppErrorState v-else-if="errorMessage" title="Search failed" :description="errorMessage" retry-label="Retry" @retry="runSearch" />
 
-      <div v-else-if="results.length" class="global-search__results" role="listbox" aria-label="Search results">
+      <div v-else-if="hasResults" class="global-search__results" role="listbox" aria-label="Search results">
+        <section v-if="shortcutResults.length" class="global-search__section" aria-label="Routes and tools">
+          <div class="global-search__section-title">Routes and tools</div>
+          <article
+            v-for="shortcut in shortcutResults"
+            :key="shortcut.label"
+            class="global-search__result global-search__result--shortcut"
+            role="option"
+            tabindex="0"
+            @click="openShortcut(shortcut)"
+            @keydown.enter.prevent="openShortcut(shortcut)"
+            @keydown.space.prevent="openShortcut(shortcut)"
+          >
+            <div class="global-search__result-main">
+              <AppBadge variant="info" size="sm">{{ shortcut.group }}</AppBadge>
+              <div>
+                <h3>{{ shortcut.label }}</h3>
+                <p>{{ shortcut.description }}</p>
+              </div>
+            </div>
+            <div class="global-search__result-actions">
+              <AppButton variant="text" @click.stop="openShortcut(shortcut)">Open route</AppButton>
+            </div>
+          </article>
+        </section>
+
         <article
           v-for="result in results"
           :key="`${result.type}-${result.id}`"
@@ -88,9 +113,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, type InputInstance } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { searchBookOS } from '../../api/search'
 import { useOpenSource } from '../../composables/useOpenSource'
+import { useAuthStore } from '../../stores/auth'
 import type { SearchResultRecord, SearchResultType } from '../../types'
 import AppBadge from '../ui/AppBadge.vue'
 import AppButton from '../ui/AppButton.vue'
@@ -99,6 +125,7 @@ import AppErrorState from '../ui/AppErrorState.vue'
 import AppLoadingState from '../ui/AppLoadingState.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 const { openSource } = useOpenSource()
 const open = ref(false)
 const query = ref('')
@@ -108,6 +135,15 @@ const loading = ref(false)
 const errorMessage = ref('')
 const searchInput = ref<InputInstance | null>(null)
 let searchTimer: number | undefined
+
+interface RouteShortcut {
+  label: string
+  description: string
+  group: 'Primary' | 'Secondary' | 'Advanced' | 'Admin'
+  to: RouteLocationRaw
+  keywords: string[]
+  adminOnly?: boolean
+}
 
 const typeOptions: Array<{ label: string; value: SearchResultType }> = [
   { label: 'Books', value: 'BOOK' },
@@ -127,6 +163,162 @@ const typeOptions: Array<{ label: string; value: SearchResultType }> = [
 ]
 
 const trimmedQuery = computed(() => query.value.trim())
+
+const routeShortcuts: RouteShortcut[] = [
+  {
+    label: 'Dashboard',
+    description: 'Return to the task-first command center.',
+    group: 'Primary',
+    to: { name: 'dashboard' },
+    keywords: ['home', 'today', 'continue reading', 'capture'],
+  },
+  {
+    label: 'Library',
+    description: 'Manage books, reading status, progress, and ratings.',
+    group: 'Primary',
+    to: { name: 'my-library' },
+    keywords: ['books', 'reading', 'add book'],
+  },
+  {
+    label: 'Capture Inbox',
+    description: 'Review quick captures and convert them into notes, quotes, actions, or concepts.',
+    group: 'Primary',
+    to: { name: 'capture-inbox' },
+    keywords: ['capture', 'inbox', 'parser', 'quick capture'],
+  },
+  {
+    label: 'Notes',
+    description: 'Open source-backed book notes and note blocks.',
+    group: 'Primary',
+    to: { name: 'notes' },
+    keywords: ['markdown', 'blocks', 'writing'],
+  },
+  {
+    label: 'Projects',
+    description: 'Apply reading knowledge to game design projects.',
+    group: 'Primary',
+    to: { name: 'projects' },
+    keywords: ['game design', 'project cockpit', 'application'],
+  },
+  {
+    label: 'Review',
+    description: 'Start source-backed review sessions and update mastery.',
+    group: 'Primary',
+    to: { name: 'review' },
+    keywords: ['learning', 'mastery', 'review session'],
+  },
+  {
+    label: 'Quotes',
+    description: 'Browse and manage captured quotes.',
+    group: 'Secondary',
+    to: { name: 'quotes' },
+    keywords: ['quote', 'source'],
+  },
+  {
+    label: 'Actions',
+    description: 'Manage source-backed action items.',
+    group: 'Secondary',
+    to: { name: 'action-items' },
+    keywords: ['action items', 'tasks', 'todo'],
+  },
+  {
+    label: 'Concepts',
+    description: 'Review and connect extracted concepts.',
+    group: 'Secondary',
+    to: { name: 'concepts' },
+    keywords: ['concept', 'ontology'],
+  },
+  {
+    label: 'Knowledge',
+    description: 'Open knowledge objects, lenses, principles, and exercises.',
+    group: 'Secondary',
+    to: { name: 'knowledge' },
+    keywords: ['knowledge objects', 'lenses', 'principles'],
+  },
+  {
+    label: 'Daily',
+    description: 'Open daily quote, prompt, reflection, and resurfacing tools.',
+    group: 'Secondary',
+    to: { name: 'daily' },
+    keywords: ['daily prompt', 'daily sentence', 'reflection'],
+  },
+  {
+    label: 'Forum',
+    description: 'Discuss books, concepts, projects, and source-backed ideas.',
+    group: 'Secondary',
+    to: { name: 'forum' },
+    keywords: ['community', 'discussion', 'threads'],
+  },
+  {
+    label: 'Use Cases',
+    description: 'Learn BookOS through hands-on workflows.',
+    group: 'Secondary',
+    to: { name: 'use-cases' },
+    keywords: ['workflow', 'tutorial', 'scenario'],
+  },
+  {
+    label: 'Demo Workspace',
+    description: 'Practice with safe, clearly labeled sample records that can be reset or deleted.',
+    group: 'Secondary',
+    to: { name: 'demo-workspace' },
+    keywords: ['demo', 'sample', 'practice', 'hands-on'],
+  },
+  {
+    label: 'Knowledge Graph',
+    description: 'Explore source-backed relationships and entity links.',
+    group: 'Advanced',
+    to: { name: 'graph' },
+    keywords: ['graph', 'relationships', 'entity links', 'backlinks'],
+  },
+  {
+    label: 'Analytics',
+    description: 'Inspect real reading, review, and knowledge activity.',
+    group: 'Advanced',
+    to: { name: 'analytics' },
+    keywords: ['stats', 'metrics', 'learning loop'],
+  },
+  {
+    label: 'Import / Export',
+    description: 'Move user-owned BookOS data in and out safely.',
+    group: 'Advanced',
+    to: { name: 'import-export' },
+    keywords: ['backup', 'restore', 'json', 'markdown', 'csv'],
+  },
+  {
+    label: 'AI Drafts',
+    description: 'Open the dashboard AI draft panel; AI remains draft-only.',
+    group: 'Advanced',
+    to: { name: 'dashboard', query: { focus: 'ai' } },
+    keywords: ['mock ai', 'suggestions', 'drafts'],
+  },
+  {
+    label: 'Admin Ontology',
+    description: 'Admin-only ontology seed and import tools.',
+    group: 'Admin',
+    to: { name: 'admin-ontology' },
+    keywords: ['admin', 'ontology', 'seed import'],
+    adminOnly: true,
+  },
+]
+
+const shortcutResults = computed(() => {
+  if (trimmedQuery.value.length < 2) return []
+  const queryText = trimmedQuery.value.toLowerCase()
+  return routeShortcuts
+    .filter((shortcut) => !shortcut.adminOnly || auth.user?.role === 'ADMIN')
+    .filter((shortcut) => {
+      const haystack = [
+        shortcut.label,
+        shortcut.description,
+        shortcut.group,
+        ...shortcut.keywords,
+      ].join(' ').toLowerCase()
+      return haystack.includes(queryText)
+    })
+    .slice(0, 6)
+})
+
+const hasResults = computed(() => results.value.length > 0 || shortcutResults.value.length > 0)
 
 onMounted(() => {
   window.addEventListener('keydown', handleShortcut)
@@ -184,8 +376,19 @@ async function runSearch() {
 }
 
 function openFirstResult() {
+  const firstShortcut = shortcutResults.value[0]
+  if (firstShortcut) {
+    openShortcut(firstShortcut)
+    return
+  }
+
   const first = results.value[0]
   if (first) openResult(first)
+}
+
+function openShortcut(shortcut: RouteShortcut) {
+  open.value = false
+  void router.push(shortcut.to)
 }
 
 function openResult(result: SearchResultRecord) {
@@ -330,6 +533,19 @@ function searchErrorMessage(error: unknown) {
   padding-right: var(--space-1);
 }
 
+.global-search__section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.global-search__section-title {
+  color: var(--bookos-text-tertiary);
+  font-size: var(--type-micro);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .global-search__result {
   min-height: 72px;
   padding: var(--space-3);
@@ -345,6 +561,10 @@ function searchErrorMessage(error: unknown) {
 .global-search__result:focus-visible {
   border-color: color-mix(in srgb, var(--bookos-primary) 34%, var(--bookos-border));
   background: color-mix(in srgb, var(--bookos-primary-soft) 24%, var(--bookos-surface));
+}
+
+.global-search__result--shortcut {
+  background: color-mix(in srgb, var(--bookos-info-soft, var(--bookos-primary-soft)) 22%, var(--bookos-surface));
 }
 
 .global-search__result-main {

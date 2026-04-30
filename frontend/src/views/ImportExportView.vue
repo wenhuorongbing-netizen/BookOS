@@ -5,6 +5,16 @@
       title="Data Portability"
       description="Export your source-backed BookOS knowledge, or preview structured imports before anything is written."
       :level="1"
+    >
+      <template #actions>
+        <HelpTooltip topic="import-preview" placement="left" />
+      </template>
+    </AppSectionHeader>
+
+    <UseCaseSuggestionPanel
+      title="Export or import without losing source rules"
+      description="Start with the export workflow before using import preview. Unknown pages stay unknown and private exports should be handled carefully."
+      :slugs="importExportUseCaseSlugs"
     />
 
     <section class="transfer-grid">
@@ -189,6 +199,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getBooks } from '../api/books'
 import { commitImport, downloadExport, exportAllJson, exportBookJson, previewImport } from '../api/importExport'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -197,9 +208,15 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import AppStat from '../components/ui/AppStat.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 import type { BookRecord, ImportCommitRecord, ImportPreviewRecord, ImportRequestPayload, ImportType } from '../types'
 
 const books = ref<BookRecord[]>([])
+const importExportUseCaseSlugs = [
+  'export-reading-knowledge',
+  'search-rediscover-knowledge',
+  'mock-ai-draft-helper',
+]
 const selectedBookId = ref<number | null>(null)
 const exporting = ref(false)
 const previewing = ref(false)

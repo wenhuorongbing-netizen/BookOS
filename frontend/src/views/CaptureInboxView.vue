@@ -3,10 +3,11 @@
     <AppSectionHeader
       title="Capture Inbox"
       eyebrow="Quick Capture"
-      :description="bookId ? 'Captures filtered to the selected book.' : 'Review, convert, or archive source-backed quick captures.'"
+      :description="bookId ? 'Captures filtered to the selected book.' : 'Turn raw reading thoughts into notes, quotes, actions, or reviewed concepts.'"
       :level="1"
     >
       <template #actions>
+        <HelpTooltip topic="capture-inbox" placement="left" />
         <AppButton
           v-if="selectedCaptureIds.length"
           variant="ghost"
@@ -20,6 +21,43 @@
         </RouterLink>
       </template>
     </AppSectionHeader>
+
+    <AppCard class="task-first-panel" variant="highlight" as="section">
+      <div>
+        <div class="eyebrow">Next inbox action</div>
+        <h2>{{ inboxTask.title }}</h2>
+        <p>{{ inboxTask.description }}</p>
+        <div class="task-first-panel__metrics" aria-label="Capture inbox summary">
+          <AppBadge variant="primary">{{ unprocessedBlocks.length }} unprocessed</AppBadge>
+          <AppBadge variant="accent">{{ conceptReviewBlocks.length }} need concept review</AppBadge>
+          <AppBadge variant="neutral">{{ capture.latestBlocks.length }} loaded</AppBadge>
+        </div>
+      </div>
+      <div class="task-first-panel__actions">
+        <AppButton
+          v-if="inboxTask.block"
+          variant="primary"
+          :loading="isConverting(inboxTask.block.captureId)"
+          :disabled="inboxTask.block.status !== 'INBOX'"
+          @click="runInboxTask(inboxTask.block)"
+        >
+          {{ inboxTask.block.concepts.length ? 'Review Concepts' : primaryConversionLabel(inboxTask.block) }}
+        </AppButton>
+        <RouterLink v-else to="/my-library" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Open Library</AppButton>
+        </RouterLink>
+        <RouterLink to="/use-cases/capture-idea-while-reading" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">See capture flow</AppButton>
+        </RouterLink>
+      </div>
+    </AppCard>
+
+    <UseCaseSuggestionPanel
+      :slugs="['capture-idea-while-reading', 'capture-to-quote', 'capture-to-action-item', 'review-concept-marker']"
+      eyebrow="Inbox playbook"
+      title="Process one capture at a time"
+      description="The inbox stays useful when each raw thought becomes one source-backed note, quote, action, or reviewed concept."
+    />
 
     <AppCard class="capture-filters" as="section" aria-label="Capture inbox filters">
       <label>
@@ -61,7 +99,16 @@
       :title="capture.latestBlocks.length ? 'No captures match this filter' : 'No captures found'"
       :description="capture.latestBlocks.length ? 'Adjust the status or parsed type filters to review other captures.' : 'Use Quick Capture on a book detail page to save source-backed reading thoughts.'"
       eyebrow="Capture queue"
-    />
+    >
+      <template #actions>
+        <RouterLink to="/help/capture-inbox" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">Learn capture inbox</AppButton>
+        </RouterLink>
+        <RouterLink to="/use-cases/capture-idea-while-reading" custom v-slot="{ navigate }">
+          <AppButton variant="ghost" @click="navigate">See capture workflow</AppButton>
+        </RouterLink>
+      </template>
+    </AppEmptyState>
 
     <section v-else class="capture-grid" aria-label="Capture inbox items">
       <AppCard v-for="block in displayBlocks" :key="block.captureId" class="capture-card" as="article">
@@ -159,6 +206,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getConcepts } from '../api/knowledge'
 import { reviewCaptureConcepts } from '../api/captures'
 import ConceptReviewDialog from '../components/concept/ConceptReviewDialog.vue'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -166,6 +214,7 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useCaptureStore, type RecentNoteBlock } from '../stores/capture'
 import type { CaptureStatus, ConceptRecord, ConceptReviewPayload, NoteBlockType, RawCaptureConversionRecord } from '../types'
@@ -198,6 +247,33 @@ const bookId = computed(() => {
 })
 const displayBlocks = computed(() => {
   return capture.latestBlocks.filter((block) => typeFilter.value === 'ALL' || block.parsedType === typeFilter.value)
+})
+const unprocessedBlocks = computed(() => capture.latestBlocks.filter((block) => block.status === 'INBOX'))
+const conceptReviewBlocks = computed(() => unprocessedBlocks.value.filter((block) => block.concepts.length > 0))
+const inboxTask = computed(() => {
+  const conceptBlock = conceptReviewBlocks.value[0]
+  if (conceptBlock) {
+    return {
+      title: `Review concepts from ${conceptBlock.bookTitle}`,
+      description: 'This capture contains [[Concept]] markers. Review them before turning the idea into durable knowledge.',
+      block: conceptBlock,
+    }
+  }
+
+  const nextBlock = unprocessedBlocks.value[0]
+  if (nextBlock) {
+    return {
+      title: primaryConversionLabel(nextBlock),
+      description: `BookOS parsed this as ${formatType(nextBlock.parsedType)}. Convert it now or choose another target from the card menu.`,
+      block: nextBlock,
+    }
+  }
+
+  return {
+    title: 'Capture one reading thought first',
+    description: 'The inbox fills from Quick Capture on a book detail page. Add or open a book, then save one raw idea with a page marker when known.',
+    block: null,
+  }
 })
 
 onMounted(loadInbox)
@@ -326,6 +402,15 @@ function openCaptureSource(block: RecentNoteBlock) {
 function openConceptReview(block: RecentNoteBlock) {
   selectedConceptBlock.value = block
   conceptDialogOpen.value = true
+}
+
+function runInboxTask(block: RecentNoteBlock) {
+  if (block.concepts.length) {
+    openConceptReview(block)
+    return
+  }
+
+  void convertDefaultBlock(block)
 }
 
 async function saveCaptureConceptReview(payload: ConceptReviewPayload) {

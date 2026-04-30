@@ -33,6 +33,16 @@
         </template>
       </AppSectionHeader>
 
+      <DetailNextStepCard
+        title="Add one source-backed block"
+        description="Turn a raw line from this note into an atomic block with page, tag, concept, and source metadata instead of leaving the note as undifferentiated Markdown."
+        primary-label="Add Parsed Block"
+        :primary-to="{ name: 'note-detail', params: { id: note.id }, hash: '#note-block-composer' }"
+        secondary-label="Open Book Source"
+        :secondary-to="{ name: 'book-detail', params: { id: note.bookId } }"
+        :loop="['Book source', 'Markdown note', 'Parsed block', 'Concept review']"
+      />
+
       <section class="note-detail-grid" aria-label="Note editor and parsed blocks">
         <AppCard class="note-editor" as="section">
           <AppSectionHeader
@@ -80,7 +90,7 @@
           </form>
         </AppCard>
 
-        <AppCard class="block-composer" as="section">
+        <AppCard id="note-block-composer" class="block-composer" as="section">
           <AppSectionHeader
             title="Add Parsed Block"
             eyebrow="Atomic block"
@@ -211,6 +221,7 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
 import { renderSafeMarkdown } from '../utils/markdown'

@@ -1,15 +1,46 @@
 <template>
   <div class="page-shell">
-    <div class="page-header">
+    <AppSectionHeader
+      eyebrow="Library"
+      title="Choose what you are reading now"
+      description="Keep the library practical: add one real book, set its status, then open it to capture source-backed notes."
+      :level="1"
+    >
+      <template #actions>
+        <RouterLink to="/books/new" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">{{ library.length ? 'Add another book' : 'Add first book' }}</AppButton>
+        </RouterLink>
+      </template>
+    </AppSectionHeader>
+
+    <AppCard class="task-first-panel" variant="highlight" as="section">
       <div>
-        <div class="eyebrow">My Library</div>
-        <h1>Personal shelf and shared catalog</h1>
-        <p>Update status, progress, and ratings from one place, then pull new books in from the shared shelf.</p>
+        <div class="eyebrow">Next library action</div>
+        <h2>{{ libraryTask.title }}</h2>
+        <p>{{ libraryTask.description }}</p>
+        <div class="task-first-panel__metrics" aria-label="Library summary">
+          <AppBadge variant="primary">{{ library.length }} tracked</AppBadge>
+          <AppBadge variant="accent">{{ currentReadingBooks.length }} reading now</AppBadge>
+          <AppBadge variant="neutral">{{ discoverBooks.length }} discoverable</AppBadge>
+        </div>
       </div>
-      <RouterLink to="/books/new">
-        <el-button type="primary">Add another book</el-button>
-      </RouterLink>
-    </div>
+      <div class="task-first-panel__actions">
+        <RouterLink v-if="libraryTask.routeName" :to="{ name: libraryTask.routeName, params: libraryTask.routeParams }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">{{ libraryTask.primaryLabel }}</AppButton>
+        </RouterLink>
+        <AppButton v-else variant="primary" @click="openBook(libraryTask.book!)">{{ libraryTask.primaryLabel }}</AppButton>
+        <RouterLink to="/use-cases/track-book-start-to-finish" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">See workflow</AppButton>
+        </RouterLink>
+      </div>
+    </AppCard>
+
+    <UseCaseSuggestionPanel
+      :slugs="['track-book-start-to-finish', 'capture-idea-while-reading', 'open-source-from-quote-or-action']"
+      eyebrow="Library playbook"
+      title="Use the library as the start of the loop"
+      description="A book only becomes useful after it has reading status, captures, notes, and source-backed follow-up."
+    />
 
     <BookFilterBar v-model="filters" :categories="categories" :tags="tags" @apply="noop" />
 
@@ -20,7 +51,20 @@
           <h2>Tracked books</h2>
         </div>
       </div>
+      <AppEmptyState
+        v-if="!loading && !library.length"
+        title="Add one book to start"
+        description="The first useful BookOS action is adding a real book, then setting its reading status."
+        eyebrow="First-day flow"
+      >
+        <template #actions>
+          <RouterLink to="/books/new" custom v-slot="{ navigate }">
+            <AppButton variant="primary" @click="navigate">Add first book</AppButton>
+          </RouterLink>
+        </template>
+      </AppEmptyState>
       <BookTable
+        v-else
         :rows="filteredLibrary"
         :loading="loading"
         @open="openBook"
@@ -48,7 +92,13 @@
           @secondary="handleAddToLibrary"
         />
       </div>
-      <div v-else class="surface-card empty-state">Everything matching the current filter is already in your library.</div>
+      <AppEmptyState
+        v-else
+        title="Nothing new in Discover"
+        description="Everything matching the current filter is already in your library. Clear filters or add a new book manually."
+        eyebrow="Discover"
+        compact
+      />
     </section>
   </div>
 </template>
@@ -67,6 +117,12 @@ import {
 import BookCard from '../components/BookCard.vue'
 import BookFilterBar from '../components/BookFilterBar.vue'
 import BookTable from '../components/BookTable.vue'
+import AppBadge from '../components/ui/AppBadge.vue'
+import AppButton from '../components/ui/AppButton.vue'
+import AppCard from '../components/ui/AppCard.vue'
+import AppEmptyState from '../components/ui/AppEmptyState.vue'
+import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 import type { BookFilterState, BookRecord, ReadingStatus, UserBookRecord } from '../types'
 
 const router = useRouter()
@@ -85,6 +141,41 @@ const tags = computed(() =>
 
 const filteredLibrary = computed(() => library.value.filter(matchesFilters))
 const discoverBooks = computed(() => books.value.filter((book) => !book.inLibrary && matchesFilters(book)))
+const currentReadingBooks = computed(() => library.value.filter((book) => book.readingStatus === 'CURRENTLY_READING'))
+const libraryTask = computed(() => {
+  const current = currentReadingBooks.value[0]
+  if (current) {
+    return {
+      title: `Continue ${current.title}`,
+      description: 'Open the book cockpit, capture the next useful idea, or update reading progress before moving on.',
+      primaryLabel: 'Open current book',
+      book: current,
+      routeName: '',
+      routeParams: {},
+    }
+  }
+
+  const firstBook = library.value[0]
+  if (firstBook) {
+    return {
+      title: 'Pick one tracked book to read next',
+      description: 'Set the book to Currently Reading when it becomes active, then use the book detail page for notes and captures.',
+      primaryLabel: 'Open tracked book',
+      book: firstBook,
+      routeName: '',
+      routeParams: {},
+    }
+  }
+
+  return {
+    title: 'Add one real book',
+    description: 'Start small. Add a book you are actually reading so notes, captures, quotes, and actions have a real source.',
+    primaryLabel: 'Add first book',
+    book: null,
+    routeName: 'add-book',
+    routeParams: {},
+  }
+})
 
 onMounted(refresh)
 

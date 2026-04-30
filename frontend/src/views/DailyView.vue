@@ -4,7 +4,11 @@
       eyebrow="Daily Resurfacing"
       title="Today in BookOS"
       description="Review source-backed quotes and design prompts selected by the daily API. Template prompts are labeled explicitly."
-    />
+    >
+      <template #actions>
+        <HelpTooltip topic="daily-prompt" placement="left" />
+      </template>
+    </AppSectionHeader>
 
     <AppLoadingState v-if="loading" label="Loading daily cockpit" />
 
@@ -148,6 +152,7 @@ import { useRouter } from 'vue-router'
 import { createPrototypeTaskFromDaily, getDailyHistory, getDailyToday, regenerateDaily, saveDailyReflection, skipDaily } from '../api/daily'
 import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import DailyProjectActionDialog from '../components/project/DailyProjectActionDialog.vue'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'

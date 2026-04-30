@@ -10,6 +10,7 @@ import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.enums.CaptureStatus;
 import com.bookos.backend.common.enums.ReadingStatus;
 import com.bookos.backend.daily.repository.DailyReflectionRepository;
+import com.bookos.backend.demo.service.DemoWorkspaceService;
 import com.bookos.backend.knowledge.entity.Concept;
 import com.bookos.backend.knowledge.entity.KnowledgeObject;
 import com.bookos.backend.knowledge.repository.ConceptRepository;
@@ -63,6 +64,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,6 +94,7 @@ public class LearningService {
     private final ProjectApplicationRepository projectApplicationRepository;
     private final PlaytestFindingRepository playtestFindingRepository;
     private final ProjectLensReviewRepository projectLensReviewRepository;
+    private final DemoWorkspaceService demoWorkspaceService;
 
     @Transactional(readOnly = true)
     public List<ReadingSessionResponse> listReadingSessions(String email) {
@@ -293,38 +296,79 @@ public class LearningService {
 
     @Transactional(readOnly = true)
     public ReadingAnalyticsResponse readingAnalytics(String email) {
+        return readingAnalytics(email, false);
+    }
+
+    @Transactional(readOnly = true)
+    public ReadingAnalyticsResponse readingAnalytics(String email, boolean includeDemo) {
         User user = userService.getByEmailRequired(email);
-        List<UserBook> library = userBookRepository.findByUserIdOrderByUpdatedAtDesc(user.getId());
-        List<ActionItem> actionItems = actionItemRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId());
-        List<ReadingSession> readingSessions = readingSessionRepository.findByUserIdOrderByStartedAtDesc(user.getId());
+        DemoScope demo = demoScope(user.getId(), includeDemo);
+        List<UserBook> library = userBookRepository.findByUserIdOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(item -> demo.include(item.getId(), "USER_BOOK") && demo.include(item.getBook().getId(), "BOOK"))
+                .toList();
+        var notes = bookNoteRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(note -> demo.include(note.getBook().getId(), "BOOK"))
+                .toList();
+        var captures = rawCaptureRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+                .filter(capture -> demo.include(capture.getId(), "RAW_CAPTURE") && demo.include(capture.getBook().getId(), "BOOK"))
+                .toList();
+        var quotes = quoteRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(quote -> demo.include(quote.getId(), "QUOTE") && demo.include(quote.getBook().getId(), "BOOK"))
+                .toList();
+        List<ActionItem> actionItems = actionItemRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(item -> demo.include(item.getId(), "ACTION_ITEM") && demo.include(item.getBook().getId(), "BOOK"))
+                .toList();
+        var concepts = conceptRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(concept -> demo.include(concept.getId(), "CONCEPT"))
+                .toList();
+        var projectApplications = projectApplicationRepository.findByProjectOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(application -> demo.include(application.getId(), "PROJECT_APPLICATION") && demo.include(application.getProject().getId(), "GAME_PROJECT"))
+                .toList();
+        List<ReadingSession> readingSessions = readingSessionRepository.findByUserIdOrderByStartedAtDesc(user.getId()).stream()
+                .filter(session -> demo.include(session.getBook().getId(), "BOOK"))
+                .toList();
         long totalMinutes = readingSessions.stream().map(ReadingSession::getMinutesRead).filter(Objects::nonNull).mapToLong(Integer::longValue).sum();
         return new ReadingAnalyticsResponse(
                 library.size(),
                 library.stream().filter(item -> item.getReadingStatus() == ReadingStatus.CURRENTLY_READING).count(),
                 library.stream().filter(item -> item.getReadingStatus() == ReadingStatus.COMPLETED).count(),
-                bookNoteRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).size(),
-                rawCaptureRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).size(),
-                quoteRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).size(),
+                notes.size(),
+                captures.size(),
+                quotes.size(),
                 actionItems.stream().filter(item -> item.getCompletedAt() == null).count(),
                 actionItems.stream().filter(item -> item.getCompletedAt() != null).count(),
-                conceptRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).size(),
+                concepts.size(),
                 dailyReflectionRepository.findTop30ByUserIdOrderByCreatedAtDesc(user.getId()).size(),
-                projectApplicationRepository.findByProjectOwnerIdOrderByUpdatedAtDesc(user.getId()).size(),
+                projectApplications.size(),
                 reviewSessionRepository.countByUserId(user.getId()),
                 reviewSessionRepository.countByUserIdAndCompletedAtIsNotNull(user.getId()),
                 totalMinutes,
-                mostActiveBooks(user.getId(), readingSessions));
+                mostActiveBooks(user.getId(), readingSessions, demo));
     }
 
     @Transactional(readOnly = true)
     public KnowledgeAnalyticsResponse knowledgeAnalytics(String email) {
+        return knowledgeAnalytics(email, false);
+    }
+
+    @Transactional(readOnly = true)
+    public KnowledgeAnalyticsResponse knowledgeAnalytics(String email, boolean includeDemo) {
         User user = userService.getByEmailRequired(email);
-        List<Concept> concepts = conceptRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId());
+        DemoScope demo = demoScope(user.getId(), includeDemo);
+        List<Concept> concepts = conceptRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(concept -> demo.include(concept.getId(), "CONCEPT"))
+                .toList();
+        var knowledgeObjects = knowledgeObjectRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(object -> demo.include(object.getId(), "KNOWLEDGE_OBJECT"))
+                .toList();
+        var mastery = masteryRepository.findByUserIdOrderByUpdatedAtDesc(user.getId()).stream()
+                .filter(item -> demo.include(item.getTargetId(), item.getTargetType()))
+                .toList();
         return new KnowledgeAnalyticsResponse(
                 concepts.size(),
-                knowledgeObjectRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId()).size(),
-                masteryRepository.countByUserId(user.getId()),
-                masteryRepository.countByUserIdAndNextReviewAtBefore(user.getId(), Instant.now()),
+                knowledgeObjects.size(),
+                mastery.size(),
+                mastery.stream().filter(item -> item.getNextReviewAt() != null && item.getNextReviewAt().isBefore(Instant.now())).count(),
                 reviewItemRepository.countByReviewSessionUserId(user.getId()),
                 reviewItemRepository.countByReviewSessionUserIdAndStatus(user.getId(), "COMPLETED"),
                 concepts.stream()
@@ -336,10 +380,21 @@ public class LearningService {
 
     @Transactional(readOnly = true)
     public BookAnalyticsResponse bookAnalytics(String email, Long bookId) {
+        return bookAnalytics(email, bookId, false);
+    }
+
+    @Transactional(readOnly = true)
+    public BookAnalyticsResponse bookAnalytics(String email, Long bookId, boolean includeDemo) {
         User user = userService.getByEmailRequired(email);
         Book book = bookService.getAccessibleBookEntity(email, bookId);
-        List<ActionItem> actions = actionItemRepository.findByUserIdAndBookIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId(), bookId);
+        DemoScope demo = demoScope(user.getId(), includeDemo);
+        List<ActionItem> actions = actionItemRepository.findByUserIdAndBookIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId(), bookId).stream()
+                .filter(item -> demo.include(item.getId(), "ACTION_ITEM"))
+                .toList();
         List<ReadingSession> sessions = readingSessionRepository.findByUserIdAndBookIdOrderByStartedAtDesc(user.getId(), bookId);
+        if (!demo.include(bookId, "BOOK")) {
+            sessions = List.of();
+        }
         long reviewItems = reviewSessionRepository.findByUserIdOrderByStartedAtDesc(user.getId()).stream()
                 .filter(session -> "BOOK".equals(session.getScopeType()) && Objects.equals(session.getScopeId(), bookId))
                 .mapToLong(session -> reviewItemRepository.findByReviewSessionIdAndReviewSessionUserIdOrderByCreatedAtAsc(session.getId(), user.getId()).size())
@@ -347,15 +402,15 @@ public class LearningService {
         return new BookAnalyticsResponse(
                 book.getId(),
                 book.getTitle(),
-                bookNoteRepository.findByBookIdAndUserIdAndArchivedFalseOrderByUpdatedAtDesc(bookId, user.getId()).size(),
-                rawCaptureRepository.findByUserIdAndBookIdOrderByCreatedAtDesc(user.getId(), bookId).size(),
-                quoteRepository.findByUserIdAndBookIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId(), bookId).size(),
+                demo.include(bookId, "BOOK") ? bookNoteRepository.findByBookIdAndUserIdAndArchivedFalseOrderByUpdatedAtDesc(bookId, user.getId()).size() : 0,
+                demo.include(bookId, "BOOK") ? rawCaptureRepository.findByUserIdAndBookIdOrderByCreatedAtDesc(user.getId(), bookId).stream().filter(capture -> demo.include(capture.getId(), "RAW_CAPTURE")).count() : 0,
+                demo.include(bookId, "BOOK") ? quoteRepository.findByUserIdAndBookIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId(), bookId).stream().filter(quote -> demo.include(quote.getId(), "QUOTE")).count() : 0,
                 actions.size(),
                 actions.stream().filter(item -> item.getCompletedAt() != null).count(),
-                conceptRepository.findByUserIdAndFirstBookIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId(), bookId).size(),
+                demo.include(bookId, "BOOK") ? conceptRepository.findByUserIdAndFirstBookIdAndArchivedFalseOrderByUpdatedAtDesc(user.getId(), bookId).stream().filter(concept -> demo.include(concept.getId(), "CONCEPT")).count() : 0,
                 sessions.size(),
                 sessions.stream().map(ReadingSession::getMinutesRead).filter(Objects::nonNull).mapToLong(Integer::longValue).sum(),
-                reviewItems);
+                demo.include(bookId, "BOOK") ? reviewItems : 0);
     }
 
     private ReviewSession createGeneratedSession(User user, String scopeType, Long scopeId, String title, String mode, String fallbackTitle) {
@@ -448,15 +503,23 @@ public class LearningService {
         }
     }
 
-    private List<AnalyticsCountResponse> mostActiveBooks(Long userId, List<ReadingSession> sessions) {
+    private List<AnalyticsCountResponse> mostActiveBooks(Long userId, List<ReadingSession> sessions, DemoScope demo) {
         Map<String, Long> counts = new LinkedHashMap<>();
         bookNoteRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(userId)
+                .stream()
+                .filter(note -> demo.include(note.getBook().getId(), "BOOK"))
                 .forEach(note -> increment(counts, note.getBook().getTitle()));
         rawCaptureRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .filter(capture -> demo.include(capture.getId(), "RAW_CAPTURE") && demo.include(capture.getBook().getId(), "BOOK"))
                 .forEach(capture -> increment(counts, capture.getBook().getTitle()));
         quoteRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(userId)
+                .stream()
+                .filter(quote -> demo.include(quote.getId(), "QUOTE") && demo.include(quote.getBook().getId(), "BOOK"))
                 .forEach(quote -> increment(counts, quote.getBook().getTitle()));
         actionItemRepository.findByUserIdAndArchivedFalseOrderByUpdatedAtDesc(userId)
+                .stream()
+                .filter(action -> demo.include(action.getId(), "ACTION_ITEM") && demo.include(action.getBook().getId(), "BOOK"))
                 .forEach(action -> increment(counts, action.getBook().getTitle()));
         sessions.forEach(session -> increment(counts, session.getBook().getTitle()));
         return counts.entrySet().stream()
@@ -468,6 +531,32 @@ public class LearningService {
 
     private void increment(Map<String, Long> counts, String label) {
         counts.put(label, counts.getOrDefault(label, 0L) + 1L);
+    }
+
+    private DemoScope demoScope(Long userId, boolean includeDemo) {
+        if (includeDemo) {
+            return new DemoScope(Map.of());
+        }
+        return new DemoScope(Map.of(
+                "BOOK", demoWorkspaceService.demoIds(userId, "BOOK"),
+                "USER_BOOK", demoWorkspaceService.demoIds(userId, "USER_BOOK"),
+                "RAW_CAPTURE", demoWorkspaceService.demoIds(userId, "RAW_CAPTURE"),
+                "QUOTE", demoWorkspaceService.demoIds(userId, "QUOTE"),
+                "ACTION_ITEM", demoWorkspaceService.demoIds(userId, "ACTION_ITEM"),
+                "CONCEPT", demoWorkspaceService.demoIds(userId, "CONCEPT"),
+                "KNOWLEDGE_OBJECT", demoWorkspaceService.demoIds(userId, "KNOWLEDGE_OBJECT"),
+                "GAME_PROJECT", demoWorkspaceService.demoIds(userId, "GAME_PROJECT"),
+                "PROJECT_APPLICATION", demoWorkspaceService.demoIds(userId, "PROJECT_APPLICATION")));
+    }
+
+    private record DemoScope(Map<String, Set<Long>> idsByType) {
+        boolean include(Long id, String type) {
+            if (id == null || type == null) {
+                return true;
+            }
+            Set<Long> ids = idsByType.get(type);
+            return ids == null || !ids.contains(id);
+        }
     }
 
     private ReadingSessionResponse toReadingSessionResponse(ReadingSession session) {

@@ -17,10 +17,13 @@
 
       <template v-else>
         <div class="source-drawer__topline">
-          <AppBadge variant="primary">{{ sourceDrawerSource?.sourceType ?? relatedEntityType ?? 'SOURCE' }}</AppBadge>
-          <AppBadge v-if="confidence" :variant="confidenceVariant(confidence)">
-            {{ confidence }}
-          </AppBadge>
+          <div class="source-drawer__badges">
+            <AppBadge variant="primary">{{ sourceDrawerSource?.sourceType ?? relatedEntityType ?? 'SOURCE' }}</AppBadge>
+            <AppBadge v-if="confidence" :variant="confidenceVariant(confidence)">
+              {{ confidence }}
+            </AppBadge>
+          </div>
+          <HelpTooltip topic="source-reference" placement="left" />
         </div>
 
         <dl class="source-drawer__meta" aria-label="Source reference metadata">
@@ -92,6 +95,7 @@ import AppBadge from '../ui/AppBadge.vue'
 import AppButton from '../ui/AppButton.vue'
 import AppErrorState from '../ui/AppErrorState.vue'
 import AppLoadingState from '../ui/AppLoadingState.vue'
+import HelpTooltip from '../help/HelpTooltip.vue'
 import { useOpenSource } from '../../composables/useOpenSource'
 import type { SourceConfidence } from '../../types'
 
@@ -168,6 +172,13 @@ function formatDate(value: string | null | undefined) {
 }
 
 .source-drawer__topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.source-drawer__badges {
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;

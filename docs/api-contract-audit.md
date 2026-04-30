@@ -33,9 +33,19 @@ Audit result summary:
 | POST | `/api/auth/login` | `AuthController` | `login` | Public | `LoginRequest` | `ApiResponse<AuthResponse>` | VERIFIED |
 | GET | `/api/auth/me` | `AuthController` | `me` | Authenticated | none | `ApiResponse<CurrentUserResponse>` | VERIFIED |
 | GET | `/api/users/me/profile` | `UserController` | `profile` | Authenticated | none | `ApiResponse<UserProfileResponse>` | VERIFIED |
+| PUT | `/api/users/me/onboarding` | `UserController` | `updateOnboarding` | Authenticated | `OnboardingPreferenceRequest` | `ApiResponse<CurrentUserResponse>` | VERIFIED |
 | GET | `/api/users` | `UserController` | `listUsers` | ADMIN | none | `ApiResponse<List<UserAdminResponse>>` | VERIFIED |
 | GET | `/api/health` | `HealthController` | `health` | Public | none | `ApiResponse<Map<String,String>>` | VERIFIED |
 | GET | `/actuator/health` | Spring Boot Actuator | `HealthEndpoint` | Public/management config | none | Actuator health payload | VERIFIED |
+
+## Demo Workspace
+
+| Method | Path | Controller class | Controller method | Auth requirement | Request DTO | Response DTO | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/demo/status` | `DemoWorkspaceController` | `status` | USER/ADMIN | none | `ApiResponse<DemoWorkspaceStatusResponse>` | VERIFIED |
+| POST | `/api/demo/start` | `DemoWorkspaceController` | `start` | USER/ADMIN | none | `ApiResponse<DemoWorkspaceStatusResponse>` | VERIFIED |
+| POST | `/api/demo/reset` | `DemoWorkspaceController` | `reset` | USER/ADMIN | none | `ApiResponse<DemoWorkspaceStatusResponse>` | VERIFIED |
+| DELETE | `/api/demo` | `DemoWorkspaceController` | `delete` | USER/ADMIN | none | `ApiResponse<Void>` | VERIFIED |
 
 ## Books And User Library
 

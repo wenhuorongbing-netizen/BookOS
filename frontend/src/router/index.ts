@@ -6,7 +6,12 @@ const AppLayout = () => import('../layouts/AppLayout.vue')
 const DashboardLayout = () => import('../layouts/DashboardLayout.vue')
 const LoginView = () => import('../views/LoginView.vue')
 const RegisterView = () => import('../views/RegisterView.vue')
+const OnboardingView = () => import('../views/OnboardingView.vue')
 const DashboardView = () => import('../views/DashboardView.vue')
+const UseCasesView = () => import('../views/UseCasesView.vue')
+const UseCaseDetailView = () => import('../views/UseCaseDetailView.vue')
+const HelpView = () => import('../views/HelpView.vue')
+const DemoWorkspaceView = () => import('../views/DemoWorkspaceView.vue')
 const MyLibraryView = () => import('../views/MyLibraryView.vue')
 const AddBookView = () => import('../views/AddBookView.vue')
 const EditBookView = () => import('../views/EditBookView.vue')
@@ -37,6 +42,7 @@ const ProjectDetailView = () => import('../views/ProjectDetailView.vue')
 const ProjectProblemsView = () => import('../views/ProjectProblemsView.vue')
 const ProjectApplicationsView = () => import('../views/ProjectApplicationsView.vue')
 const ProjectDecisionsView = () => import('../views/ProjectDecisionsView.vue')
+const ProjectApplyKnowledgeWizardView = () => import('../views/ProjectApplyKnowledgeWizardView.vue')
 const ProjectPlaytestsView = () => import('../views/ProjectPlaytestsView.vue')
 const ProjectLensReviewsView = () => import('../views/ProjectLensReviewsView.vue')
 const GraphView = () => import('../views/GraphView.vue')
@@ -85,10 +91,46 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         {
+          path: 'onboarding',
+          name: 'onboarding',
+          component: OnboardingView,
+          meta: { requiresAuth: true, title: 'Onboarding' },
+        },
+        {
           path: 'dashboard',
           component: DashboardLayout,
           meta: { requiresAuth: true, title: 'Dashboard' },
           children: [{ path: '', name: 'dashboard', component: DashboardView, meta: { title: 'Dashboard' } }],
+        },
+        {
+          path: 'use-cases',
+          name: 'use-cases',
+          component: UseCasesView,
+          meta: { requiresAuth: true, title: 'Use Cases' },
+        },
+        {
+          path: 'use-cases/:slug',
+          name: 'use-case-detail',
+          component: UseCaseDetailView,
+          meta: { requiresAuth: true, title: 'Use Case' },
+        },
+        {
+          path: 'help',
+          name: 'help',
+          component: HelpView,
+          meta: { requiresAuth: true, title: 'Help' },
+        },
+        {
+          path: 'help/:topic',
+          name: 'help-topic',
+          component: HelpView,
+          meta: { requiresAuth: true, title: 'Help Topic' },
+        },
+        {
+          path: 'demo',
+          name: 'demo-workspace',
+          component: DemoWorkspaceView,
+          meta: { requiresAuth: true, title: 'Demo Workspace' },
         },
         {
           path: 'my-library',
@@ -271,6 +313,12 @@ const router = createRouter({
           meta: { requiresAuth: true, title: 'Project Decisions' },
         },
         {
+          path: 'projects/:id/wizard/apply-knowledge',
+          name: 'project-apply-knowledge-wizard',
+          component: ProjectApplyKnowledgeWizardView,
+          meta: { requiresAuth: true, title: 'Apply Knowledge Wizard' },
+        },
+        {
           path: 'projects/:id/playtests',
           name: 'project-playtests',
           component: ProjectPlaytestsView,
@@ -380,6 +428,15 @@ router.beforeEach(async (to) => {
 
   if (typeof to.meta.role === 'string' && auth.user?.role !== to.meta.role) {
     return { name: 'dashboard' }
+  }
+
+  if (
+    requiresAuth &&
+    auth.user &&
+    auth.user.onboardingCompleted === false &&
+    to.name !== 'onboarding'
+  ) {
+    return { name: 'onboarding', query: { redirect: to.fullPath } }
   }
 
   if (isPublic && auth.isAuthenticated) {

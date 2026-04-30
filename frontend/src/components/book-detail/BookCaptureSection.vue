@@ -5,8 +5,10 @@
         <div>
           <div class="eyebrow">Quick Capture</div>
           <h2 id="quick-capture-title">Capture while the source is still warm</h2>
+          <p>Use raw syntax when you know it, or switch to beginner mode to generate the same parser-friendly text.</p>
         </div>
         <div class="quick-capture__header-actions">
+          <HelpTooltip topic="quick-capture" placement="left" />
           <AppBadge variant="primary" size="sm">{{ book.title }}</AppBadge>
           <RouterLink :to="{ name: 'capture-inbox', query: { bookId: String(book.id) } }" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Open Inbox</AppButton>
@@ -14,7 +16,37 @@
         </div>
       </div>
 
-      <label class="quick-capture__field" for="quick-capture-input">
+      <div class="quick-capture__mode" role="group" aria-label="Capture mode">
+        <AppButton variant="secondary" :selected="captureMode === 'raw'" @click="captureMode = 'raw'">Raw text</AppButton>
+        <AppButton variant="secondary" :selected="captureMode === 'beginner'" @click="captureMode = 'beginner'">Beginner mode</AppButton>
+      </div>
+
+      <AppCard class="capture-guide" as="section" variant="muted" aria-labelledby="capture-guide-title">
+        <div class="capture-guide__header">
+          <div>
+            <p class="eyebrow">Capture Guide</p>
+            <h3 id="capture-guide-title">Learn the parser by trying safe examples</h3>
+            <p>Examples only fill the input. Nothing is saved until you press Capture.</p>
+          </div>
+          <RouterLink to="/captures/inbox" custom v-slot="{ navigate }">
+            <AppButton variant="ghost" @click="navigate">Review inbox rules</AppButton>
+          </RouterLink>
+        </div>
+        <div class="capture-guide__examples" aria-label="One-click capture examples">
+          <AppButton v-for="example in guideExamples" :key="example.label" variant="subtle" @click="insertExample(example)">
+            {{ example.label }}
+          </AppButton>
+        </div>
+        <ul class="capture-guide__syntax" aria-label="Supported capture syntax">
+          <li><strong>Quote:</strong> <code>&#x1F4AC; p.42 "Original quote note" #quote [[Game Feel]]</code></li>
+          <li><strong>Action:</strong> <code>&#x2705; page 80 Playtest this loop tomorrow #todo [[Feedback Loop]]</code></li>
+          <li><strong>Idea:</strong> <code>&#x1F4A1; p.12 This could become a prototype task #prototype [[Core Loop]]</code></li>
+          <li><strong>Concept:</strong> <code>&#x1F9E9; &#x7B2C;42&#x9875; Connect this to [[Meaningful Choice]] #concept</code></li>
+          <li><strong>Question:</strong> <code>&#x2753; &#x9875;18 Why does this mechanic create tension? #question [[Risk vs Reward]]</code></li>
+        </ul>
+      </AppCard>
+
+      <label v-if="captureMode === 'raw'" class="quick-capture__field" for="quick-capture-input">
         <span class="sr-only">Quick capture text</span>
         <el-input
           id="quick-capture-input"
@@ -26,6 +58,42 @@
           @keydown.meta.enter.prevent="submitCapture"
         />
       </label>
+
+      <div v-else class="structured-capture" aria-labelledby="structured-capture-title">
+        <div>
+          <p class="eyebrow">Beginner Mode</p>
+          <h3 id="structured-capture-title">Build a capture without memorizing syntax</h3>
+        </div>
+        <div class="structured-capture__grid">
+          <label class="structured-capture__field">
+            <span>Type</span>
+            <el-select v-model="structuredForm.type" aria-label="Beginner capture type">
+              <el-option v-for="option in structuredTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+          </label>
+          <label class="structured-capture__field">
+            <span>Page or location</span>
+            <el-input v-model="structuredForm.page" aria-label="Beginner page marker" placeholder="42, p.42, page 42, &#x9875;42, or &#x7B2C;42&#x9875;" />
+          </label>
+          <label class="structured-capture__field structured-capture__field--wide">
+            <span>Content</span>
+            <el-input v-model="structuredForm.content" type="textarea" :rows="3" aria-label="Beginner capture content" placeholder="Write the thought in your own words." />
+          </label>
+          <label class="structured-capture__field">
+            <span>Tags</span>
+            <el-input v-model="structuredForm.tags" aria-label="Beginner tags" placeholder="prototype, todo" />
+          </label>
+          <label class="structured-capture__field">
+            <span>Concepts</span>
+            <el-input v-model="structuredForm.concepts" aria-label="Beginner concepts" placeholder="Core Loop, Feedback Loop" />
+          </label>
+        </div>
+        <div class="structured-capture__generated" aria-live="polite">
+          <span>Generated raw capture</span>
+          <code>{{ generatedStructuredRaw || 'Add content to generate parser-friendly text.' }}</code>
+          <AppButton variant="ghost" :disabled="!generatedStructuredRaw" @click="copyStructuredToRaw">Use in raw input</AppButton>
+        </div>
+      </div>
 
       <div class="quick-capture__bar">
         <div class="quick-capture__tools" role="toolbar" aria-label="Capture markers">
@@ -49,7 +117,7 @@
             variant="primary"
             aria-label="Submit quick capture"
             :loading="submitting"
-            :disabled="!draft.trim()"
+            :disabled="!canSubmitCapture"
             @click="submitCapture"
           >
             Capture
@@ -57,25 +125,87 @@
         </div>
       </div>
 
-      <div v-if="parsedPreview || previewLoading" class="quick-capture__preview" aria-live="polite">
+      <div v-if="activePreviewText || parsedPreview || previewLoading" class="quick-capture__preview" aria-live="polite">
+        <div class="quick-capture__preview-heading">
+          <div>
+            <p class="eyebrow">Live parser preview</p>
+            <h3>What BookOS will preserve</h3>
+          </div>
+          <AppBadge variant="success" size="sm">Source: {{ book.title }}</AppBadge>
+        </div>
         <AppLoadingState v-if="previewLoading" label="Parsing capture preview" compact />
         <template v-else-if="parsedPreview">
-          <div class="quick-capture__preview-row">
-            <AppBadge variant="primary" size="sm">{{ formatType(parsedPreview.type) }}</AppBadge>
-            <AppBadge v-if="parsedPreview.pageStart" variant="accent" size="sm">
-              {{ pageLabel(parsedPreview.pageStart, parsedPreview.pageEnd) }}
-            </AppBadge>
-            <span v-else class="quick-capture__preview-muted">Page unknown</span>
-          </div>
+          <dl class="quick-capture__preview-grid">
+            <div>
+              <dt>Parsed type</dt>
+              <dd><AppBadge variant="primary" size="sm">{{ formatType(parsedPreview.type) }}</AppBadge></dd>
+            </div>
+            <div>
+              <dt>Page</dt>
+              <dd>
+                <AppBadge v-if="parsedPreview.pageStart" variant="accent" size="sm">
+                  {{ pageLabel(parsedPreview.pageStart, parsedPreview.pageEnd) }}
+                </AppBadge>
+                <span v-else class="quick-capture__preview-muted">Page unknown; saved page stays null.</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Tags</dt>
+              <dd class="quick-capture__preview-row">
+                <AppBadge v-for="tag in parsedPreview.tags" :key="tag" variant="neutral" size="sm">#{{ tag }}</AppBadge>
+                <span v-if="!parsedPreview.tags.length" class="quick-capture__preview-muted">No tags</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Concepts</dt>
+              <dd class="quick-capture__preview-row">
+                <AppBadge v-for="concept in parsedPreview.concepts" :key="concept" variant="info" size="sm">[[{{ concept }}]]</AppBadge>
+                <span v-if="!parsedPreview.concepts.length" class="quick-capture__preview-muted">No concepts</span>
+              </dd>
+            </div>
+          </dl>
           <p>{{ parsedPreview.cleanText || 'No clean text extracted yet.' }}</p>
-          <div v-if="parsedPreview.tags.length || parsedPreview.concepts.length" class="quick-capture__preview-row">
-            <AppBadge v-for="tag in parsedPreview.tags" :key="tag" variant="neutral" size="sm">#{{ tag }}</AppBadge>
-            <AppBadge v-for="concept in parsedPreview.concepts" :key="concept" variant="info" size="sm">[[{{ concept }}]]</AppBadge>
+          <div class="quick-capture__source-preview">
+            <strong>Source reference preview</strong>
+            <span>Book: {{ book.title }}</span>
+            <span>{{ parsedPreview.pageStart ? `Page: ${pageLabel(parsedPreview.pageStart, parsedPreview.pageEnd)}` : 'Page: unknown, stored as null' }}</span>
+            <span>Confidence: {{ parsedPreview.pageStart ? 'MEDIUM' : 'LOW' }}</span>
           </div>
-          <ul v-if="parsedPreview.warnings.length" class="quick-capture__warnings">
-            <li v-for="warning in parsedPreview.warnings" :key="warning">{{ warning }}</li>
+          <ul v-if="allPreviewWarnings.length" class="quick-capture__warnings">
+            <li v-for="warning in allPreviewWarnings" :key="warning">{{ warning }}</li>
           </ul>
         </template>
+      </div>
+
+      <div
+        v-if="lastSavedBlock"
+        class="quick-capture__next-steps"
+        role="region"
+        aria-label="Post-save quick capture actions"
+        aria-live="polite"
+      >
+        <div>
+          <p class="eyebrow">Post-save next step</p>
+          <h3>Convert or review this capture now</h3>
+          <p>{{ lastSavedBlock.title }}</p>
+        </div>
+        <div class="quick-capture__next-actions">
+          <AppButton variant="secondary" :loading="convertingCaptureId === lastSavedBlock.captureId" @click="convertBlock(lastSavedBlock)">
+            Convert to Note
+          </AppButton>
+          <AppButton variant="secondary" :loading="convertingQuoteCaptureId === lastSavedBlock.captureId" @click="convertQuoteBlock(lastSavedBlock)">
+            Convert to Quote
+          </AppButton>
+          <AppButton variant="secondary" :loading="convertingActionCaptureId === lastSavedBlock.captureId" @click="convertActionBlock(lastSavedBlock)">
+            Convert to Action
+          </AppButton>
+          <AppButton variant="accent" :disabled="!lastSavedBlock.concepts.length" @click="openConceptReview(lastSavedBlock)">
+            Review Concept
+          </AppButton>
+          <RouterLink :to="{ name: 'capture-inbox', query: { bookId: String(book.id) } }" custom v-slot="{ navigate }">
+            <AppButton variant="ghost" @click="navigate">Open Inbox</AppButton>
+          </RouterLink>
+        </div>
       </div>
 
       <p class="quick-capture__feedback" role="status" aria-live="polite">{{ feedback }}</p>
@@ -195,7 +325,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { onBeforeRouteLeave, RouterLink, useRouter } from 'vue-router'
 import { getConcepts } from '../../api/knowledge'
@@ -205,6 +335,7 @@ import type { BookRecord, ConceptRecord, ConceptReviewPayload, NoteBlockType, Pa
 import { useCaptureStore, type CaptureMarker, type RecentNoteBlock } from '../../stores/capture'
 import { useRightRailStore } from '../../stores/rightRail'
 import ConceptReviewDialog from '../concept/ConceptReviewDialog.vue'
+import HelpTooltip from '../help/HelpTooltip.vue'
 import AppBadge from '../ui/AppBadge.vue'
 import AppButton from '../ui/AppButton.vue'
 import AppCard from '../ui/AppCard.vue'
@@ -224,6 +355,7 @@ const rightRail = useRightRailStore()
 const { openSource: openSourceDrawer } = useOpenSource()
 const draft = ref('')
 const feedback = ref('')
+const captureMode = ref<'raw' | 'beginner'>('raw')
 const selectedMarker = ref<CaptureMarker>('text')
 const sortOrder = ref<'latest' | 'oldest'>('latest')
 const submitting = ref(false)
@@ -238,7 +370,23 @@ const selectedConceptBlock = ref<RecentNoteBlock | null>(null)
 const conceptOptions = ref<ConceptRecord[]>([])
 const savingConceptReview = ref(false)
 const preserveSavedPreview = ref(false)
+const lastSavedBlock = ref<RecentNoteBlock | null>(null)
+const structuredForm = reactive({
+  type: 'IDEA' as StructuredCaptureType,
+  page: '',
+  content: '',
+  tags: '',
+  concepts: '',
+})
 let previewTimer: number | null = null
+
+type StructuredCaptureType = 'QUOTE' | 'ACTION_ITEM' | 'IDEA' | 'RELATED_CONCEPT' | 'QUESTION'
+
+interface CaptureExample {
+  label: string
+  rawText: string
+  marker: CaptureMarker
+}
 
 const markers: Array<{ value: CaptureMarker; label: string; icon: string }> = [
   { value: 'text', label: 'Text note marker', icon: 'TX' },
@@ -252,13 +400,71 @@ const markers: Array<{ value: CaptureMarker; label: string; icon: string }> = [
   { value: 'idea', label: 'Lightbulb idea marker', icon: 'LB' },
 ]
 
+const guideExamples: CaptureExample[] = [
+  {
+    label: 'Insert quote example',
+    rawText: '\uD83D\uDCAC p.42 "Readable feedback matters in a prototype." #quote [[Game Feel]]',
+    marker: 'quote',
+  },
+  {
+    label: 'Insert action example',
+    rawText: '\u2705 page 80 Playtest the feedback loop tomorrow. #todo [[Feedback Loop]]',
+    marker: 'important',
+  },
+  {
+    label: 'Insert concept example',
+    rawText: '\uD83E\uDDE9 \u7B2C42\u9875 Connect this to [[Meaningful Choice]] #concept',
+    marker: 'idea',
+  },
+  {
+    label: 'Insert project idea example',
+    rawText: '\uD83D\uDCA1 \u987512 This could become a prototype task. #prototype [[Core Loop]]',
+    marker: 'idea',
+  },
+]
+
+const structuredTypeOptions: Array<{ value: StructuredCaptureType; label: string; marker: string }> = [
+  { value: 'QUOTE', label: 'Quote', marker: '\uD83D\uDCAC' },
+  { value: 'ACTION_ITEM', label: 'Action item', marker: '\u2705' },
+  { value: 'IDEA', label: 'Idea / inspiration', marker: '\uD83D\uDCA1' },
+  { value: 'RELATED_CONCEPT', label: 'Concept link', marker: '\uD83E\uDDE9' },
+  { value: 'QUESTION', label: 'Question', marker: '\u2753' },
+]
+
 const sortedBlocks = computed(() => {
-  const blocks = capture.forBook(props.book.id)
+  const hiddenCaptureId = lastSavedBlock.value?.captureId ?? null
+  const blocks = capture.forBook(props.book.id).filter((block) => block.captureId !== hiddenCaptureId)
   if (sortOrder.value === 'oldest') {
     return [...blocks].reverse()
   }
   return blocks
 })
+const generatedStructuredRaw = computed(() => {
+  if (!structuredForm.content.trim()) return ''
+  const marker = structuredTypeOptions.find((option) => option.value === structuredForm.type)?.marker ?? '\uD83D\uDCA1'
+  const page = normalizeStructuredPage(structuredForm.page)
+  const tags = parseTokenList(structuredForm.tags)
+    .map((tag) => `#${tag.replace(/^#/, '')}`)
+    .join(' ')
+  const concepts = parseTokenList(structuredForm.concepts)
+    .map((concept) => `[[${concept.replace(/^\[\[|\]\]$/g, '')}]]`)
+    .join(' ')
+
+  return [marker, page, structuredForm.content.trim(), tags, concepts].filter(Boolean).join(' ')
+})
+const activePreviewText = computed(() => previewRawText())
+const canSubmitCapture = computed(() => {
+  if (captureMode.value === 'beginner') return Boolean(structuredForm.content.trim())
+  return Boolean(draft.value.trim())
+})
+const localPreviewWarnings = computed(() => {
+  const warnings: string[] = []
+  if (activePreviewText.value && hasMalformedPageMarker(activePreviewText.value)) {
+    warnings.push('Page marker looks malformed. Use p.42, page 42, \u987542, or \u7B2C42\u9875. Unknown pages are saved as null.')
+  }
+  return warnings
+})
+const allPreviewWarnings = computed(() => [...(parsedPreview.value?.warnings ?? []), ...localPreviewWarnings.value])
 
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
@@ -274,7 +480,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(() => {
-  if (!draft.value.trim()) return true
+  if (!hasUnsavedDraft()) return true
   return window.confirm('You have an unsaved quick capture draft. Leave this page and discard it?')
 })
 
@@ -285,12 +491,24 @@ watch(
   },
 )
 
-watch([draft, selectedMarker], () => {
-  scheduleParserPreview()
-})
+watch(
+  [
+    draft,
+    selectedMarker,
+    captureMode,
+    () => structuredForm.type,
+    () => structuredForm.page,
+    () => structuredForm.content,
+    () => structuredForm.tags,
+    () => structuredForm.concepts,
+  ],
+  () => {
+    scheduleParserPreview()
+  },
+)
 
 async function submitCapture() {
-  const value = draft.value.trim()
+  const value = activePreviewText.value.trim()
   if (!value) {
     feedback.value = 'Write a thought before capturing.'
     ElMessage.warning(feedback.value)
@@ -299,9 +517,11 @@ async function submitCapture() {
 
   submitting.value = true
   try {
-    const block = await capture.addCapture(props.book, value, selectedMarker.value)
+    const marker = captureMode.value === 'beginner' ? 'text' : selectedMarker.value
+    const block = await capture.addCapture(props.book, value, marker)
     preserveSavedPreview.value = true
-    draft.value = ''
+    clearCurrentInput()
+    lastSavedBlock.value = block
     parsedPreview.value = toParsedPreview(block)
     feedback.value = `Captured ${markerLabel(block.type)} for ${props.book.title}.`
     ElMessage.success(feedback.value)
@@ -314,9 +534,38 @@ async function submitCapture() {
   }
 }
 
+function insertExample(example: CaptureExample) {
+  captureMode.value = 'raw'
+  selectedMarker.value = example.marker
+  draft.value = example.rawText
+  lastSavedBlock.value = null
+  feedback.value = 'Example inserted. Edit it if needed, then press Capture to save it.'
+  window.setTimeout(() => document.getElementById('quick-capture-input')?.focus(), 0)
+}
+
+function copyStructuredToRaw() {
+  if (!generatedStructuredRaw.value) return
+  captureMode.value = 'raw'
+  selectedMarker.value = 'text'
+  draft.value = generatedStructuredRaw.value
+  feedback.value = 'Generated capture copied to raw text. Nothing has been saved yet.'
+  window.setTimeout(() => document.getElementById('quick-capture-input')?.focus(), 0)
+}
+
+function clearCurrentInput() {
+  if (captureMode.value === 'beginner') {
+    structuredForm.page = ''
+    structuredForm.content = ''
+    structuredForm.tags = ''
+    structuredForm.concepts = ''
+    return
+  }
+  draft.value = ''
+}
+
 function scheduleParserPreview() {
   if (previewTimer) window.clearTimeout(previewTimer)
-  if (!draft.value.trim()) {
+  if (!activePreviewText.value.trim()) {
     if (preserveSavedPreview.value) {
       preserveSavedPreview.value = false
       return
@@ -384,6 +633,7 @@ async function convertBlock(block: RecentNoteBlock) {
   convertingCaptureId.value = block.captureId
   try {
     const conversion = await capture.convertToNote(block.captureId, block.title)
+    lastSavedBlock.value = null
     ElMessage.success('Capture converted to a formal note.')
     router.push({ name: 'note-detail', params: { id: conversion.targetId } })
   } catch {
@@ -411,6 +661,7 @@ async function convertQuoteBlock(block: RecentNoteBlock) {
   convertingQuoteCaptureId.value = block.captureId
   try {
     await capture.convertToQuote(block.captureId)
+    lastSavedBlock.value = null
     ElMessage.success('Capture converted to a source-backed quote.')
   } catch {
     ElMessage.error('Quote conversion failed.')
@@ -423,6 +674,7 @@ async function convertActionBlock(block: RecentNoteBlock) {
   convertingActionCaptureId.value = block.captureId
   try {
     await capture.convertToActionItem(block.captureId, block.title)
+    lastSavedBlock.value = null
     ElMessage.success('Capture converted to a source-backed action item.')
   } catch {
     ElMessage.error('Action item conversion failed.')
@@ -500,11 +752,36 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 }
 
 function previewRawText() {
+  if (captureMode.value === 'beginner') {
+    return generatedStructuredRaw.value.trim()
+  }
+
   const trimmed = draft.value.trim()
   if (!trimmed || selectedMarker.value === 'text' || selectedMarker.value === 'emoji' || startsWithKnownMarker(trimmed)) {
     return trimmed
   }
   return `${markerPrefix(selectedMarker.value)} ${trimmed}`.trim()
+}
+
+function normalizeStructuredPage(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (/^\d+$/.test(trimmed)) return `p.${trimmed}`
+  return trimmed
+}
+
+function parseTokenList(value: string) {
+  return value
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function hasMalformedPageMarker(value: string) {
+  return /\bp\.?\s*(?:$|[^\d\s#\[])/i.test(value)
+    || /\bpage\s*(?:$|[^\d\s#\[])/i.test(value)
+    || /第\s*(?:页|[^\d\s])/.test(value)
+    || /页\s*(?:$|[^\d\s#\[])/.test(value)
 }
 
 function markerPrefix(marker: CaptureMarker) {
@@ -542,7 +819,7 @@ function formatDate(value: string) {
 }
 
 function handleBeforeUnload(event: BeforeUnloadEvent) {
-  if (!draft.value.trim()) return
+  if (!hasUnsavedDraft()) return
   event.preventDefault()
   event.returnValue = ''
 }
@@ -551,6 +828,12 @@ function handleGlobalQuickCaptureShortcut(event: KeyboardEvent) {
   if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.key.toLowerCase() !== 'c') return
   event.preventDefault()
   document.getElementById('quick-capture-input')?.focus()
+}
+
+function hasUnsavedDraft() {
+  return captureMode.value === 'beginner'
+    ? Boolean(structuredForm.page.trim() || structuredForm.content.trim() || structuredForm.tags.trim() || structuredForm.concepts.trim())
+    : Boolean(draft.value.trim())
 }
 </script>
 
@@ -569,6 +852,7 @@ function handleGlobalQuickCaptureShortcut(event: KeyboardEvent) {
 
 .quick-capture__header,
 .recent-notes__header,
+.capture-guide__header,
 .quick-capture__bar,
 .note-block-card {
   display: flex;
@@ -577,7 +861,8 @@ function handleGlobalQuickCaptureShortcut(event: KeyboardEvent) {
 }
 
 .quick-capture__header,
-.recent-notes__header {
+.recent-notes__header,
+.capture-guide__header {
   align-items: flex-start;
 }
 
@@ -598,8 +883,101 @@ function handleGlobalQuickCaptureShortcut(event: KeyboardEvent) {
   line-height: var(--type-title-line);
 }
 
+.quick-capture h3,
+.capture-guide h3,
+.structured-capture h3,
+.quick-capture__next-steps h3 {
+  margin: var(--space-1) 0 0;
+  color: var(--bookos-text-primary);
+  font-size: var(--type-card-title);
+}
+
+.quick-capture__header p,
+.capture-guide p,
+.quick-capture__next-steps p {
+  margin: var(--space-1) 0 0;
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.quick-capture__mode,
+.capture-guide__examples,
+.capture-guide__syntax,
+.structured-capture,
+.quick-capture__next-steps {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.quick-capture__mode,
+.capture-guide__examples,
+.quick-capture__next-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.capture-guide,
+.structured-capture,
+.quick-capture__next-steps {
+  padding: var(--space-4);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bookos-surface) 74%, var(--bookos-surface-muted));
+}
+
+.capture-guide__syntax {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.capture-guide__syntax code,
+.structured-capture__generated code {
+  color: var(--bookos-primary-hover);
+  font-weight: 800;
+  white-space: normal;
+}
+
 .quick-capture__field {
   display: grid;
+}
+
+.structured-capture__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.structured-capture__field {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  font-weight: 900;
+}
+
+.structured-capture__field--wide {
+  grid-column: 1 / -1;
+}
+
+.structured-capture__generated {
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  border: 1px dashed var(--bookos-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface);
+}
+
+.structured-capture__generated span {
+  color: var(--bookos-text-tertiary);
+  font-size: var(--type-micro);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .quick-capture__bar {
@@ -642,10 +1020,41 @@ function handleGlobalQuickCaptureShortcut(event: KeyboardEvent) {
   background: var(--bookos-surface);
 }
 
+.quick-capture__preview-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.quick-capture__preview-heading h3 {
+  margin: 0;
+}
+
 .quick-capture__preview p {
   margin: 0;
   color: var(--bookos-text-secondary);
   line-height: var(--type-body-line);
+}
+
+.quick-capture__preview-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.quick-capture__preview-grid dt {
+  color: var(--bookos-text-tertiary);
+  font-size: var(--type-micro);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quick-capture__preview-grid dd {
+  margin: var(--space-1) 0 0;
 }
 
 .quick-capture__preview-row {
@@ -659,6 +1068,21 @@ function handleGlobalQuickCaptureShortcut(event: KeyboardEvent) {
   color: var(--bookos-text-tertiary);
   font-size: var(--type-metadata);
   font-weight: 800;
+}
+
+.quick-capture__source-preview {
+  padding: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  border-radius: var(--radius-md);
+  background: var(--bookos-surface-muted);
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
+.quick-capture__source-preview strong {
+  color: var(--bookos-text-primary);
 }
 
 .quick-capture__warnings,
@@ -768,9 +1192,15 @@ function handleGlobalQuickCaptureShortcut(event: KeyboardEvent) {
 @media (max-width: 900px) {
   .quick-capture__header,
   .recent-notes__header,
+  .capture-guide__header,
   .quick-capture__bar,
   .note-block-card {
     flex-direction: column;
+  }
+
+  .structured-capture__grid,
+  .quick-capture__preview-grid {
+    grid-template-columns: 1fr;
   }
 
   .recent-notes__sort {

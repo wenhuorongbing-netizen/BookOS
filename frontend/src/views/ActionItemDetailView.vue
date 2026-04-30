@@ -36,6 +36,17 @@
         </template>
       </AppSectionHeader>
 
+      <DetailNextStepCard
+        :title="item.completed ? 'Keep this task connected to its source' : 'Complete one source-backed action'"
+        :description="item.completed ? 'This action is done. Reopen it if the source-backed task needs another pass, or reopen the source to verify the reading context.' : 'Close the reading-to-action loop by completing this task, then reopen the source if you need the original page or capture context.'"
+        :primary-label="item.completed ? 'Reopen Action' : 'Complete Action'"
+        secondary-label="Open Source"
+        :primary-loading="toggling"
+        :loop="['Source', 'Action item', 'Done work', 'Review source']"
+        @primary="toggleCompletion"
+        @secondary="openSource"
+      />
+
       <section class="action-detail-grid" aria-label="Action item detail and source">
         <AppCard class="action-main" as="article">
           <div class="action-main__badges">
@@ -138,6 +149,7 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
 import type { ActionItemPayload, ActionItemRecord, ActionPriority, BookRecord } from '../types'

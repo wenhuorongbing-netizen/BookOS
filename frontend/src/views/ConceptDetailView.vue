@@ -23,8 +23,25 @@
           </RouterLink>
           <AppButton variant="secondary" :loading="reviewBusy" @click="createConceptReview">Create Review</AppButton>
           <AppButton variant="accent" @click="applyProjectOpen = true">Apply to Project</AppButton>
+          <RouterLink v-if="guidedProjectLink" :to="guidedProjectLink" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Apply to Project Guided Flow</AppButton>
+          </RouterLink>
+          <AppButton v-else variant="secondary" disabled title="Create a project before starting the guided flow.">
+            Apply to Project Guided Flow
+          </AppButton>
         </template>
       </AppSectionHeader>
+
+      <DetailNextStepCard
+        title="Apply or review this concept"
+        description="A reviewed concept should either become a project application or a source-backed review session so it stays useful beyond the original note."
+        primary-label="Apply to Project"
+        secondary-label="Create Review"
+        :secondary-loading="reviewBusy"
+        :loop="['Concept', 'Source evidence', 'Project application', 'Review']"
+        @primary="applyProjectOpen = true"
+        @secondary="createConceptReview"
+      />
 
       <section class="concept-detail-grid">
         <AppCard class="concept-main" as="article">
@@ -108,6 +125,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getActionItems } from '../api/actionItems'
 import { getConcept, getKnowledgeObjects } from '../api/knowledge'
 import { generateReviewFromConcept, getMasteryTarget } from '../api/learning'
+import { getProjects } from '../api/projects'
 import { getQuotes } from '../api/quotes'
 import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
@@ -119,13 +137,15 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import { useOpenSource } from '../composables/useOpenSource'
-import type { ActionItemRecord, ConceptRecord, KnowledgeMasteryRecord, KnowledgeObjectRecord, QuoteRecord } from '../types'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
+import type { ActionItemRecord, ConceptRecord, GameProjectRecord, KnowledgeMasteryRecord, KnowledgeObjectRecord, QuoteRecord } from '../types'
 
 const route = useRoute()
 const router = useRouter()
 const { openSource } = useOpenSource()
 const concept = ref<ConceptRecord | null>(null)
 const knowledgeObjects = ref<KnowledgeObjectRecord[]>([])
+const projects = ref<GameProjectRecord[]>([])
 const quotes = ref<QuoteRecord[]>([])
 const actionItems = ref<ActionItemRecord[]>([])
 const mastery = ref<KnowledgeMasteryRecord | null>(null)
@@ -146,6 +166,18 @@ const forumThreadLink = computed(() => {
       bookId: concept.value.bookId ? String(concept.value.bookId) : undefined,
       sourceReferenceId: primarySource.value ? String(primarySource.value.id) : undefined,
       title: `Discuss [[${concept.value.name}]]`,
+    },
+  }
+})
+const guidedProjectLink = computed(() => {
+  if (!concept.value || !projects.value.length) return null
+  return {
+    name: 'project-apply-knowledge-wizard',
+    params: { id: projects.value[0].id },
+    query: {
+      sourceType: 'CONCEPT',
+      sourceId: String(concept.value.id),
+      sourceReferenceId: primarySource.value ? String(primarySource.value.id) : undefined,
     },
   }
 })
@@ -174,14 +206,16 @@ async function loadConcept() {
   try {
     const result = await getConcept(String(route.params.id))
     concept.value = result
-    const [objects, quoteResult, actionResult] = await Promise.all([
+    const [objects, quoteResult, actionResult, projectResult] = await Promise.all([
       getKnowledgeObjects({ conceptId: result.id }),
       getQuotes(),
       getActionItems(),
+      getProjects(),
     ])
     knowledgeObjects.value = objects
     quotes.value = quoteResult
     actionItems.value = actionResult
+    projects.value = projectResult
     mastery.value = await getMasteryTarget('CONCEPT', result.id).catch(() => null)
   } catch {
     errorMessage.value = 'Check backend availability and permissions, then try opening this concept again.'

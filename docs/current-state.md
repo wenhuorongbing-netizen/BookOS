@@ -7,9 +7,9 @@ This document records the implementation state of the current `main` branch. Old
 ## Repository State
 
 - Current verified branch: `main`.
-- Current verified SHA: `9951c85b42b170c54b009c3c6a8e4bf50336e73a`.
-- Current `origin/main` SHA at review time: `9951c85b42b170c54b009c3c6a8e4bf50336e73a`.
-- Working tree status at Prompt 8 review start: contained uncommitted checkpoint changes from prior audit/build prompts plus new graph/source traceability edits.
+- Current verified SHA: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
+- Current `origin/main` SHA at review time: `3584d4bab35c3b6d8a2a2ec2193bf8ca84c278e0`.
+- Working tree status at Prompt 9 demo workspace start: contained uncommitted checkpoint changes from prior usability/onboarding/help prompts plus new demo workspace edits.
 - MVP release-candidate infrastructure, Dockerfiles, CI, endpoint inventory, data model overview, graph workspace, admin ontology import, and release docs are committed on `main`.
 
 ## Implemented Backend Modules
@@ -27,6 +27,7 @@ This document records the implementation state of the current `main` branch. Old
 - Game Project Mode APIs for projects, problems, applications, design decisions, playtest plans/findings, knowledge links, lens reviews, and source-backed apply-to-project flows.
 - Reading sessions, review sessions/items, knowledge mastery, and analytics APIs using current-user records.
 - Import/export APIs for user-owned JSON, book Markdown, quote/action/concept CSV, import preview, and import commit.
+- Demo Workspace APIs for user-scoped original sample records, reset/delete behavior, and normal analytics exclusion.
 - Draft-only AI suggestions with MockAIProvider by default and optional OpenAI-compatible provider configuration.
 
 ## Implemented Frontend Modules
@@ -40,6 +41,7 @@ This document records the implementation state of the current `main` branch. Old
 - Real graph preview wiring on book detail.
 - Game Project Mode workspaces for project list/detail, problems, applications, decisions, playtests, and lens reviews.
 - Analytics, review, mastery, and import/export workspaces with loading, empty, and error states.
+- Demo Workspace page for starting, resetting, deleting, and navigating clearly labeled original sample records.
 - Responsive BookOS design system and cockpit shell.
 
 ## Known Limitations
@@ -51,6 +53,7 @@ This document records the implementation state of the current `main` branch. Old
 - Project Mode is implemented at MVP depth for owned projects, problems, applications, decisions, playtest plans/findings, knowledge links, lens reviews, and source-backed apply-to-project flows. Advanced project analytics, collaboration, and planning automation remain future work.
 - Import/export is implemented at MVP depth. Large-scale migration tooling and conflict-resolution UX remain limited.
 - Reading analytics, review sessions, and mastery tracking use real local data, preserve owned source references where available, and are intentionally lightweight. Advanced spaced-repetition scheduling and predictive analytics are not implemented.
+- Demo Workspace records are tracked separately and excluded from normal analytics by default. Some general list pages may still show demo rows with demo labels until deeper filtering is added.
 
 ## Release Infrastructure
 

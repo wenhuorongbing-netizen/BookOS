@@ -21,35 +21,59 @@
 
     <div id="bookos-sidebar-drawer" class="sidebar__drawer" :class="{ 'sidebar__drawer--open': navOpen }">
       <nav class="sidebar__nav" aria-label="Main navigation">
-        <div class="sidebar__section-label">Main</div>
-        <RouterLink v-for="item in visibleRouteItems" :key="item.to" :to="item.to" custom v-slot="{ href, navigate }">
-          <a
-            class="sidebar__nav-link"
-            :class="{ 'sidebar__nav-link--active': isNavActive(item) }"
-            :href="href"
-            :aria-current="isNavActive(item) ? 'page' : undefined"
-            @click="handleNavigate(navigate)"
+        <AppCard class="sidebar__mode" variant="rail" as="section">
+          <div class="eyebrow">Current Mode</div>
+          <strong>{{ currentModeLabel }}</strong>
+          <p>{{ currentModeHelp }}</p>
+        </AppCard>
+
+        <section v-for="section in visibleNavSections" :key="section.label" class="sidebar__nav-section">
+          <div class="sidebar__section-label">{{ section.label }}</div>
+          <RouterLink v-for="item in section.items" :key="item.to" :to="item.to" custom v-slot="{ href, navigate }">
+            <a
+              class="sidebar__nav-link"
+              :class="{ 'sidebar__nav-link--active': isNavActive(item) }"
+              :href="href"
+              :aria-current="isNavActive(item) ? 'page' : undefined"
+              @click="handleNavigate(navigate)"
+            >
+              <span class="sidebar__item-kicker" aria-hidden="true">{{ item.short }}</span>
+              <span>{{ item.label }}</span>
+            </a>
+          </RouterLink>
+        </section>
+
+        <section class="sidebar__nav-section">
+          <button
+            class="sidebar__section-toggle"
+            type="button"
+            aria-controls="bookos-advanced-nav"
+            :aria-expanded="advancedExpanded ? 'true' : 'false'"
+            @click="advancedOpen = !advancedOpen"
           >
-            <span class="sidebar__item-kicker" aria-hidden="true">{{ item.short }}</span>
-            <span>{{ item.label }}</span>
-          </a>
-        </RouterLink>
+            <span>Advanced</span>
+            <span>{{ advancedExpanded ? 'Less' : 'More' }}</span>
+          </button>
+          <div v-if="advancedExpanded" id="bookos-advanced-nav" class="sidebar__advanced-list">
+            <RouterLink v-for="item in visibleAdvancedItems" :key="item.to" :to="item.to" custom v-slot="{ href, navigate }">
+              <a
+                class="sidebar__nav-link"
+                :class="{ 'sidebar__nav-link--active': isNavActive(item) }"
+                :href="href"
+                :aria-current="isNavActive(item) ? 'page' : undefined"
+                @click="handleNavigate(navigate)"
+              >
+                <span class="sidebar__item-kicker" aria-hidden="true">{{ item.short }}</span>
+                <span>{{ item.label }}</span>
+              </a>
+            </RouterLink>
+          </div>
+          <p v-else class="sidebar__advanced-help">Graph, analytics, import/export, AI drafts, and admin tools stay available through More or search.</p>
+        </section>
 
-        <button
-          v-for="item in plannedItems"
-          :key="item.label"
-          class="sidebar__nav-link sidebar__nav-link--disabled"
-          type="button"
-          disabled
-          aria-disabled="true"
-        >
-          <span class="sidebar__item-kicker" aria-hidden="true">{{ item.short }}</span>
-          <span>{{ item.label }}</span>
-        </button>
-
-        <button class="sidebar__nav-link" type="button" @click="openSearch">
+        <button class="sidebar__nav-link sidebar__search-action" type="button" @click="openSearch">
           <span class="sidebar__item-kicker" aria-hidden="true">SE</span>
-          <span>Search</span>
+          <span>Search all routes</span>
         </button>
       </nav>
 
@@ -60,8 +84,8 @@
       </AppCard>
 
       <AppCard class="sidebar__concepts" variant="rail" as="section">
-        <div class="eyebrow">Recently Viewed</div>
-        <p>Recent concept history is not implemented yet. No sample concepts are shown as real activity.</p>
+        <div class="eyebrow">Planned Later</div>
+        <p>Lenses, diagnostics, and exercises remain planned dedicated pages. They are not shown as live navigation until implemented.</p>
       </AppCard>
 
       <button class="sidebar__settings" type="button" disabled aria-disabled="true">
@@ -76,13 +100,33 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { navigationModeLabel, normalizeNavigationMode, type NavigationMode } from '../utils/navigationMode'
 import AppCard from './ui/AppCard.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
 const navOpen = ref(false)
+const advancedOpen = ref(false)
 
-const routeItems = [
+interface NavItem {
+  label: string
+  to: string
+  short: string
+  activePaths: string[]
+}
+
+interface NavSection {
+  label: string
+  items: NavItem[]
+}
+
+const primaryItems: NavItem[] = [
+  {
+    label: 'Dashboard',
+    to: '/dashboard',
+    short: 'DB',
+    activePaths: ['/dashboard'],
+  },
   {
     label: 'Library',
     to: '/my-library',
@@ -96,11 +140,26 @@ const routeItems = [
     activePaths: ['/notes'],
   },
   {
-    label: 'Captures',
+    label: 'Capture',
     to: '/captures/inbox',
     short: 'CA',
     activePaths: ['/captures'],
   },
+  {
+    label: 'Projects',
+    to: '/projects',
+    short: 'PR',
+    activePaths: ['/projects'],
+  },
+  {
+    label: 'Review',
+    to: '/review',
+    short: 'RV',
+    activePaths: ['/review'],
+  },
+]
+
+const secondaryItems: NavItem[] = [
   {
     label: 'Quotes',
     to: '/quotes',
@@ -108,7 +167,7 @@ const routeItems = [
     activePaths: ['/quotes'],
   },
   {
-    label: 'Action Items',
+    label: 'Actions',
     to: '/action-items',
     short: 'AC',
     activePaths: ['/action-items'],
@@ -132,22 +191,46 @@ const routeItems = [
     activePaths: ['/daily'],
   },
   {
+    label: 'Forum',
+    to: '/forum',
+    short: 'FO',
+    activePaths: ['/forum'],
+  },
+  {
+    label: 'Demo',
+    to: '/demo',
+    short: 'DE',
+    activePaths: ['/demo'],
+  },
+]
+
+const routeOnlyItems: NavItem[] = [
+  {
+    label: 'Use Cases',
+    to: '/use-cases',
+    short: 'UC',
+    activePaths: ['/use-cases'],
+  },
+  {
+    label: 'Help',
+    to: '/help',
+    short: 'HP',
+    activePaths: ['/help'],
+  },
+]
+
+const advancedItems: NavItem[] = [
+  {
+    label: 'Knowledge Graph',
+    to: '/graph',
+    short: 'GR',
+    activePaths: ['/graph'],
+  },
+  {
     label: 'Analytics',
     to: '/analytics',
     short: 'AN',
     activePaths: ['/analytics'],
-  },
-  {
-    label: 'Review',
-    to: '/review',
-    short: 'RV',
-    activePaths: ['/review'],
-  },
-  {
-    label: 'Mastery',
-    to: '/mastery',
-    short: 'MA',
-    activePaths: ['/mastery'],
   },
   {
     label: 'Import / Export',
@@ -156,43 +239,74 @@ const routeItems = [
     activePaths: ['/import-export'],
   },
   {
-    label: 'Projects',
-    to: '/projects',
-    short: 'PR',
-    activePaths: ['/projects'],
-  },
-  {
-    label: 'Graph',
-    to: '/graph',
-    short: 'GR',
-    activePaths: ['/graph'],
-  },
-  {
-    label: 'Forum',
-    to: '/forum',
-    short: 'FO',
-    activePaths: ['/forum'],
+    label: 'AI Drafts',
+    to: '/dashboard?focus=ai',
+    short: 'AI',
+    activePaths: [],
   },
 ]
 
-const plannedItems = [
-  { label: 'Lenses', short: 'LE' },
-  { label: 'Diagnostics', short: 'DI' },
-  { label: 'Exercises', short: 'EX' },
-]
+const currentMode = computed(() =>
+  normalizeNavigationMode(auth.user?.preferredDashboardMode, auth.user?.startingMode),
+)
+const currentModeLabel = computed(() => navigationModeLabel(currentMode.value))
+const currentModeHelp = computed(() => {
+  if (currentMode.value === 'GAME_DESIGNER') return 'Projects and application work are promoted.'
+  if (currentMode.value === 'RESEARCHER') return 'Concepts, knowledge, and review are promoted.'
+  if (currentMode.value === 'ADVANCED') return 'All navigation groups are expanded.'
+  if (currentMode.value === 'COMMUNITY') return 'Forum and source-linked discussion stay close by.'
+  return 'Reading, capture, notes, and review are promoted.'
+})
+const primaryByMode: Record<NavigationMode, string[]> = {
+  READER: ['Dashboard', 'Library', 'Capture', 'Notes', 'Review'],
+  NOTE_TAKER: ['Dashboard', 'Library', 'Capture', 'Notes', 'Review'],
+  GAME_DESIGNER: ['Dashboard', 'Library', 'Capture', 'Projects', 'Review'],
+  RESEARCHER: ['Dashboard', 'Library', 'Notes', 'Concepts', 'Review'],
+  COMMUNITY: ['Dashboard', 'Library', 'Capture', 'Notes', 'Forum', 'Review'],
+  ADVANCED: ['Dashboard', 'Library', 'Capture', 'Notes', 'Projects', 'Concepts', 'Review'],
+}
+const secondaryByMode: Record<NavigationMode, string[]> = {
+  READER: ['Quotes', 'Actions', 'Concepts', 'Demo'],
+  NOTE_TAKER: ['Quotes', 'Actions', 'Concepts', 'Knowledge', 'Demo'],
+  GAME_DESIGNER: ['Quotes', 'Concepts', 'Knowledge', 'Daily', 'Forum', 'Demo'],
+  RESEARCHER: ['Knowledge', 'Knowledge Graph', 'Quotes', 'Projects', 'Demo'],
+  COMMUNITY: ['Quotes', 'Concepts', 'Knowledge', 'Daily', 'Forum', 'Demo'],
+  ADVANCED: ['Quotes', 'Actions', 'Knowledge', 'Daily', 'Forum', 'Use Cases', 'Help', 'Demo'],
+}
 
-const visibleRouteItems = computed(() => {
-  if (auth.user?.role !== 'ADMIN') {
-    return routeItems
-  }
+const allNavigationItems = computed(() => [...primaryItems, ...secondaryItems, ...routeOnlyItems, ...advancedItems])
+const advancedActive = computed(() => visibleAdvancedItems.value.some(isNavActive))
+const advancedExpanded = computed(() => currentMode.value === 'ADVANCED' || advancedOpen.value || advancedActive.value)
+const visibleAdvancedItems = computed(() => {
+  const modeSecondaryLabels = new Set(secondaryByMode[currentMode.value])
+  const baseItems = advancedItems.filter((item) => !modeSecondaryLabels.has(item.label))
+  const items =
+    auth.user?.role === 'ADMIN'
+      ? [
+          ...baseItems,
+          {
+            label: 'Ontology Import',
+            to: '/admin/ontology',
+            short: 'AD',
+            activePaths: ['/admin'],
+          },
+        ]
+      : baseItems
+  return items
+})
+const visibleNavSections = computed<NavSection[]>(() => {
+  const primaryLabels = primaryByMode[currentMode.value]
+  const secondaryLabels = secondaryByMode[currentMode.value]
+  const primaryVisible = primaryLabels
+    .map((label) => allNavigationItems.value.find((item) => item.label === label))
+    .filter((item): item is NavItem => Boolean(item))
+  const secondaryVisible = secondaryLabels
+    .map((label) => allNavigationItems.value.find((item) => item.label === label))
+    .filter((item): item is NavItem => Boolean(item))
+
   return [
-    ...routeItems,
-    {
-      label: 'Admin',
-      to: '/admin/ontology',
-      short: 'AD',
-      activePaths: ['/admin'],
-    },
+    { label: 'Primary', items: primaryVisible },
+    { label: 'Secondary', items: secondaryVisible },
   ]
 })
 
@@ -211,7 +325,7 @@ watch(
   },
 )
 
-function isNavActive(item: (typeof routeItems)[number]) {
+function isNavActive(item: NavItem) {
   return item.activePaths.some((path) => route.path === path || route.path.startsWith(`${path}/`))
 }
 
@@ -298,7 +412,29 @@ function openSearch() {
 
 .sidebar__nav {
   display: grid;
+  gap: var(--space-3);
+}
+
+.sidebar__nav-section {
+  display: grid;
   gap: var(--space-2);
+}
+
+.sidebar__mode {
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+  background: rgba(255, 253, 248, 0.08);
+  border-color: rgba(255, 253, 248, 0.12);
+  color: rgba(255, 253, 248, 0.94);
+}
+
+.sidebar__mode p,
+.sidebar__advanced-help {
+  margin: 0;
+  color: rgba(255, 253, 248, 0.72);
+  font-size: var(--type-metadata);
+  line-height: 1.45;
 }
 
 .sidebar__section-label {
@@ -308,6 +444,30 @@ function openSearch() {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.sidebar__section-toggle {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border: 1px solid rgba(255, 253, 248, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(255, 253, 248, 0.08);
+  color: #fffdf8;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sidebar__advanced-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sidebar__search-action {
+  margin-top: var(--space-1);
 }
 
 .sidebar__nav-link,

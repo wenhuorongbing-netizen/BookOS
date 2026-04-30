@@ -256,6 +256,104 @@ select {
   font-weight: 600;
 }
 
+.task-first-panel {
+  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.task-first-panel h2,
+.task-first-panel p {
+  margin: 0;
+}
+
+.task-first-panel h2 {
+  margin-top: var(--space-1);
+  font-family: var(--font-book-title);
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+  line-height: 1.12;
+}
+
+.task-first-panel p {
+  margin-top: var(--space-2);
+  max-width: 58rem;
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.task-first-panel__actions,
+.task-first-panel__metrics,
+.task-first-panel__steps {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.task-first-panel__actions {
+  justify-content: flex-end;
+}
+
+.task-first-panel__metrics {
+  margin-top: var(--space-3);
+}
+
+.task-first-panel__steps {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-first-panel__steps li {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--bookos-primary) 18%, var(--bookos-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bookos-surface) 84%, transparent);
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+  font-weight: 800;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-3);
+}
+
+.workspace-action-card {
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.workspace-action-card h3,
+.workspace-action-card p {
+  margin: 0;
+}
+
+.workspace-action-card h3 {
+  color: var(--bookos-text-primary);
+  font-size: var(--type-card-title);
+  line-height: 1.24;
+}
+
+.workspace-action-card p {
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+@media (max-width: 760px) {
+  .task-first-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .task-first-panel__actions {
+    justify-content: flex-start;
+  }
+}
+
 .cover-placeholder {
   display: grid;
   place-items: center;

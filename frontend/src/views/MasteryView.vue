@@ -5,11 +5,24 @@
       title="What Needs Review"
       description="Mastery scores are user-owned and updated from review sessions or source-backed daily reflections."
       :level="1"
-    />
+    >
+      <template #actions>
+        <HelpTooltip topic="mastery" placement="left" />
+      </template>
+    </AppSectionHeader>
 
     <AppLoadingState v-if="loading" label="Loading mastery targets" />
     <AppErrorState v-else-if="errorMessage" title="Mastery could not load" :description="errorMessage" retry-label="Retry" @retry="loadMastery" />
-    <AppEmptyState v-else-if="!items.length" title="No mastery targets yet" description="Complete review items or save source-backed daily reflections to create mastery records." />
+    <AppEmptyState v-else-if="!items.length" title="No mastery targets yet" description="Complete review items or save source-backed daily reflections to create mastery records. Mastery is not invented from empty activity." >
+      <template #actions>
+        <RouterLink to="/review" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Start Review</AppButton>
+        </RouterLink>
+        <RouterLink to="/help/mastery" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">Learn mastery</AppButton>
+        </RouterLink>
+      </template>
+    </AppEmptyState>
 
     <section v-else class="mastery-list" aria-label="Mastery target list">
       <AppCard v-for="item in items" :key="item.id" class="mastery-card" as="article">
@@ -32,7 +45,9 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { getMastery } from '../api/learning'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'

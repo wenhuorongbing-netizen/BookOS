@@ -6,6 +6,15 @@ export interface ApiResponse<T> {
 }
 
 export type RoleName = 'ADMIN' | 'MODERATOR' | 'USER'
+export type OnboardingUseCase =
+  | 'TRACK_READING'
+  | 'BETTER_NOTES'
+  | 'QUICK_CAPTURE'
+  | 'CONCEPTS_ACTIONS'
+  | 'GAME_PROJECT'
+  | 'COMMUNITY_DISCUSSION'
+  | 'ADVANCED_TOOLS'
+export type StartingMode = 'READER' | 'NOTE_TAKER' | 'GAME_DESIGNER' | 'RESEARCHER' | 'COMMUNITY' | 'ADVANCED'
 export type Visibility = 'PRIVATE' | 'SHARED' | 'PUBLIC'
 export type ReadingStatus =
   | 'BACKLOG'
@@ -115,11 +124,28 @@ export interface AuthUser {
   email: string
   displayName: string
   role: RoleName
+  onboardingCompleted: boolean
+  primaryUseCase: OnboardingUseCase | null
+  startingMode: StartingMode | null
+  preferredDashboardMode: StartingMode | string | null
 }
 
 export interface AuthPayload {
   token: string
   user: AuthUser
+}
+
+export interface DemoWorkspaceStatus {
+  active: boolean
+  bookId: number | null
+  projectId: number | null
+  quoteId: number | null
+  actionItemId: number | null
+  forumThreadId: number | null
+  conceptIds: number[]
+  recordCounts: Record<string, number>
+  label: string
+  safetyNote: string
 }
 
 export interface RegisterPayload {
@@ -131,6 +157,13 @@ export interface RegisterPayload {
 export interface LoginPayload {
   email: string
   password: string
+}
+
+export interface OnboardingPreferencePayload {
+  onboardingCompleted?: boolean
+  primaryUseCase?: OnboardingUseCase | null
+  startingMode?: StartingMode | null
+  preferredDashboardMode?: StartingMode | string | null
 }
 
 export interface BookRecord {

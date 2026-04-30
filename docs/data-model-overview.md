@@ -71,6 +71,12 @@ Forum source context is only visible to viewers allowed to access the attached p
 - `AIProviderProperties`: environment-backed provider configuration for `AI_ENABLED`, `AI_PROVIDER`, OpenAI-compatible base URL, model, timeout, max input chars, and API key presence. Secrets are not persisted in the application database.
 - `AISuggestionValidator`: validates structured draft payloads before suggestions are saved.
 
+## Demo Workspace
+
+- `DemoRecord`: current-user scoping record for demo-created entities. It stores user, entity type, entity id, label, and created timestamp.
+
+Demo content is created as normal domain records so users can practice real flows. The `demo_records` table records which rows belong to the demo workspace, enabling reset/delete operations and default analytics exclusion. Demo records are clearly titled/tagged as demo, use original BookOS sample content, store unknown pages as `null`, and use low-confidence source references.
+
 ## Game Project Mode
 
 - `GameProject`: user-owned game project with title, slug, description, genre, platform, stage, visibility, progress percentage, and archive timestamp.

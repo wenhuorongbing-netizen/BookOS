@@ -7,4 +7,8 @@ public record UserProfileResponse(
         String email,
         String displayName,
         String bio,
-        RoleName role) {}
+        RoleName role,
+        boolean onboardingCompleted,
+        String primaryUseCase,
+        String startingMode,
+        String preferredDashboardMode) {}

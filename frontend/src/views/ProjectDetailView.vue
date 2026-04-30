@@ -17,6 +17,7 @@
         :level="1"
       >
         <template #actions>
+          <HelpTooltip topic="project-application" placement="left" />
           <RouterLink :to="{ name: 'projects' }" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">All Projects</AppButton>
           </RouterLink>
@@ -27,12 +28,31 @@
           >
             <AppButton variant="secondary" @click="navigate">Start Project Critique</AppButton>
           </RouterLink>
+          <RouterLink :to="{ name: 'project-apply-knowledge-wizard', params: { id: project.id } }" custom v-slot="{ navigate }">
+            <AppButton variant="accent" @click="navigate">Apply Knowledge Guided Flow</AppButton>
+          </RouterLink>
           <AppButton variant="primary" @click="editOpen = true">Edit Project</AppButton>
           <AppButton variant="text" @click="archiveCurrentProject">Archive</AppButton>
         </template>
       </AppSectionHeader>
 
       <ProjectWorkspaceNav :project-id="project.id" />
+
+      <DetailNextStepCard
+        :title="projectNextStep.title"
+        :description="projectNextStep.description"
+        :primary-label="projectNextStep.primaryLabel"
+        :primary-to="projectNextStep.primaryTo"
+        :secondary-label="projectNextStep.secondaryLabel"
+        :secondary-to="projectNextStep.secondaryTo"
+        :loop="projectWorkflowLoop"
+      />
+
+      <UseCaseSuggestionPanel
+        title="Turn reading into project action"
+        description="Use source-backed applications, lens reviews, playtest findings, and forum critique to keep this project practical."
+        :slugs="projectUseCaseSlugs"
+      />
 
       <section class="project-cockpit">
         <main class="project-cockpit__main">
@@ -177,6 +197,13 @@
         </aside>
       </section>
 
+      <BacklinksSection
+        entity-type="GAME_PROJECT"
+        :entity-id="project.id"
+        :source-references="projectSourceReferences"
+        :book-title="project.title"
+      />
+
       <el-dialog v-model="editOpen" title="Edit Project" width="min(760px, 94vw)">
         <ProjectFormPanel :project="project" :saving="savingProject" submit-label="Save Project" @submit="saveProject" />
       </el-dialog>
@@ -202,6 +229,8 @@ import {
 } from '../api/projects'
 import ProjectFormPanel from '../components/project/ProjectFormPanel.vue'
 import ProjectWorkspaceNav from '../components/project/ProjectWorkspaceNav.vue'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
+import BacklinksSection from '../components/source/BacklinksSection.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -210,6 +239,8 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppProgressBar from '../components/ui/AppProgressBar.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import type {
   DesignDecisionRecord,
@@ -261,6 +292,12 @@ const loading = ref(false)
 const savingProject = ref(false)
 const errorMessage = ref('')
 const editOpen = ref(false)
+const projectUseCaseSlugs = [
+  'apply-quote-to-game-project',
+  'run-design-lens-review',
+  'create-playtest-finding',
+]
+const projectWorkflowLoop = ['Project problem', 'Source-backed application', 'Design decision', 'Playtest finding']
 
 const openProblems = computed(() => problems.value.filter((problem) => problem.status !== 'RESOLVED' && problem.status !== 'CLOSED'))
 const activeApplications = computed(() => applications.value.filter((application) => application.status !== 'DONE' && application.status !== 'ARCHIVED'))
@@ -281,6 +318,94 @@ const nextTasks = computed(() => {
   if (!decisions.value.length) tasks.push('Record the first design decision and rationale.')
   if (!findings.value.length) tasks.push('Create a playtest finding after the next prototype run.')
   return tasks.length ? tasks : ['Review open problems and close one source-backed application.']
+})
+const projectNextStep = computed(() => {
+  const currentProject = project.value
+  if (!currentProject) {
+    return {
+      title: 'Open a project to focus the workflow',
+      description: 'Project next steps appear after a project cockpit loads.',
+      primaryLabel: 'All Projects',
+      primaryTo: { name: 'projects' },
+      secondaryLabel: null,
+      secondaryTo: null,
+    }
+  }
+
+  if (!openProblems.value.length) {
+    return {
+      title: 'Define the blocking design problem',
+      description: 'A project becomes actionable when the next design problem is explicit and can be linked back to source-backed evidence.',
+      primaryLabel: 'Add Problem',
+      primaryTo: { name: 'project-problems', params: { id: currentProject.id } },
+      secondaryLabel: 'Apply Knowledge',
+      secondaryTo: { name: 'project-applications', params: { id: currentProject.id } },
+    }
+  }
+
+  if (!activeApplications.value.length) {
+    return {
+      title: 'Apply one piece of reading knowledge',
+      description: 'Turn a quote, concept, or knowledge object into a project application so the project is connected to the reading system.',
+      primaryLabel: 'Add Application',
+      primaryTo: { name: 'project-applications', params: { id: currentProject.id } },
+      secondaryLabel: 'Open Graph',
+      secondaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
+    }
+  }
+
+  if (!decisions.value.length) {
+    return {
+      title: 'Record the first design decision',
+      description: 'Use the project problem and source-backed applications as rationale, then capture the tradeoff explicitly.',
+      primaryLabel: 'Add Decision',
+      primaryTo: { name: 'project-decisions', params: { id: currentProject.id } },
+      secondaryLabel: 'Open Applications',
+      secondaryTo: { name: 'project-applications', params: { id: currentProject.id } },
+    }
+  }
+
+  if (!findings.value.length) {
+    return {
+      title: 'Test the decision with a playtest finding',
+      description: 'Create a finding that turns the current decision into observable evidence for the next iteration.',
+      primaryLabel: 'Add Finding',
+      primaryTo: { name: 'project-playtests', params: { id: currentProject.id } },
+      secondaryLabel: 'Open Graph',
+      secondaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
+    }
+  }
+
+  return {
+    title: 'Inspect the project knowledge graph',
+    description: 'This project now has enough records to review how problems, applications, decisions, and findings connect.',
+    primaryLabel: 'Open Project Graph',
+    primaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
+    secondaryLabel: 'Start Forum Critique',
+    secondaryTo: {
+      name: 'forum-new',
+      query: {
+        relatedEntityType: 'GAME_PROJECT',
+        relatedEntityId: String(currentProject.id),
+        projectId: String(currentProject.id),
+        title: `Critique ${currentProject.title}`,
+      },
+    },
+  }
+})
+const projectSourceReferences = computed(() => {
+  const references = [
+    ...problems.value.map((item) => item.relatedSourceReference),
+    ...applications.value.map((item) => item.sourceReference),
+    ...decisions.value.map((item) => item.sourceReference),
+    ...findings.value.map((item) => item.sourceReference),
+    ...lensReviews.value.map((item) => item.sourceReference),
+    ...knowledgeLinks.value.map((item) => item.sourceReference),
+  ].filter((source): source is SourceReferenceRecord => Boolean(source))
+
+  const unique = new Map<number, SourceReferenceRecord>()
+  references.forEach((source) => unique.set(source.id, source))
+  return [...unique.values()]
 })
 
 onMounted(loadProject)

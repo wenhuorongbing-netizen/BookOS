@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,17 +19,24 @@ public class AnalyticsController {
     private final LearningService learningService;
 
     @GetMapping("/api/analytics/reading")
-    public ApiResponse<ReadingAnalyticsResponse> reading(Authentication authentication) {
-        return ApiResponse.ok("Reading analytics loaded.", learningService.readingAnalytics(authentication.getName()));
+    public ApiResponse<ReadingAnalyticsResponse> reading(
+            Authentication authentication,
+            @RequestParam(defaultValue = "false") boolean includeDemo) {
+        return ApiResponse.ok("Reading analytics loaded.", learningService.readingAnalytics(authentication.getName(), includeDemo));
     }
 
     @GetMapping("/api/analytics/knowledge")
-    public ApiResponse<KnowledgeAnalyticsResponse> knowledge(Authentication authentication) {
-        return ApiResponse.ok("Knowledge analytics loaded.", learningService.knowledgeAnalytics(authentication.getName()));
+    public ApiResponse<KnowledgeAnalyticsResponse> knowledge(
+            Authentication authentication,
+            @RequestParam(defaultValue = "false") boolean includeDemo) {
+        return ApiResponse.ok("Knowledge analytics loaded.", learningService.knowledgeAnalytics(authentication.getName(), includeDemo));
     }
 
     @GetMapping("/api/analytics/books/{bookId}")
-    public ApiResponse<BookAnalyticsResponse> book(Authentication authentication, @PathVariable Long bookId) {
-        return ApiResponse.ok("Book analytics loaded.", learningService.bookAnalytics(authentication.getName(), bookId));
+    public ApiResponse<BookAnalyticsResponse> book(
+            Authentication authentication,
+            @PathVariable Long bookId,
+            @RequestParam(defaultValue = "false") boolean includeDemo) {
+        return ApiResponse.ok("Book analytics loaded.", learningService.bookAnalytics(authentication.getName(), bookId, includeDemo));
     }
 }

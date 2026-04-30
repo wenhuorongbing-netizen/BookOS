@@ -7,10 +7,17 @@
       :level="1"
     >
       <template #actions>
+        <HelpTooltip topic="graph" placement="left" />
         <AppButton variant="secondary" @click="resetFilters">Reset Filters</AppButton>
         <AppButton variant="primary" @click="openRelationshipEditor()">Create Relationship</AppButton>
       </template>
     </AppSectionHeader>
+
+    <UseCaseSuggestionPanel
+      title="Make graph exploration practical"
+      description="Use the graph after you have source-backed captures, concepts, project applications, or manual relationships."
+      :slugs="graphUseCaseSlugs"
+    />
 
     <AppCard class="graph-filters" as="section" aria-label="Graph filters">
       <label class="graph-field">
@@ -110,7 +117,12 @@
         title="No graph links match these filters"
         description="Create source-backed notes, captures, quotes, action items, concepts, knowledge objects, forum threads, or manual relationships to grow this graph."
         compact
-      />
+      >
+        <template #actions>
+          <UseCaseActionButton to="/use-cases/inspect-knowledge-graph" label="Learn graph workflow" variant="secondary" />
+          <UseCaseActionButton to="/use-cases/review-concept-marker" label="Create source-backed concept" variant="ghost" />
+        </template>
+      </AppEmptyState>
 
       <div v-else class="graph-workspace__grid">
         <section class="graph-canvas-card" aria-labelledby="graph-canvas-title">
@@ -348,6 +360,9 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
+import UseCaseActionButton from '../components/use-case/UseCaseActionButton.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 
 interface PositionedNode {
   node: GraphNodeRecord
@@ -387,6 +402,11 @@ const selectedEdge = ref<GraphEdgeRecord | null>(null)
 const nodeDrawerOpen = ref(false)
 const edgeDrawerOpen = ref(false)
 const editingLinkId = ref<number | null>(null)
+const graphUseCaseSlugs = [
+  'inspect-knowledge-graph',
+  'review-concept-marker',
+  'search-rediscover-knowledge',
+]
 
 const relationshipForm = reactive<RelationshipForm>({
   sourceType: 'BOOK',

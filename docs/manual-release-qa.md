@@ -19,14 +19,14 @@ Use this template before tagging BookOS Public Beta 0.1.
 
 Record `PASS`, `FAIL`, or `NOT RUN`.
 
-- Backend tests: PASS on 2026-04-30, `.\mvnw.cmd test`, 60 tests.
+- Backend tests: PASS on 2026-04-30, `.\mvnw.cmd test`, 62 tests.
 - Frontend typecheck: PASS on 2026-04-30, `npm run typecheck`.
 - Frontend production build: PASS on 2026-04-30, `npm run build`.
 - Docker Compose config: PASS on 2026-04-30 for local MySQL and full stack.
 - Docker backend image build: PASS on 2026-04-29 via `docker compose -f docker-compose.full.yml build`.
 - Docker frontend image build: PASS on 2026-04-29 via `docker compose -f docker-compose.full.yml build`.
 - Full-stack Docker health smoke: PASS on 2026-04-29 with isolated Compose project `bookos_beta_check`.
-- Playwright E2E smoke: PASS on 2026-04-30, `npm run e2e`, 2 tests.
+- Playwright E2E smoke: PASS on 2026-04-30, `npm run e2e -- --workers=1`, 19 tests.
 - Secret/artifact scan: PASS on 2026-04-30 for common token patterns and committed artifact paths.
 
 Note: full manual browser QA and responsive checks still need human sign-off before tagging.
@@ -81,6 +81,86 @@ Note: full manual browser QA and responsive checks still need human sign-off bef
 - Load default ontology JSON.
 - Dry-run import.
 - Confirm non-admin cannot access admin import.
+
+## Hands-On Use Case QA
+
+Use `docs/first-15-minutes.md`, `docs/use-case-playbook.md`, and `docs/hands-on-beta-ux-report.md` for scenario instructions and scoring.
+
+Record `PASS`, `PARTIAL`, `FAIL`, or `NOT VERIFIED`.
+
+### Scenario 1: First-Time Reader
+
+- Register a fresh user.
+- Choose Reader Mode.
+- Add a book.
+- Add it to the personal library.
+- Set reading status to Reading.
+- Open Book Detail.
+- Save one source-backed Quick Capture.
+- Convert the capture to Quote.
+- Open the Quote.
+- Open Source from the Quote.
+- Result:
+- Notes:
+
+### Scenario 2: Note-Taker
+
+- Choose Note-Taker Mode.
+- Create a note for a book.
+- Open the Quick Capture guide.
+- Insert an example and confirm it does not save fake data automatically.
+- Save one real action capture.
+- Open Capture Inbox.
+- Convert the capture to Action Item.
+- Result:
+- Notes:
+
+### Scenario 3: Game Designer
+
+- Choose Game Designer Mode.
+- Add a game design book.
+- Create a project.
+- Create or open a quote/concept.
+- Apply the quote/concept to the project.
+- Create a design decision.
+- Open Project Cockpit.
+- Verify source reference visibility.
+- Result:
+- Notes:
+
+### Scenario 4: Researcher
+
+- Create a note or capture with `[[Concept Name]]`.
+- Open Concept Review.
+- Create or accept the concept.
+- Open Concept Detail.
+- Verify source references and backlinks.
+- Open scoped Graph.
+- Start a review session where available.
+- Result:
+- Notes:
+
+### Scenario 5: Community User
+
+- Open Forum.
+- Create a source-linked thread from a book, quote, concept, project, or source reference where available.
+- Add a comment.
+- Open the attached source context.
+- Confirm private source context is not leaked to unauthorized users.
+- Result:
+- Notes:
+
+### Scenario 6: Advanced User
+
+- Open Knowledge Graph.
+- Confirm graph uses real data or an honest empty state.
+- Open Import/Export.
+- Export user data.
+- Generate a MockAIProvider draft.
+- Edit, accept, and reject drafts.
+- Confirm source content is not overwritten.
+- Result:
+- Notes:
 
 ## Responsive Smoke
 

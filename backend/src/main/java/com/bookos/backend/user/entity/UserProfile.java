@@ -27,4 +27,16 @@ public class UserProfile extends BaseEntity {
 
     @Column(length = 500)
     private String bio;
+
+    @Column(nullable = false)
+    private boolean onboardingCompleted = false;
+
+    @Column(length = 80)
+    private String primaryUseCase;
+
+    @Column(length = 40)
+    private String startingMode;
+
+    @Column(length = 40)
+    private String preferredDashboardMode;
 }

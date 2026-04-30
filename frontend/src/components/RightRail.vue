@@ -62,6 +62,7 @@
           </AppBadge>
           <AppBadge v-if="aiStatus?.configuredProvider === 'openai-compatible'" variant="accent" size="sm">External configured</AppBadge>
           <AppBadge v-else variant="neutral" size="sm">Local mock</AppBadge>
+          <HelpTooltip topic="ai-draft" placement="left" />
         </div>
         <p>{{ aiStatus?.message ?? 'Draft-only suggestions are generated from existing BookOS content.' }}</p>
         <p>Accepting a draft records your decision only; it never overwrites notes, quotes, concepts, projects, forum posts, or actions.</p>
@@ -187,6 +188,7 @@ import {
   rejectAISuggestion,
 } from '../api/ai'
 import ContextPanel from './ContextPanel.vue'
+import HelpTooltip from './help/HelpTooltip.vue'
 import AppBadge from './ui/AppBadge.vue'
 import AppButton from './ui/AppButton.vue'
 import AppErrorState from './ui/AppErrorState.vue'

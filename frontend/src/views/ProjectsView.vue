@@ -3,7 +3,7 @@
     <AppSectionHeader
       title="Projects"
       eyebrow="Game Project Mode"
-      description="Apply source-backed reading knowledge to active prototypes and design problems."
+      description="Turn reading knowledge into design problems, decisions, applications, lens reviews, and playtest work."
       :level="1"
     >
       <template #actions>
@@ -12,6 +12,34 @@
         </RouterLink>
       </template>
     </AppSectionHeader>
+
+    <AppCard class="task-first-panel" variant="highlight" as="section">
+      <div>
+        <div class="eyebrow">Next project action</div>
+        <h2>{{ projectTask.title }}</h2>
+        <p>{{ projectTask.description }}</p>
+        <div class="task-first-panel__metrics" aria-label="Project summary">
+          <AppBadge variant="primary">{{ projectCards.length }} projects</AppBadge>
+          <AppBadge variant="accent">{{ totalOpenProblems }} open problems</AppBadge>
+          <AppBadge variant="neutral">{{ totalActiveApplications }} active applications</AppBadge>
+        </div>
+      </div>
+      <div class="task-first-panel__actions">
+        <RouterLink :to="{ name: projectTask.routeName, params: projectTask.routeParams }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">{{ projectTask.primaryLabel }}</AppButton>
+        </RouterLink>
+        <RouterLink to="/use-cases/apply-quote-to-game-project" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">See project workflow</AppButton>
+        </RouterLink>
+      </div>
+    </AppCard>
+
+    <UseCaseSuggestionPanel
+      :slugs="['apply-quote-to-game-project', 'run-design-lens-review', 'create-playtest-finding']"
+      eyebrow="Project playbook"
+      title="Use projects to prove knowledge is useful"
+      description="A project turns source-backed notes, quotes, and concepts into design decisions and playtest evidence."
+    />
 
     <AppLoadingState v-if="loading" label="Loading projects" />
     <AppErrorState
@@ -23,9 +51,16 @@
     />
     <AppEmptyState
       v-else-if="!projectCards.length"
-      title="No projects yet"
-      description="Create a project to start turning notes, quotes, concepts, and lenses into concrete design work."
-    />
+      title="Create one project to apply knowledge"
+      description="Project Mode becomes useful after you create a real prototype or design problem, then attach quotes, concepts, or source references to it."
+      eyebrow="First project"
+    >
+      <template #actions>
+        <RouterLink :to="{ name: 'project-new' }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Create Project</AppButton>
+        </RouterLink>
+      </template>
+    </AppEmptyState>
 
     <section v-else class="project-grid" aria-label="Game projects">
       <RouterLink
@@ -68,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getProjectApplications, getProjectProblems, getProjects } from '../api/projects'
 import AppBadge from '../components/ui/AppBadge.vue'
@@ -79,6 +114,7 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppProgressBar from '../components/ui/AppProgressBar.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 import type { GameProjectRecord } from '../types'
 
 interface ProjectCardModel {
@@ -90,6 +126,41 @@ interface ProjectCardModel {
 const projectCards = ref<ProjectCardModel[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
+const totalOpenProblems = computed(() => projectCards.value.reduce((total, item) => total + item.openProblems, 0))
+const totalActiveApplications = computed(() =>
+  projectCards.value.reduce((total, item) => total + item.activeApplications, 0),
+)
+const projectTask = computed(() => {
+  const needsAttention = projectCards.value.find((item) => item.openProblems > 0 || item.activeApplications > 0)
+  if (needsAttention) {
+    return {
+      title: `Open ${needsAttention.project.title}`,
+      description: 'This project has active problems or applications. Use the cockpit to decide the next design action.',
+      primaryLabel: 'Open Project Cockpit',
+      routeName: 'project-detail',
+      routeParams: { id: needsAttention.project.id },
+    }
+  }
+
+  const firstProject = projectCards.value[0]
+  if (firstProject) {
+    return {
+      title: 'Apply one source-backed idea',
+      description: 'Open a project, then attach a quote, concept, or source reference from your reading loop.',
+      primaryLabel: 'Open Project Cockpit',
+      routeName: 'project-detail',
+      routeParams: { id: firstProject.project.id },
+    }
+  }
+
+  return {
+    title: 'Create a project for one real design problem',
+    description: 'BookOS becomes practical when reading creates action. Start with a game prototype, mechanic, or design question.',
+    primaryLabel: 'Create Project',
+    routeName: 'project-new',
+    routeParams: {},
+  }
+})
 
 onMounted(loadProjects)
 

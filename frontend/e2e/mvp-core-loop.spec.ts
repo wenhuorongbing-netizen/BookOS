@@ -24,8 +24,11 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Password').fill(password)
     await page.getByRole('button', { name: 'Register' }).click()
+    await expect(page).toHaveURL(/\/onboarding/)
+    await expect(page.getByRole('heading', { name: 'Shape BookOS around your workflow' })).toBeVisible()
+    await page.getByRole('button', { name: 'Skip for now' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
-    await expect(page.getByText('Turn reading into source-backed design work')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What should I do today?' })).toBeVisible()
 
     await page.getByRole('button', { name: new RegExp(`Open profile menu for ${displayName}`) }).click()
     await page.getByRole('menuitem', { name: 'Logout' }).click()
@@ -35,7 +38,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await page.getByLabel('Password').fill(password)
     await page.getByRole('button', { name: 'Login' }).click()
     await expect(page).toHaveURL(/\/dashboard/)
-    await expect(page.getByText('Turn reading into source-backed design work')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What should I do today?' })).toBeVisible()
   })
 
   const token = await tokenFromPage(page)
@@ -57,6 +60,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
 
     await page.getByRole('button', { name: 'Add to Library' }).first().click()
     await expect(page.getByText('Book added to your library.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Capture the first source-backed idea' })).toBeVisible()
 
     const book = await apiGet<{ userBookId: number }>(request, `/books/${bookId}`, token)
     userBookId = book.userBookId
@@ -88,6 +92,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     })
     await page.goto(`/notes/${noteId}`)
     await expect(page.getByRole('heading', { name: `E2E Note ${runId}` })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Add one source-backed block' })).toBeVisible()
     await expect(page.getByText('Parsed Note Blocks')).toBeVisible()
     await expect(page.getByText(`[[${conceptName}]]`).first()).toBeVisible()
   })
@@ -105,8 +110,9 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
   })
 
   await test.step('convert captures to quote, action item, and note', async () => {
-    const quoteCard = page.locator('article').filter({ hasText: quoteText }).first()
-    await quoteCard.getByRole('button', { name: 'Convert to Quote' }).first().click()
+    const savedCaptureActions = page.getByRole('region', { name: 'Post-save quick capture actions' })
+    await expect(savedCaptureActions.getByText(quoteText)).toBeVisible()
+    await savedCaptureActions.getByRole('button', { name: 'Convert to Quote' }).click()
     await expect(page.getByText('Capture converted to a source-backed quote.').first()).toBeVisible()
 
     await apiPost(request, '/captures', token, {
@@ -147,6 +153,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     await page.getByText(quoteText).first().click()
     await expect(page).toHaveURL(new RegExp(`/quotes/${quoteId}`))
     await expect(page.getByRole('heading', { name: 'Quote Detail' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Apply this quote to a real project' })).toBeVisible()
     await page.getByRole('button', { name: 'Open Source' }).first().click()
     await expect(page).toHaveURL(new RegExp(`/books/${bookId}`))
     await expect(page).toHaveURL(/sourceType=QUOTE/)
@@ -154,6 +161,9 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     const actionItems = await apiGet<Array<{ id: number }>>(request, `/action-items?bookId=${bookId}`, token)
     expect(actionItems.length).toBeGreaterThan(0)
     actionItemId = actionItems[0].id
+    await page.goto(`/action-items/${actionItemId}`)
+    await expect(page.getByRole('heading', { name: 'Complete one source-backed action' })).toBeVisible()
+
     await page.goto('/action-items')
     await expect(page.getByText(actionText).first()).toBeVisible()
     const actionCard = page.locator('article').filter({ hasText: actionText }).first()
@@ -184,6 +194,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
 
     await page.goto(`/concepts/${conceptId}`)
     await expect(page.getByRole('heading', { name: conceptName })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Apply or review this concept' })).toBeVisible()
   })
 
   await test.step('create a project in the browser', async () => {
@@ -197,11 +208,16 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
     projectId = Number(new URL(page.url()).pathname.split('/').pop())
     expect(projectId).toBeGreaterThan(0)
     await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Define the blocking design problem' })).toBeVisible()
   })
 
   await test.step('apply a quote to the project through the browser workflow', async () => {
     await page.goto(`/quotes/${quoteId}`)
-    await page.getByRole('button', { name: 'Apply to Project' }).click()
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Apply this quote to a real project' }) })
+      .getByRole('button', { name: 'Apply to Project' })
+      .click()
     const dialog = page.getByRole('dialog', { name: 'Apply to Project' })
     await expect(dialog).toBeVisible()
     await dialog.getByLabel('Application title').fill(projectApplicationTitle)

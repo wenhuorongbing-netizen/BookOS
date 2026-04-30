@@ -88,6 +88,7 @@ public class DemoDataInitializer implements CommandLineRunner {
 
         UserProfile profile = new UserProfile();
         profile.setDisplayName(displayName);
+        profile.setOnboardingCompleted(true);
         user.setProfile(profile);
         return userRepository.save(user);
     }

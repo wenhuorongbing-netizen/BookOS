@@ -36,6 +36,7 @@ public class AuthService {
 
         UserProfile profile = new UserProfile();
         profile.setDisplayName(request.displayName().trim());
+        profile.setOnboardingCompleted(false);
         user.setProfile(profile);
 
         User saved = userRepository.save(user);

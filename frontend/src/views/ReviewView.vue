@@ -3,12 +3,46 @@
     <AppSectionHeader
       eyebrow="Review Sessions"
       title="Source-backed review"
-      description="Create lightweight review sessions from books, concepts, or projects. No fake review items are generated."
+      description="Review real notes, concepts, projects, and source references so useful knowledge does not disappear."
       :level="1"
+    >
+      <template #actions>
+        <HelpTooltip topic="review-session" placement="left" />
+      </template>
+    </AppSectionHeader>
+
+    <AppCard class="task-first-panel" variant="highlight" as="section">
+      <div>
+        <div class="eyebrow">Next review action</div>
+        <h2>{{ reviewTask.title }}</h2>
+        <p>{{ reviewTask.description }}</p>
+        <div class="task-first-panel__metrics" aria-label="Review summary">
+          <AppBadge variant="primary">{{ sessions.length }} sessions</AppBadge>
+          <AppBadge variant="accent">{{ openSessionCount }} open</AppBadge>
+          <AppBadge variant="neutral">{{ totalReviewItems }} review items</AppBadge>
+        </div>
+      </div>
+      <div class="task-first-panel__actions">
+        <RouterLink v-if="reviewTask.routeName" :to="{ name: reviewTask.routeName, params: reviewTask.routeParams }" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">{{ reviewTask.primaryLabel }}</AppButton>
+        </RouterLink>
+        <AppButton v-else variant="primary" @click="scrollToReviewForm">{{ reviewTask.primaryLabel }}</AppButton>
+        <RouterLink to="/use-cases/search-rediscover-knowledge" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">See review workflow</AppButton>
+        </RouterLink>
+      </div>
+    </AppCard>
+
+    <UseCaseSuggestionPanel
+      :slugs="['search-rediscover-knowledge', 'open-source-from-quote-or-action', 'inspect-knowledge-graph']"
+      eyebrow="Review playbook"
+      title="Review only real source-backed material"
+      description="Create sessions from books, concepts, or projects when there are records worth revisiting."
     />
 
     <section class="review-grid">
       <AppCard class="review-form" as="section">
+        <span id="review-form" class="sr-only">Review session form</span>
         <AppSectionHeader title="Create Session" eyebrow="Manual or generated" compact />
         <el-form label-position="top" @submit.prevent="createManualSession">
           <el-form-item label="Title" required>
@@ -56,7 +90,13 @@
         <AppSectionHeader title="Sessions" eyebrow="Latest first" compact />
         <AppLoadingState v-if="loading" label="Loading review sessions" compact />
         <AppErrorState v-else-if="errorMessage" title="Reviews unavailable" :description="errorMessage" retry-label="Retry" @retry="loadSessions" />
-        <AppEmptyState v-else-if="!sessions.length" title="No review sessions yet" description="Create a session or generate one from source-backed book/concept/project records." compact />
+        <AppEmptyState v-else-if="!sessions.length" title="No review sessions yet" description="Create a session or generate one from source-backed book/concept/project records." compact>
+          <template #actions>
+            <RouterLink to="/help/review-session" custom v-slot="{ navigate }">
+              <AppButton variant="secondary" @click="navigate">Learn review sessions</AppButton>
+            </RouterLink>
+          </template>
+        </AppEmptyState>
         <div v-else class="session-list">
           <RouterLink v-for="session in sessions" :key="session.id" :to="{ name: 'review-detail', params: { id: session.id } }" class="session-card">
             <div>
@@ -73,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RouterLink, useRouter } from 'vue-router'
 import { createReviewSession, generateReviewFromBook, generateReviewFromConcept, generateReviewFromProject, getReviewSessions } from '../api/learning'
@@ -85,6 +125,8 @@ import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
 import type { ReviewSessionRecord } from '../types'
 
 const router = useRouter()
@@ -94,6 +136,38 @@ const saving = ref(false)
 const errorMessage = ref('')
 const form = reactive({ title: '', scopeType: 'GENERAL', scopeId: null as number | null })
 const generateForm = reactive({ scopeType: 'BOOK', id: null as number | null, title: '' })
+const openSessionCount = computed(() => sessions.value.filter((session) => !session.completedAt).length)
+const totalReviewItems = computed(() => sessions.value.reduce((total, session) => total + session.itemCount, 0))
+const openSession = computed(() => sessions.value.find((session) => !session.completedAt) ?? null)
+const reviewTask = computed(() => {
+  if (openSession.value) {
+    return {
+      title: `Continue ${openSession.value.title}`,
+      description: 'Finish the open review before creating another one. This keeps review focused instead of becoming another inbox.',
+      primaryLabel: 'Continue Review',
+      routeName: 'review-detail',
+      routeParams: { id: openSession.value.id },
+    }
+  }
+
+  if (sessions.value.length) {
+    return {
+      title: 'Create the next small review',
+      description: 'Generate from a book, concept, or project only when that source has real records to review.',
+      primaryLabel: 'Create Review',
+      routeName: '',
+      routeParams: {},
+    }
+  }
+
+  return {
+    title: 'Start with one small review session',
+    description: 'Create an empty session or generate one from a real book, concept, or project ID. No fake prompts are generated.',
+    primaryLabel: 'Create First Review',
+    routeName: '',
+    routeParams: {},
+  }
+})
 
 onMounted(loadSessions)
 
@@ -150,6 +224,10 @@ async function generateSession() {
   } finally {
     saving.value = false
   }
+}
+
+function scrollToReviewForm() {
+  document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 </script>
 

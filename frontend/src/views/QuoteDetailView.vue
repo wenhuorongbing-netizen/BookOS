@@ -29,10 +29,26 @@
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
           </RouterLink>
           <AppButton variant="accent" @click="applyProjectOpen = true">Apply to Project</AppButton>
+          <RouterLink v-if="guidedProjectLink" :to="guidedProjectLink" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Apply to Project Guided Flow</AppButton>
+          </RouterLink>
+          <AppButton v-else variant="secondary" disabled title="Create a project before starting the guided flow.">
+            Apply to Project Guided Flow
+          </AppButton>
           <AppButton variant="primary" @click="quoteDialogOpen = true">Edit</AppButton>
           <AppButton variant="text" @click="archiveCurrentQuote">Archive</AppButton>
         </template>
       </AppSectionHeader>
+
+      <DetailNextStepCard
+        title="Apply this quote to a real project"
+        description="Quotes are most useful when they become a design rationale, project application, or source-linked discussion instead of staying as isolated highlights."
+        primary-label="Apply to Project"
+        secondary-label="Open Source"
+        :loop="['Quote', 'Source reference', 'Project application', 'Design action']"
+        @primary="applyProjectOpen = true"
+        @secondary="openSource"
+      />
 
       <section class="quote-detail-grid" aria-label="Quote detail and source">
         <AppCard class="quote-main" as="article">
@@ -101,6 +117,12 @@
         </AppCard>
       </section>
 
+      <UseCaseSuggestionPanel
+        title="Use this quote in a workflow"
+        description="Quotes are most useful when you reopen their source, apply them to projects, or start a focused discussion."
+        :slugs="quoteUseCaseSlugs"
+      />
+
       <BacklinksSection
         entity-type="QUOTE"
         :entity-id="quote.id"
@@ -135,6 +157,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getBooks } from '../api/books'
+import { getProjects } from '../api/projects'
 import { archiveQuote, getQuote, updateQuote } from '../api/quotes'
 import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import QuoteFormDialog from '../components/quotes/QuoteFormDialog.vue'
@@ -146,9 +169,11 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
-import type { BookRecord, QuotePayload, QuoteRecord } from '../types'
+import type { BookRecord, GameProjectRecord, QuotePayload, QuoteRecord } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -156,12 +181,18 @@ const rightRail = useRightRailStore()
 const { openSource: openSourceDrawer } = useOpenSource()
 
 const books = ref<BookRecord[]>([])
+const projects = ref<GameProjectRecord[]>([])
 const quote = ref<QuoteRecord | null>(null)
 const loading = ref(false)
 const savingQuote = ref(false)
 const errorMessage = ref('')
 const quoteDialogOpen = ref(false)
 const applyProjectOpen = ref(false)
+const quoteUseCaseSlugs = [
+  'open-source-from-quote-or-action',
+  'apply-quote-to-game-project',
+  'source-linked-forum-discussion',
+]
 
 const forumThreadLink = computed(() => {
   if (!quote.value) return { name: 'forum-new' }
@@ -176,6 +207,18 @@ const forumThreadLink = computed(() => {
     },
   }
 })
+const guidedProjectLink = computed(() => {
+  if (!quote.value || !projects.value.length) return null
+  return {
+    name: 'project-apply-knowledge-wizard',
+    params: { id: projects.value[0].id },
+    query: {
+      sourceType: 'QUOTE',
+      sourceId: String(quote.value.id),
+      sourceReferenceId: quote.value.sourceReference ? String(quote.value.sourceReference.id) : undefined,
+    },
+  }
+})
 
 onMounted(loadQuote)
 
@@ -183,9 +226,10 @@ async function loadQuote() {
   loading.value = true
   errorMessage.value = ''
   try {
-    const [quoteResult, booksResult] = await Promise.all([getQuote(String(route.params.id)), getBooks()])
+    const [quoteResult, booksResult, projectResult] = await Promise.all([getQuote(String(route.params.id)), getBooks(), getProjects()])
     quote.value = quoteResult
     books.value = booksResult
+    projects.value = projectResult
     rightRail.setSourceFromQuote(quoteResult, booksResult.find((book) => book.id === quoteResult.bookId))
   } catch {
     quote.value = null

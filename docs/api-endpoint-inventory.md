@@ -15,12 +15,28 @@ Authentication:
 Users:
 
 - `GET /api/users/me/profile`
+- `PUT /api/users/me/onboarding`
 - `GET /api/users`
 
 Health:
 
 - `GET /api/health`
 - `GET /actuator/health`
+
+Demo Workspace:
+
+- `GET /api/demo/status`
+- `POST /api/demo/start`
+- `POST /api/demo/reset`
+- `DELETE /api/demo`
+
+Demo endpoint rules:
+
+- Demo endpoints require authentication and are scoped to the current user.
+- Demo records are tracked in `demo_records` and clearly labeled as demo.
+- Demo content is original BookOS sample material only.
+- Demo pages are not invented; unknown page values stay `null`.
+- Normal analytics exclude demo records unless `includeDemo=true`.
 
 Books and user library:
 
@@ -151,6 +167,7 @@ Learning-system caveats:
 
 - Analytics responses are computed on read from persisted records; there is no fake analytics seed or snapshot table.
 - Empty accounts return zero counts and empty arrays.
+- Demo Workspace records are excluded from analytics by default and included only with `includeDemo=true`.
 - Review generation only creates items from records the user can access.
 - Daily reflections can update mastery for source-backed daily sentence or prompt targets; they do not invent mastery scores from fake data.
 

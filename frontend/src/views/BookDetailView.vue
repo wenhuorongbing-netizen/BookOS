@@ -17,6 +17,7 @@
   <div v-else-if="book" class="page-shell">
     <BookContextHeader>
       <template #actions>
+        <HelpTooltip topic="source-reference" placement="left" />
         <RouterLink :to="{ name: 'book-notes', params: { bookId: book.id } }" custom v-slot="{ navigate }">
           <AppButton variant="primary" @click="navigate">Open Notes</AppButton>
         </RouterLink>
@@ -41,6 +42,23 @@
       :rating="rating"
       :favorite-loading="favoriteLoading"
       @toggle-favorite="handleFavoriteToggle"
+    />
+    <DetailNextStepCard
+      :title="bookNextStep.title"
+      :description="bookNextStep.description"
+      :primary-label="bookNextStep.primaryLabel"
+      :primary-to="bookNextStep.primaryTo"
+      :primary-loading="bookNextStep.primaryLoading"
+      :secondary-label="bookNextStep.secondaryLabel"
+      :secondary-to="bookNextStep.secondaryTo"
+      :loop="bookWorkflowLoop"
+      @primary="handleBookNextStep"
+      @secondary="createBookReview"
+    />
+    <UseCaseSuggestionPanel
+      title="Start a book workflow"
+      description="Use this book as the source context for capture, conversion, concepts, or project application."
+      :slugs="bookUseCaseSlugs"
     />
     <AppCard class="reading-session-panel" as="section">
       <div class="detail-panel__heading">
@@ -98,7 +116,9 @@
       @open-concept="handleOpenConcept"
       @open-lens="handleOpenLens"
     />
-    <BookCaptureSection :book="book" />
+    <div id="book-quick-capture">
+      <BookCaptureSection :book="book" />
+    </div>
 
     <section class="detail-grid" aria-label="Book metadata and reading controls">
       <AppCard as="article" class="detail-panel">
@@ -196,7 +216,7 @@
 
 <script setup lang="ts">
 import axios from 'axios'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { addBookToLibrary, getBook } from '../api/books'
@@ -215,6 +235,7 @@ import BookCaptureSection from '../components/book-detail/BookCaptureSection.vue
 import BookHero from '../components/book-detail/BookHero.vue'
 import BookInsightCards from '../components/book-detail/BookInsightCards.vue'
 import BookKnowledgeSection from '../components/book-detail/BookKnowledgeSection.vue'
+import HelpTooltip from '../components/help/HelpTooltip.vue'
 import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import BookProgressBar from '../components/BookProgressBar.vue'
 import BookRating from '../components/BookRating.vue'
@@ -225,6 +246,8 @@ import AppCard from '../components/ui/AppCard.vue'
 import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
+import UseCaseSuggestionPanel from '../components/use-case/UseCaseSuggestionPanel.vue'
+import DetailNextStepCard from '../components/workflow/DetailNextStepCard.vue'
 import { useOpenSource } from '../composables/useOpenSource'
 import { useRightRailStore } from '../stores/rightRail'
 import type {
@@ -248,6 +271,13 @@ const route = useRoute()
 const router = useRouter()
 const rightRail = useRightRailStore()
 const { openSource } = useOpenSource()
+const bookUseCaseSlugs = [
+  'capture-idea-while-reading',
+  'capture-to-quote',
+  'capture-to-action-item',
+  'review-concept-marker',
+]
+const bookWorkflowLoop = ['Book source', 'Quick capture', 'Parsed knowledge', 'Project action']
 const book = ref<BookRecord | null>(null)
 const status = ref<ReadingStatus>('BACKLOG')
 const progress = ref(0)
@@ -272,6 +302,66 @@ const readingEndPage = ref<number | null>(null)
 const readingMinutes = ref<number | null>(null)
 const readingReflection = ref('')
 const readingBusy = ref(false)
+const bookNextStep = computed(() => {
+  const currentBook = book.value
+  if (!currentBook) {
+    return {
+      title: 'Open a book to start a workflow',
+      description: 'Book detail workflows appear after the book record loads.',
+      primaryLabel: 'Open Library',
+      primaryTo: { name: 'my-library' },
+      primaryLoading: false,
+      secondaryLabel: null,
+      secondaryTo: null,
+    }
+  }
+
+  if (!currentBook.inLibrary) {
+    return {
+      title: 'Add this book to start tracking it',
+      description: 'Library state unlocks reading progress, rating, sessions, captures, and source-backed review for this book.',
+      primaryLabel: 'Add to Library',
+      primaryTo: null,
+      primaryLoading: false,
+      secondaryLabel: 'Open Notes',
+      secondaryTo: { name: 'book-notes', params: { bookId: currentBook.id } },
+    }
+  }
+
+  if (!currentBook.capturesCount && !currentBook.notesCount) {
+    return {
+      title: 'Capture the first source-backed idea',
+      description: 'Start with one raw thought, quote, or page note. BookOS will keep the book context and parsed metadata visible.',
+      primaryLabel: 'Capture a Thought',
+      primaryTo: { name: 'book-detail', params: { id: currentBook.id }, hash: '#book-quick-capture' },
+      primaryLoading: false,
+      secondaryLabel: 'Open Notes',
+      secondaryTo: { name: 'book-notes', params: { bookId: currentBook.id } },
+    }
+  }
+
+  if ((currentBook.actionItemsCount ?? 0) > 0) {
+    return {
+      title: 'Act on the knowledge extracted from this book',
+      description: 'Review the source-backed action items from this book and turn one into completed design work.',
+      primaryLabel: 'Open Action Items',
+      primaryTo: { name: 'action-items', query: { bookId: String(currentBook.id) } },
+      primaryLoading: false,
+      secondaryLabel: 'Create Review',
+      secondaryTo: null,
+    }
+  }
+
+  return {
+    title: 'Review this book before adding more modules',
+    description: 'Create a source-backed review session from the existing notes, quotes, and captures before moving into advanced graph work.',
+    primaryLabel: 'Create Review',
+    primaryTo: null,
+    primaryLoading: readingBusy.value,
+    secondaryLabel: 'Capture a Thought',
+    secondaryTo: { name: 'book-detail', params: { id: currentBook.id }, hash: '#book-quick-capture' },
+  }
+})
 
 onMounted(loadBook)
 onUnmounted(() => {
@@ -520,6 +610,15 @@ async function handleAddToLibrary() {
   progress.value = userBook.progressPercent
   rating.value = userBook.rating ?? 0
   ElMessage.success('Book added to your library.')
+}
+
+function handleBookNextStep() {
+  if (!book.value?.inLibrary) {
+    void handleAddToLibrary()
+    return
+  }
+
+  void createBookReview()
 }
 
 async function handleStatusUpdate(value: ReadingStatus) {

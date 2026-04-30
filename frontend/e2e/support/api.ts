@@ -9,6 +9,10 @@ export interface AuthPayload {
     email: string
     displayName: string
     role: 'ADMIN' | 'MODERATOR' | 'USER'
+    onboardingCompleted: boolean
+    primaryUseCase: string | null
+    startingMode: string | null
+    preferredDashboardMode: string | null
   }
 }
 
@@ -31,9 +35,13 @@ export async function apiPut<T>(request: APIRequestContext, path: string, token:
   return apiFetch<T>(request, 'PUT', path, token, data)
 }
 
+export async function apiDelete<T>(request: APIRequestContext, path: string, token: string) {
+  return apiFetch<T>(request, 'DELETE', path, token)
+}
+
 async function apiFetch<T>(
   request: APIRequestContext,
-  method: 'GET' | 'POST' | 'PUT',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
   token: string | null,
   data?: unknown,
