@@ -50,6 +50,8 @@ AI safety rules:
 - AI suggestions are drafts only.
 - Accepting an AI suggestion records the acceptance and does not overwrite notes, quotes, concepts, action items, projects, or forum content automatically.
 - Source references used as AI input must be recorded.
+- Structured provider output must be valid JSON whose `type` matches the requested suggestion task.
+- Detailed provider safety rules are documented in [ai-safety.md](ai-safety.md).
 
 ## Frontend
 

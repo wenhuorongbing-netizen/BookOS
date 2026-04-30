@@ -354,6 +354,7 @@ AI provider notes:
 - `AI_PROVIDER=openai-compatible` requires `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_API_KEY`, and `OPENAI_COMPATIBLE_MODEL`.
 - `GET /api/ai/status` reports provider availability without exposing secrets.
 - Provider output is validated JSON and remains an `AISuggestion` draft until the user accepts, edits, or rejects it.
+- Detailed provider modes, draft-only rules, JSON validation, and secret-handling requirements are documented in `docs/ai-safety.md`.
 
 Admin ontology import:
 
@@ -382,3 +383,4 @@ Additional database migration details are documented in `docs/database-migration
 Release candidate guidance is documented in `docs/mvp-release-candidate.md`.
 The complete endpoint inventory is documented in `docs/api-endpoint-inventory.md`.
 The current data model overview is documented in `docs/data-model-overview.md`.
+AI provider safety rules are documented in `docs/ai-safety.md`.

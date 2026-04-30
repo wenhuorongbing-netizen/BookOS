@@ -53,6 +53,9 @@ public class AISuggestionValidator {
         }
         requireText(root, "provider", 80);
         requireText(root, "type", 80);
+        if (!type.name().equals(root.path("type").asText())) {
+            throw new IllegalArgumentException("AI draft JSON type must match the requested suggestion type.");
+        }
 
         switch (type) {
             case NOTE_SUMMARY -> requireText(root, "summary", 3000);

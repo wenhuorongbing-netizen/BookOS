@@ -27,6 +27,7 @@ Current migrations:
 - `V6__project_forum_links.sql`: adds project-linked forum context and source-link support for project discussions.
 - `V7__learning_analytics_review_mastery.sql`: adds reading sessions, review sessions/items, knowledge mastery, and analytics support tables.
 - `V8__entity_link_curation_metadata.sql`: adds curation metadata for entity links, including user/system provenance and curator notes.
+- `V9__expand_ai_suggestion_types.sql`: expands AI interaction and suggestion enums to cover all implemented draft-only suggestion tasks.
 
 The seed migration does not include copyrighted book passages. Unknown source pages must remain `null`; source confidence must be explicit when source-backed knowledge is added later.
 
@@ -89,7 +90,7 @@ The tests still execute the same Flyway migration files. Hibernate schema valida
 
 ## Adding Future Migrations
 
-1. Add a new migration with the next integer version, for example `V9__add_release_audit_log.sql`.
+1. Add a new migration with the next integer version, for example `V10__add_release_audit_log.sql`.
 2. Keep migration names descriptive and lowercase with underscores.
 3. Do not edit already-shared migration files.
 4. Add indexes and foreign keys explicitly.

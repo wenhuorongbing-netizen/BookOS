@@ -451,6 +451,33 @@ class SearchGraphAIIntegrationTest {
                 .andExpect(jsonPath("$.data.status").value("REJECTED"));
     }
 
+    @Test
+    void allAISuggestionEndpointsCreateValidatedDraftsWithSourceReferences() throws Exception {
+        String token = register("ai-endpoints-%s@bookos.local".formatted(UUID.randomUUID()), "AI Endpoint Owner");
+        Long bookId = createBookAndAddToLibrary(token, "AI Endpoint Book " + UUID.randomUUID());
+        JsonNode capture = createCapture(token, bookId, "\uD83D\uDCA1 p.28 AI endpoint source context for draft-only suggestions.");
+        Long sourceReferenceId = capture.path("sourceReferences").get(0).path("id").asLong();
+
+        assertAISuggestionDraft(token, "/api/ai/suggestions/note-summary", "NOTE_SUMMARY", bookId, sourceReferenceId);
+        assertAISuggestionDraft(token, "/api/ai/suggestions/extract-actions", "EXTRACT_ACTIONS", bookId, sourceReferenceId);
+        assertAISuggestionDraft(token, "/api/ai/suggestions/extract-concepts", "EXTRACT_CONCEPTS", bookId, sourceReferenceId);
+        assertAISuggestionDraft(token, "/api/ai/suggestions/design-lenses", "SUGGEST_DESIGN_LENSES", bookId, sourceReferenceId);
+        assertAISuggestionDraft(token, "/api/ai/suggestions/project-applications", "SUGGEST_PROJECT_APPLICATIONS", bookId, sourceReferenceId);
+        assertAISuggestionDraft(token, "/api/ai/suggestions/forum-thread", "FORUM_THREAD_DRAFT", bookId, sourceReferenceId);
+
+        JsonNode suggestions = objectMapper.readTree(mockMvc.perform(get("/api/ai/suggestions")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).path("data");
+
+        assertThat(StreamSupport.stream(suggestions.spliterator(), false)
+                        .filter(node -> node.path("sourceReferenceId").asLong() == sourceReferenceId)
+                        .count())
+                .isGreaterThanOrEqualTo(6);
+    }
+
     private String extractSearchNeedle(JsonNode node, String unique) {
         String title = node.path("title").asText("");
         String excerpt = node.path("excerpt").asText("");
@@ -482,6 +509,35 @@ class SearchGraphAIIntegrationTest {
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(response).path("data").path("targetId").asLong();
+    }
+
+    private void assertAISuggestionDraft(
+            String token,
+            String path,
+            String expectedType,
+            Long bookId,
+            Long sourceReferenceId) throws Exception {
+        String response = mockMvc.perform(post(path)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bookId": %d,
+                                  "sourceReferenceId": %d
+                                }
+                                """.formatted(bookId, sourceReferenceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
+                .andExpect(jsonPath("$.data.providerName").value("MockAIProvider"))
+                .andExpect(jsonPath("$.data.suggestionType").value(expectedType))
+                .andExpect(jsonPath("$.data.sourceReferenceId").value(sourceReferenceId))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode draftJson = objectMapper.readTree(objectMapper.readTree(response).path("data").path("draftJson").asText());
+        assertThat(draftJson.path("provider").asText()).isEqualTo("MockAIProvider");
+        assertThat(draftJson.path("type").asText()).isEqualTo(expectedType);
     }
 
     private Long createBookAndAddToLibrary(String token, String title) throws Exception {

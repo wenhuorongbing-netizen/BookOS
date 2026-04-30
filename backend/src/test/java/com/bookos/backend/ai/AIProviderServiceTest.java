@@ -42,6 +42,40 @@ class AIProviderServiceTest {
     }
 
     @Test
+    void validatorRejectsWrongSuggestionTypeAndOverwriteTargets() {
+        AISuggestionValidator validator = new AISuggestionValidator(objectMapper);
+
+        assertThatThrownBy(() -> validator.validate(
+                        AISuggestionType.NOTE_SUMMARY,
+                        new AIDraft("Draft", """
+                                {
+                                  "provider": "MockAIProvider",
+                                  "type": "EXTRACT_CONCEPTS",
+                                  "summary": "Wrong type"
+                                }
+                                """),
+                        null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("type must match");
+
+        assertThatThrownBy(() -> validator.validate(
+                        AISuggestionType.NOTE_SUMMARY,
+                        new AIDraft("Draft", """
+                                {
+                                  "provider": "MockAIProvider",
+                                  "type": "NOTE_SUMMARY",
+                                  "summary": "Unsafe overwrite request",
+                                  "nested": {
+                                    "targetEntityId": 99
+                                  }
+                                }
+                                """),
+                        null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("overwrite");
+    }
+
+    @Test
     void openAICompatibleProviderUsesMockedServerAndReturnsJsonDraft() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/chat/completions", exchange -> {
