@@ -43,3 +43,19 @@ id_ed25519
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Generic dependency/build outputs
+node_modules/
+dist/
+build/
+target/
+
+# Codex local state and migration artifacts
+~/.codex/
+.codex-transfer/
+codex-app-transfer-*
+codex-conversations-*
+codex-app-conversations-*
+*.tgz
+*.tgz.enc
+*.zip.enc

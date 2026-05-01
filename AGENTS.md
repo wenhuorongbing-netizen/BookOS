@@ -147,3 +147,10 @@ git status -sb
 ```
 
 If a command fails, document the exact failure and do not claim completion.
+
+## Codex Migration Notes
+
+- Keep local Codex app state out of the project branch: `.codex/`, `.codex-transfer/`, `codex-app-transfer-*`, `codex-conversations-*`, `codex-app-conversations-*`, `*.tgz`, `*.tgz.enc`, `*.zip`, and `*.zip.enc` must not be committed to `main`.
+- The only allowed place for an encrypted Codex conversation archive is the temporary branch `codex-conversation-transfer`.
+- Never commit or package `auth.json`, cookies, system credentials, SSH keys, API keys, tokens, passwords, private keys, logs, caches, or raw unencrypted Codex archives.
+- Before pushing migration-related changes, run `git status -sb`, `git diff --stat`, and a tracked-file sensitive filename scan.
