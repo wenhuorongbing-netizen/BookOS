@@ -154,3 +154,58 @@ If a command fails, document the exact failure and do not claim completion.
 - The only allowed place for an encrypted Codex conversation archive is the temporary branch `codex-conversation-transfer`.
 - Never commit or package `auth.json`, cookies, system credentials, SSH keys, API keys, tokens, passwords, private keys, logs, caches, or raw unencrypted Codex archives.
 - Before pushing migration-related changes, run `git status -sb`, `git diff --stat`, and a tracked-file sensitive filename scan.
+
+## Codex Migration Safety Rules
+
+Project: BookOS
+
+### Project Structure
+
+- Inspect the repository root, README, package/build files, and docs/ before making changes.
+- Preserve existing module boundaries and project-specific conventions.
+
+### Install Dependencies
+
+~~~~powershell
+cd frontend; npm ci
+cd backend; .\mvnw.cmd test
+~~~~
+
+### Start Commands
+
+~~~~powershell
+cd frontend; npm run dev
+cd backend; .\mvnw.cmd spring-boot:run
+~~~~
+
+### Test Commands
+
+~~~~powershell
+cd frontend; npm run e2e
+cd backend; .\mvnw.cmd test
+~~~~
+
+### Lint / Typecheck Commands
+
+~~~~powershell
+cd frontend; npm run typecheck
+cd frontend; npm run build
+~~~~
+
+### Codex Rules
+
+- Do not commit .env, .env.*, *.local, secrets/, credentials/, private keys, tokens, passwords, local databases, migration archives, or Codex local state.
+- Do not commit 
+ode_modules/, virtual environments, caches, build outputs, coverage reports, logs, or archive files.
+- Do not delete or rewrite user local files unless explicitly asked.
+- Prefer small, focused changes and run the smallest relevant verification before finishing.
+- If verification cannot run, document the exact reason.
+
+### Before Finishing
+
+~~~~powershell
+git status -sb
+git diff --check
+cd frontend; npm run e2e
+cd backend; .\mvnw.cmd test
+~~~~

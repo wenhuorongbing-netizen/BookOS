@@ -59,3 +59,24 @@ codex-app-conversations-*
 *.tgz
 *.tgz.enc
 *.zip.enc
+
+# Codex migration safety ignores
+.env
+.env.*
+*.env
+*.local.*
+config.local.*
+secrets/
+secret/
+credentials/
+credential/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.next/
+.nuxt/
+coverage/
+codex-migration-*
