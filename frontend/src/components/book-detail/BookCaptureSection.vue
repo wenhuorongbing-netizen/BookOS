@@ -11,7 +11,7 @@
           <HelpTooltip topic="quick-capture" placement="left" />
           <AppBadge variant="primary" size="sm">{{ book.title }}</AppBadge>
           <RouterLink :to="{ name: 'capture-inbox', query: { bookId: String(book.id) } }" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Open Inbox</AppButton>
+            <AppButton variant="secondary" @click="navigate">Process Captures</AppButton>
           </RouterLink>
         </div>
       </div>
@@ -29,7 +29,7 @@
             <p>Examples only fill the input. Nothing is saved until you press Capture.</p>
           </div>
           <RouterLink to="/captures/inbox" custom v-slot="{ navigate }">
-            <AppButton variant="ghost" @click="navigate">Review inbox rules</AppButton>
+            <AppButton variant="ghost" @click="navigate">Review processing rules</AppButton>
           </RouterLink>
         </div>
         <div class="capture-guide__examples" aria-label="One-click capture examples">
@@ -203,7 +203,7 @@
             Review Concept
           </AppButton>
           <RouterLink :to="{ name: 'capture-inbox', query: { bookId: String(book.id) } }" custom v-slot="{ navigate }">
-            <AppButton variant="ghost" @click="navigate">Open Inbox</AppButton>
+            <AppButton variant="ghost" @click="navigate">Process Captures</AppButton>
           </RouterLink>
         </div>
       </div>
@@ -748,7 +748,7 @@ function formatType(type: NoteBlockType) {
 function pageLabel(pageStart: number | null, pageEnd: number | null) {
   if (pageStart && pageEnd) return `p.${pageStart}-${pageEnd}`
   if (pageStart) return `p.${pageStart}`
-  return 'No page'
+  return 'Page unknown'
 }
 
 function previewRawText() {

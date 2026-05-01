@@ -5,7 +5,7 @@
         <p class="eyebrow">Demo Workspace</p>
         <h1 id="demo-title">Practice BookOS without polluting your real knowledge base</h1>
         <p>
-          Demo mode creates clearly labeled, original sample records you can open, convert, search, graph, reset, or delete.
+          Demo mode creates clearly labeled, original sample records you can open, convert, search, inspect in the Knowledge Graph, reset, or delete.
           Unknown pages stay unknown and demo analytics are excluded by default.
         </p>
       </div>
@@ -144,7 +144,7 @@
             <AppButton variant="secondary" @click="navigate">Open demo project</AppButton>
           </RouterLink>
           <RouterLink v-if="status.projectId" :to="{ name: 'graph-project', params: { projectId: status.projectId } }" custom v-slot="{ navigate }">
-            <AppButton variant="ghost" @click="navigate">Open project graph</AppButton>
+            <AppButton variant="ghost" @click="navigate">Open project Knowledge Graph</AppButton>
           </RouterLink>
           <RouterLink v-if="status.forumThreadId" :to="{ name: 'forum-thread', params: { id: status.forumThreadId } }" custom v-slot="{ navigate }">
             <AppButton variant="ghost" @click="navigate">Open demo discussion</AppButton>
@@ -219,7 +219,7 @@ const tutorialCards = [
   },
   {
     kicker: 'Demo',
-    title: 'Explore Graph',
+    title: 'Explore Knowledge Graph',
     description: 'Inspect only real demo relationships between the demo book, concepts, project, and discussion.',
     route: '/use-cases/inspect-knowledge-graph',
     time: '3-6 min',

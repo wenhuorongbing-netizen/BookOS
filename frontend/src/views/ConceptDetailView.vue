@@ -16,7 +16,7 @@
           </RouterLink>
           <AppButton variant="ghost" :disabled="!primarySource" @click="openPrimarySource">Open Source</AppButton>
           <RouterLink :to="{ name: 'graph-concept', params: { conceptId: concept.id } }" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">Knowledge Graph</AppButton>
+            <AppButton variant="secondary" @click="navigate">Scoped Knowledge Graph</AppButton>
           </RouterLink>
           <RouterLink :to="forumThreadLink" custom v-slot="{ navigate }">
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
@@ -33,14 +33,14 @@
       </AppSectionHeader>
 
       <DetailNextStepCard
-        title="Apply or review this concept"
-        description="A reviewed concept should either become a project application or a source-backed review session so it stays useful beyond the original note."
-        primary-label="Apply to Project"
-        secondary-label="Create Review"
-        :secondary-loading="reviewBusy"
-        :loop="['Concept', 'Source evidence', 'Project application', 'Review']"
-        @primary="applyProjectOpen = true"
-        @secondary="createConceptReview"
+        title="Review or inspect this concept"
+        description="Researcher Mode starts from one reviewed concept: verify the source, start a review session, then open the scoped Knowledge Graph only when context exists."
+        primary-label="Create Review"
+        secondary-label="Scoped Knowledge Graph"
+        :primary-loading="reviewBusy"
+        :secondary-to="{ name: 'graph-concept', params: { conceptId: concept.id } }"
+        :loop="['Concept', 'Source evidence', 'Review', 'Scoped graph']"
+        @primary="createConceptReview"
       />
 
       <section class="concept-detail-grid">

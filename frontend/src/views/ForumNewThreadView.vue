@@ -24,6 +24,18 @@
           </div>
           <AppBadge v-for="item in sourceContextSummary" :key="item" variant="primary" size="sm">{{ item }}</AppBadge>
         </section>
+        <section v-else class="context-card context-card--empty" aria-label="No source context attached">
+          <div>
+            <strong>No source context attached yet</strong>
+            <p>
+              Community Mode works best when a thread starts from a book, quote, concept, project, or source link.
+              You can still draft a thread here, but source-linked discussions are easier to rediscover later.
+            </p>
+          </div>
+          <RouterLink to="/use-cases/community-source-discussion" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Learn Source-Linked Flow</AppButton>
+          </RouterLink>
+        </section>
 
         <div class="form-grid">
         <label class="form-field">
@@ -308,12 +320,18 @@ function numberQuery(key: string) {
 .context-card {
   padding: var(--space-4);
   display: flex;
+  justify-content: space-between;
   gap: var(--space-2);
   align-items: center;
   flex-wrap: wrap;
   border: 1px solid color-mix(in srgb, var(--bookos-primary) 24%, var(--bookos-border));
   border-radius: var(--radius-lg);
   background: var(--bookos-primary-soft);
+}
+
+.context-card--empty {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--bookos-surface) 84%, var(--bookos-accent-soft));
 }
 
 .context-card p {

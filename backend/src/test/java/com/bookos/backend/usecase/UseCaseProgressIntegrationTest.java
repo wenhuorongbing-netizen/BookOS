@@ -60,26 +60,80 @@ class UseCaseProgressIntegrationTest {
     void automaticDetectionUsesRealOwnedData() throws Exception {
         String token = register("auto");
 
-        String bookBody = """
-                {
-                  "title": "Use Case Detection Book",
-                  "authors": ["BookOS QA"],
-                  "visibility": "PRIVATE"
-                }
-                """;
-
-        mockMvc.perform(post("/api/books")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(bookBody))
-                .andExpect(status().isCreated());
+        createBook(token, "Use Case Detection Book");
 
         mockMvc.perform(get("/api/use-cases/progress/first-15-minutes")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("NOT_STARTED"))
                 .andExpect(jsonPath("$.data.automaticCompletedStepKeys[0]").value("add-book"))
-                .andExpect(jsonPath("$.data.effectiveCompletedStepKeys[0]").value("add-book"));
+                .andExpect(jsonPath("$.data.effectiveCompletedStepKeys[0]").value("add-book"))
+                .andExpect(jsonPath("$.data.stepVerification['add-book'].state").value("auto"))
+                .andExpect(jsonPath("$.data.stepVerification['capture'].state").value("blocked"));
+    }
+
+    @Test
+    void readerChecklistAutoDetectsLibraryStatusAndProgress() throws Exception {
+        String token = register("reader-auto");
+        long bookId = createBook(token, "Reader Detection Book");
+        long userBookId = addToLibrary(token, bookId);
+
+        mockMvc.perform(get("/api/use-cases/progress/track-book-start-to-finish")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stepVerification['create-book'].state").value("auto"))
+                .andExpect(jsonPath("$.data.stepVerification['add-library'].state").value("auto"))
+                .andExpect(jsonPath("$.data.stepVerification['set-reading'].state").value("blocked"))
+                .andExpect(jsonPath("$.data.stepVerification['update-progress'].state").value("blocked"));
+
+        mockMvc.perform(put("/api/user-books/" + userBookId + "/status")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CURRENTLY_READING\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/user-books/" + userBookId + "/progress")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"progressPercent\": 25}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/use-cases/progress/reader-mode-track-book")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.automaticCompletedStepKeys.length()").value(4))
+                .andExpect(jsonPath("$.data.stepVerification['set-reading'].state").value("auto"))
+                .andExpect(jsonPath("$.data.stepVerification['update-progress'].state").value("auto"));
+    }
+
+    @Test
+    void autoDetectionCoversCaptureQuoteAndProjectApplicationSteps() throws Exception {
+        String token = register("workflow-auto");
+        long bookId = createBook(token, "Workflow Detection Book");
+        addToLibrary(token, bookId);
+        long captureId = createCapture(token, bookId, "Quote marker: Source-backed original thought #test [[Loop]]");
+
+        mockMvc.perform(get("/api/use-cases/progress/first-15-minutes")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stepVerification['capture'].state").value("auto"))
+                .andExpect(jsonPath("$.data.stepVerification['process'].state").value("blocked"));
+
+        mockMvc.perform(post("/api/captures/" + captureId + "/convert")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetType\": \"QUOTE\"}"))
+                .andExpect(status().isOk());
+
+        long projectId = createProject(token, "Use Case Detection Project");
+        createProjectApplication(token, projectId);
+
+        mockMvc.perform(get("/api/use-cases/progress/apply-quote-to-game-project")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stepVerification['quote'].state").value("auto"))
+                .andExpect(jsonPath("$.data.stepVerification['project'].state").value("auto"))
+                .andExpect(jsonPath("$.data.stepVerification['project-application'].state").value("auto"));
     }
 
     @Test
@@ -111,6 +165,26 @@ class UseCaseProgressIntegrationTest {
                 .andExpect(jsonPath("$.data.automaticCompletedStepKeys").isEmpty());
     }
 
+    @Test
+    void demoWorkspaceRecordsDoNotSatisfyNormalUseCaseVerification() throws Exception {
+        String token = register("demo-excluded");
+
+        mockMvc.perform(post("/api/demo/start")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/use-cases/progress/first-15-minutes")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.automaticCompletedStepKeys").isEmpty())
+                .andExpect(jsonPath("$.data.stepVerification['add-book'].state").value("blocked"));
+
+        mockMvc.perform(get("/api/use-cases/progress/apply-quote-to-game-project")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.automaticCompletedStepKeys").isEmpty());
+    }
+
     private void recordEvent(String token, String eventType, String contextType, String contextId) throws Exception {
         String body = """
                 {
@@ -126,6 +200,102 @@ class UseCaseProgressIntegrationTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.eventType").value(eventType));
+    }
+
+    private long createBook(String token, String title) throws Exception {
+        String body = """
+                {
+                  "title": "%s",
+                  "authors": ["BookOS QA"],
+                  "visibility": "PRIVATE"
+                }
+                """.formatted(title);
+
+        String response = mockMvc.perform(post("/api/books")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private long addToLibrary(String token, long bookId) throws Exception {
+        String response = mockMvc.perform(post("/api/books/" + bookId + "/add-to-library")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "readingStatus": "BACKLOG",
+                                  "readingFormat": "PHYSICAL",
+                                  "ownershipStatus": "OWNED"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private long createCapture(String token, long bookId, String rawText) throws Exception {
+        String body = """
+                {
+                  "bookId": %d,
+                  "rawText": "%s"
+                }
+                """.formatted(bookId, rawText);
+
+        String response = mockMvc.perform(post("/api/captures")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private long createProject(String token, String title) throws Exception {
+        String body = """
+                {
+                  "title": "%s",
+                  "description": "Use case detector project",
+                  "genre": "Puzzle",
+                  "platform": "Web",
+                  "stage": "PROTOTYPE",
+                  "visibility": "PRIVATE",
+                  "progressPercent": 0
+                }
+                """.formatted(title);
+
+        String response = mockMvc.perform(post("/api/projects")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("id").asLong();
+    }
+
+    private void createProjectApplication(String token, long projectId) throws Exception {
+        mockMvc.perform(post("/api/projects/" + projectId + "/applications")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "applicationType": "PROJECT_APPLICATION",
+                                  "title": "Apply source-backed insight",
+                                  "description": "Use case detector application",
+                                  "status": "OPEN"
+                                }
+                                """))
+                .andExpect(status().isCreated());
     }
 
     private String register(String prefix) throws Exception {

@@ -94,7 +94,7 @@
               Open source
             </AppButton>
             <AppButton v-if="canOpenGraph(result)" variant="text" @click.stop="openResultGraph(result)">
-              Open graph
+              Open Knowledge Graph
             </AppButton>
           </div>
         </article>

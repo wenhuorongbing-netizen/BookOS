@@ -15,6 +15,13 @@
       </div>
     </section>
 
+    <nav class="route-shortcuts" aria-label="First loop fallback links">
+      <RouterLink to="/books/new">Add Book page</RouterLink>
+      <RouterLink to="/dashboard#capture-title">Dashboard capture</RouterLink>
+      <RouterLink to="/captures/inbox">Process Captures</RouterLink>
+      <RouterLink to="/use-cases/first-15-minutes">First 15 minutes use case</RouterLink>
+    </nav>
+
     <ol class="first-loop-progress" aria-label="First valuable loop progress">
       <li
         v-for="(step, index) in steps"
@@ -1027,7 +1034,8 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 .loop-actions,
 .capture-examples,
 .inline-meta,
-.conversion-options {
+.conversion-options,
+.route-shortcuts {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -1036,6 +1044,32 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 
 .first-loop-hero__actions {
   justify-content: flex-end;
+}
+
+.route-shortcuts {
+  padding: var(--space-3);
+  border: 1px solid var(--bookos-border);
+  border-radius: var(--radius-lg);
+  background: var(--bookos-surface);
+}
+
+.route-shortcuts a {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--bookos-border);
+  border-radius: 999px;
+  background: var(--bookos-surface-muted);
+  color: var(--bookos-primary);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.route-shortcuts a:hover,
+.route-shortcuts a:focus-visible {
+  border-color: var(--bookos-primary);
+  box-shadow: var(--focus-ring);
 }
 
 .first-loop-progress {

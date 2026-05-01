@@ -2,21 +2,28 @@ package com.bookos.backend.usecase.service;
 
 import com.bookos.backend.action.repository.ActionItemRepository;
 import com.bookos.backend.ai.repository.AISuggestionRepository;
+import com.bookos.backend.book.entity.UserBook;
 import com.bookos.backend.book.repository.BookRepository;
 import com.bookos.backend.book.repository.UserBookRepository;
+import com.bookos.backend.capture.entity.RawCapture;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.enums.CaptureStatus;
 import com.bookos.backend.common.enums.ForumThreadStatus;
+import com.bookos.backend.common.enums.ReadingStatus;
+import com.bookos.backend.demo.service.DemoWorkspaceService;
 import com.bookos.backend.forum.repository.ForumCommentRepository;
 import com.bookos.backend.forum.repository.ForumThreadRepository;
 import com.bookos.backend.knowledge.repository.ConceptRepository;
 import com.bookos.backend.knowledge.repository.KnowledgeObjectRepository;
+import com.bookos.backend.learning.repository.ReviewSessionRepository;
 import com.bookos.backend.note.repository.BookNoteRepository;
+import com.bookos.backend.project.repository.DesignDecisionRepository;
 import com.bookos.backend.project.repository.GameProjectRepository;
 import com.bookos.backend.project.repository.ProjectApplicationRepository;
 import com.bookos.backend.quote.repository.QuoteRepository;
 import com.bookos.backend.source.repository.SourceReferenceRepository;
 import com.bookos.backend.usecase.dto.UseCaseProgressResponse;
+import com.bookos.backend.usecase.dto.UseCaseStepVerificationResponse;
 import com.bookos.backend.usecase.entity.UseCaseEventType;
 import com.bookos.backend.usecase.entity.UseCaseProgressStatus;
 import com.bookos.backend.usecase.entity.UserUseCaseProgress;
@@ -28,6 +35,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,14 +52,18 @@ public class UseCaseProgressService {
     private static final Pattern SAFE_STEP_KEY = Pattern.compile("[a-zA-Z0-9_-]{1,120}");
     private static final String KEY_SEPARATOR = "\n";
 
-    private static final Map<String, Set<String>> REQUIRED_STEP_KEYS = Map.of(
-            "first-15-minutes", ordered("add-book", "capture", "process", "open-source"),
-            "track-book-start-to-finish", ordered("create-book", "add-library", "set-reading", "update-progress"),
-            "note-taker-capture-convert", ordered("capture", "convert-note", "convert-quote", "convert-action"),
-            "apply-quote-to-game-project", ordered("quote", "project", "project-application"),
-            "review-concept-marker", ordered("concept-capture", "review-concept", "open-concept"),
-            "source-linked-forum-discussion", ordered("choose-source", "create-thread", "add-comment"),
-            "advanced-mode-search-graph-export-ai", ordered("search", "graph", "export", "ai-draft"));
+    private static final Map<String, Set<String>> REQUIRED_STEP_KEYS = Map.ofEntries(
+            Map.entry("first-15-minutes", ordered("add-book", "capture", "process", "open-source")),
+            Map.entry("track-book-start-to-finish", ordered("create-book", "add-library", "set-reading", "update-progress")),
+            Map.entry("reader-mode-track-book", ordered("create-book", "add-library", "set-reading", "update-progress")),
+            Map.entry("note-taker-capture-convert", ordered("capture", "convert-note", "convert-quote", "convert-action")),
+            Map.entry("apply-quote-to-game-project", ordered("quote", "project", "project-application")),
+            Map.entry("game-designer-apply-knowledge", ordered("quote", "project", "project-application", "design-decision")),
+            Map.entry("review-concept-marker", ordered("concept-capture", "review-concept", "open-concept")),
+            Map.entry("researcher-review-concept", ordered("concept-capture", "review-concept", "open-concept", "start-review")),
+            Map.entry("source-linked-forum-discussion", ordered("choose-source", "create-thread", "add-comment")),
+            Map.entry("community-source-discussion", ordered("choose-source", "create-thread", "add-comment")),
+            Map.entry("advanced-mode-search-graph-export-ai", ordered("search", "graph", "export", "ai-draft")));
 
     private final UserService userService;
     private final UserUseCaseProgressRepository progressRepository;
@@ -67,9 +79,12 @@ public class UseCaseProgressService {
     private final SourceReferenceRepository sourceReferenceRepository;
     private final GameProjectRepository projectRepository;
     private final ProjectApplicationRepository projectApplicationRepository;
+    private final DesignDecisionRepository designDecisionRepository;
     private final ForumThreadRepository forumThreadRepository;
     private final ForumCommentRepository forumCommentRepository;
     private final AISuggestionRepository aiSuggestionRepository;
+    private final ReviewSessionRepository reviewSessionRepository;
+    private final DemoWorkspaceService demoWorkspaceService;
 
     @Transactional(readOnly = true)
     public List<UseCaseProgressResponse> list(String email) {
@@ -136,7 +151,7 @@ public class UseCaseProgressService {
         progress.setStatus(UseCaseProgressStatus.IN_PROGRESS);
 
         Set<String> effective = new LinkedHashSet<>(completed);
-        effective.addAll(automaticKeys(user.getId(), normalizedSlug));
+        effective.addAll(automaticKeys(normalizedSlug, signals(user.getId())));
         if (isComplete(normalizedSlug, effective)) {
             progress.setStatus(UseCaseProgressStatus.COMPLETED);
             if (progress.getCompletedAt() == null) {
@@ -160,9 +175,11 @@ public class UseCaseProgressService {
 
     private UseCaseProgressResponse toResponse(Long userId, String slug, UserUseCaseProgress progress) {
         Set<String> completed = progress == null ? new LinkedHashSet<>() : parseKeys(progress.getCompletedStepKeys());
-        Set<String> automatic = automaticKeys(userId, slug);
+        UseCaseSignals signals = signals(userId);
+        Set<String> automatic = automaticKeys(slug, signals);
         Set<String> effective = new LinkedHashSet<>(completed);
         effective.addAll(automatic);
+        Map<String, UseCaseStepVerificationResponse> stepVerification = stepVerification(slug, completed, automatic, signals);
         UseCaseProgressStatus status = progress == null ? UseCaseProgressStatus.NOT_STARTED : progress.getStatus();
         if (progress != null && isComplete(slug, effective)) {
             status = UseCaseProgressStatus.COMPLETED;
@@ -174,13 +191,13 @@ public class UseCaseProgressService {
                 completed,
                 automatic,
                 effective,
+                stepVerification,
                 progress == null ? null : progress.getStartedAt(),
                 progress == null ? null : progress.getCompletedAt(),
                 progress == null ? null : progress.getUpdatedAt());
     }
 
-    private Set<String> automaticKeys(Long userId, String slug) {
-        UseCaseSignals signals = signals(userId);
+    private Set<String> automaticKeys(String slug, UseCaseSignals signals) {
         Set<String> keys = new LinkedHashSet<>();
         switch (slug) {
             case "first-15-minutes" -> {
@@ -189,9 +206,11 @@ public class UseCaseProgressService {
                 addIf(keys, "process", signals.hasProcessedCapture());
                 addIf(keys, "open-source", signals.hasOpenedSource());
             }
-            case "track-book-start-to-finish" -> {
+            case "track-book-start-to-finish", "reader-mode-track-book" -> {
                 addIf(keys, "create-book", signals.hasBookOrLibrary());
                 addIf(keys, "add-library", signals.hasLibraryBook());
+                addIf(keys, "set-reading", signals.hasCurrentlyReading());
+                addIf(keys, "update-progress", signals.hasReadingProgress());
             }
             case "note-taker-capture-convert" -> {
                 addIf(keys, "capture", signals.hasCapture());
@@ -199,17 +218,19 @@ public class UseCaseProgressService {
                 addIf(keys, "convert-quote", signals.hasQuote());
                 addIf(keys, "convert-action", signals.hasActionItem());
             }
-            case "apply-quote-to-game-project" -> {
+            case "apply-quote-to-game-project", "game-designer-apply-knowledge" -> {
                 addIf(keys, "quote", signals.hasQuote());
                 addIf(keys, "project", signals.hasProject());
                 addIf(keys, "project-application", signals.hasProjectApplication());
+                addIf(keys, "design-decision", signals.hasDesignDecision());
             }
-            case "review-concept-marker" -> {
+            case "review-concept-marker", "researcher-review-concept" -> {
                 addIf(keys, "concept-capture", signals.hasCapture());
                 addIf(keys, "review-concept", signals.hasConcept());
                 addIf(keys, "open-concept", signals.hasConcept());
+                addIf(keys, "start-review", signals.hasReviewSession());
             }
-            case "source-linked-forum-discussion" -> {
+            case "source-linked-forum-discussion", "community-source-discussion" -> {
                 addIf(keys, "choose-source", signals.hasSourceContext());
                 addIf(keys, "create-thread", signals.hasForumThread());
                 addIf(keys, "add-comment", signals.hasForumComment());
@@ -226,29 +247,145 @@ public class UseCaseProgressService {
         return keys;
     }
 
+    private Map<String, UseCaseStepVerificationResponse> stepVerification(
+            String slug,
+            Set<String> manualKeys,
+            Set<String> automaticKeys,
+            UseCaseSignals signals) {
+        Map<String, UseCaseStepVerificationResponse> verification = new LinkedHashMap<>();
+        for (String stepKey : REQUIRED_STEP_KEYS.getOrDefault(slug, Set.of())) {
+            verification.put(stepKey, stepVerification(slug, stepKey, manualKeys, automaticKeys, signals));
+        }
+        return verification;
+    }
+
+    private UseCaseStepVerificationResponse stepVerification(
+            String slug,
+            String stepKey,
+            Set<String> manualKeys,
+            Set<String> automaticKeys,
+            UseCaseSignals signals) {
+        if (automaticKeys.contains(stepKey)) {
+            return new UseCaseStepVerificationResponse(stepKey, "auto", true, true, false, "Verified automatically from real user-owned records or events.");
+        }
+        if (manualKeys.contains(stepKey)) {
+            return new UseCaseStepVerificationResponse(stepKey, "manual", true, false, true, "Marked complete manually by the user.");
+        }
+        StepRule rule = stepRule(slug, stepKey, signals);
+        if (!rule.available()) {
+            return new UseCaseStepVerificationResponse(stepKey, "unavailable", false, false, false, rule.message());
+        }
+        if (!rule.prerequisiteMet()) {
+            return new UseCaseStepVerificationResponse(stepKey, "missingPrerequisite", false, false, false, rule.message());
+        }
+        return new UseCaseStepVerificationResponse(stepKey, "blocked", false, false, false, rule.message());
+    }
+
+    private StepRule stepRule(String slug, String stepKey, UseCaseSignals signals) {
+        return switch (stepKey) {
+            case "add-book", "create-book" ->
+                    new StepRule(true, true, "Add or open a real non-demo book to complete this step.");
+            case "add-library" ->
+                    new StepRule(true, signals.hasBookOrLibrary(), "Add a real book to your personal library.");
+            case "set-reading" ->
+                    new StepRule(true, signals.hasLibraryBook(), "Set a non-demo library book to Currently Reading.");
+            case "update-progress" ->
+                    new StepRule(true, signals.hasLibraryBook(), "Update progress or rating on a non-demo library book.");
+            case "capture", "concept-capture" ->
+                    new StepRule(true, signals.hasBookOrLibrary(), "Save a real non-demo capture with a book selected.");
+            case "process" ->
+                    new StepRule(true, signals.hasCapture(), "Convert a capture, create a note, create a quote, create an action, or review a concept.");
+            case "convert-note" ->
+                    new StepRule(true, signals.hasCapture(), "Convert a real capture to a note or create a real note.");
+            case "convert-quote", "quote" ->
+                    new StepRule(true, signals.hasCapture() || signals.hasBookOrLibrary(), "Create a real quote or convert a capture to quote.");
+            case "convert-action" ->
+                    new StepRule(true, signals.hasCapture() || signals.hasBookOrLibrary(), "Create a real action or convert a capture to action.");
+            case "open-source" ->
+                    new StepRule(true, signals.hasSourceContext(), "Open Source from a source-backed record.");
+            case "project" ->
+                    new StepRule(true, true, "Create a real non-demo game project.");
+            case "project-application" ->
+                    new StepRule(true, signals.hasProject() && signals.hasSourceContext(), "Apply a source-backed record to a real project.");
+            case "design-decision" ->
+                    new StepRule(true, signals.hasProject(), "Create a design decision inside a real project.");
+            case "review-concept", "open-concept" ->
+                    new StepRule(true, signals.hasCapture() || signals.hasConcept(), "Review a parsed concept marker or create a real concept.");
+            case "start-review" ->
+                    new StepRule(true, signals.hasConcept(), "Start a review session from a real concept or book.");
+            case "choose-source" ->
+                    new StepRule(true, signals.hasBookOrLibrary() || signals.hasSourceContext(), "Choose a real quote, concept, source link, book, or knowledge object.");
+            case "create-thread" ->
+                    new StepRule(true, signals.hasBookOrLibrary() || signals.hasSourceContext(), "Create a real forum thread from accessible context.");
+            case "add-comment" ->
+                    new StepRule(true, signals.hasForumThread(), "Add a real comment to a forum thread.");
+            case "search" ->
+                    new StepRule(true, signals.hasAnyUserRecord(), "Use global search after creating at least one real record.");
+            case "graph" ->
+                    new StepRule(true, signals.hasSourceContext() || signals.hasProject(), "Open the graph after creating source-backed records, relationships, or project context.");
+            case "export" ->
+                    new StepRule(true, signals.hasAnyUserRecord(), "Start an export after creating at least one real record.");
+            case "ai-draft" ->
+                    new StepRule(true, signals.hasAnyUserRecord(), "Generate or review a draft assistant suggestion from real content.");
+            default ->
+                    new StepRule(false, false, "This step is manual-only because no safe automatic detector exists yet.");
+        };
+    }
+
     private UseCaseSignals signals(Long userId) {
-        long ownedBooks = bookRepository.countByOwnerId(userId);
-        long libraryBooks = userBookRepository.countByUserId(userId);
-        long captures = rawCaptureRepository.countByUserId(userId);
-        long convertedCaptures = rawCaptureRepository.countByUserIdAndStatus(userId, CaptureStatus.CONVERTED);
+        Set<Long> demoBooks = demoWorkspaceService.demoIds(userId, "BOOK");
+        Set<Long> demoUserBooks = demoWorkspaceService.demoIds(userId, "USER_BOOK");
+        Set<Long> demoCaptures = demoWorkspaceService.demoIds(userId, "RAW_CAPTURE");
+
+        long ownedBooks = subtractDemo(bookRepository.countByOwnerId(userId), demoBooks);
+        List<UserBook> realUserBooks = userBookRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .filter(userBook -> !demoUserBooks.contains(userBook.getId()))
+                .toList();
+        long libraryBooks = realUserBooks.size();
+        long currentlyReading = realUserBooks.stream()
+                .filter(userBook -> userBook.getReadingStatus() == ReadingStatus.CURRENTLY_READING)
+                .count();
+        long progressUpdated = realUserBooks.stream()
+                .filter(userBook -> (userBook.getProgressPercent() != null && userBook.getProgressPercent() > 0)
+                        || userBook.getRating() != null)
+                .count();
+
+        List<RawCapture> realCaptures = rawCaptureRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .filter(capture -> !demoCaptures.contains(capture.getId()))
+                .toList();
+        long captures = realCaptures.size();
+        long unprocessedCaptures = realCaptures.stream()
+                .filter(capture -> capture.getStatus() == CaptureStatus.INBOX)
+                .count();
+        long convertedCaptures = realCaptures.stream()
+                .filter(capture -> capture.getStatus() == CaptureStatus.CONVERTED)
+                .count();
+
         long notes = noteRepository.countByUserIdAndArchivedFalse(userId);
-        long quotes = quoteRepository.countByUserIdAndArchivedFalse(userId);
-        long actions = actionItemRepository.countByUserIdAndArchivedFalse(userId);
-        long concepts = conceptRepository.countByUserIdAndArchivedFalse(userId);
-        long knowledgeObjects = knowledgeObjectRepository.countByUserIdAndArchivedFalse(userId);
-        long sources = sourceReferenceRepository.countByUserId(userId);
-        long projects = projectRepository.countByOwnerIdAndArchivedAtIsNull(userId);
-        long applications = projectApplicationRepository.countByProjectOwnerId(userId);
-        long threads = forumThreadRepository.countByAuthorIdAndStatusNot(userId, ForumThreadStatus.HIDDEN);
-        long comments = forumCommentRepository.countByAuthorIdAndArchivedFalse(userId);
+        long quotes = subtractDemo(quoteRepository.countByUserIdAndArchivedFalse(userId), demoWorkspaceService.demoIds(userId, "QUOTE"));
+        long actions = subtractDemo(actionItemRepository.countByUserIdAndArchivedFalse(userId), demoWorkspaceService.demoIds(userId, "ACTION_ITEM"));
+        long concepts = subtractDemo(conceptRepository.countByUserIdAndArchivedFalse(userId), demoWorkspaceService.demoIds(userId, "CONCEPT"));
+        long knowledgeObjects = subtractDemo(knowledgeObjectRepository.countByUserIdAndArchivedFalse(userId), demoWorkspaceService.demoIds(userId, "KNOWLEDGE_OBJECT"));
+        long sources = subtractDemo(sourceReferenceRepository.countByUserId(userId), demoWorkspaceService.demoIds(userId, "SOURCE_REFERENCE"));
+        long projects = subtractDemo(projectRepository.countByOwnerIdAndArchivedAtIsNull(userId), demoWorkspaceService.demoIds(userId, "GAME_PROJECT"));
+        long applications = subtractDemo(projectApplicationRepository.countByProjectOwnerId(userId), demoWorkspaceService.demoIds(userId, "PROJECT_APPLICATION"));
+        long designDecisions = subtractDemo(designDecisionRepository.countByProjectOwnerId(userId), demoWorkspaceService.demoIds(userId, "DESIGN_DECISION"));
+        long threads = subtractDemo(forumThreadRepository.countByAuthorIdAndStatusNot(userId, ForumThreadStatus.HIDDEN), demoWorkspaceService.demoIds(userId, "FORUM_THREAD"));
+        long comments = subtractDemo(forumCommentRepository.countByAuthorIdAndArchivedFalse(userId), demoWorkspaceService.demoIds(userId, "FORUM_COMMENT"));
         long aiDrafts = aiSuggestionRepository.countByUserId(userId);
+        long reviewSessions = reviewSessionRepository.countByUserId(userId);
         long sourceOpenEvents = eventRepository.countByUserIdAndEventType(userId, UseCaseEventType.SOURCE_OPENED);
         long searchEvents = eventRepository.countByUserIdAndEventType(userId, UseCaseEventType.SEARCH_USED);
         long graphEvents = eventRepository.countByUserIdAndEventType(userId, UseCaseEventType.GRAPH_OPENED);
         long exportEvents = eventRepository.countByUserIdAndEventType(userId, UseCaseEventType.EXPORT_STARTED);
-        return new UseCaseSignals(ownedBooks, libraryBooks, captures, convertedCaptures, notes, quotes, actions, concepts,
-                knowledgeObjects, sources, projects, applications, threads, comments, aiDrafts, sourceOpenEvents,
-                searchEvents, graphEvents, exportEvents);
+        return new UseCaseSignals(ownedBooks, libraryBooks, currentlyReading, progressUpdated, captures, unprocessedCaptures,
+                convertedCaptures, notes, quotes, actions, concepts, knowledgeObjects, sources, projects, applications,
+                designDecisions, threads, comments, aiDrafts, reviewSessions, sourceOpenEvents, searchEvents, graphEvents,
+                exportEvents);
+    }
+
+    private static long subtractDemo(long count, Set<Long> demoIds) {
+        return Math.max(0, count - demoIds.size());
     }
 
     private boolean isComplete(String slug, Set<String> effectiveKeys) {
@@ -299,7 +436,10 @@ public class UseCaseProgressService {
     private record UseCaseSignals(
             long ownedBooks,
             long libraryBooks,
+            long currentlyReading,
+            long progressUpdated,
             long captures,
+            long unprocessedCaptures,
             long convertedCaptures,
             long notes,
             long quotes,
@@ -309,9 +449,11 @@ public class UseCaseProgressService {
             long sources,
             long projects,
             long applications,
+            long designDecisions,
             long threads,
             long comments,
             long aiDrafts,
+            long reviewSessions,
             long sourceOpenEvents,
             long searchEvents,
             long graphEvents,
@@ -325,8 +467,20 @@ public class UseCaseProgressService {
             return libraryBooks > 0;
         }
 
+        boolean hasCurrentlyReading() {
+            return currentlyReading > 0;
+        }
+
+        boolean hasReadingProgress() {
+            return progressUpdated > 0;
+        }
+
         boolean hasCapture() {
             return captures > 0;
+        }
+
+        boolean hasUnprocessedCapture() {
+            return unprocessedCaptures > 0;
         }
 
         boolean hasProcessedCapture() {
@@ -361,6 +515,10 @@ public class UseCaseProgressService {
             return applications > 0;
         }
 
+        boolean hasDesignDecision() {
+            return designDecisions > 0;
+        }
+
         boolean hasForumThread() {
             return threads > 0;
         }
@@ -371,6 +529,16 @@ public class UseCaseProgressService {
 
         boolean hasAiDraft() {
             return aiDrafts > 0;
+        }
+
+        boolean hasReviewSession() {
+            return reviewSessions > 0;
+        }
+
+        boolean hasAnyUserRecord() {
+            return hasBookOrLibrary() || hasCapture() || hasNote() || hasQuote() || hasActionItem()
+                    || hasConcept() || knowledgeObjects > 0 || sources > 0 || hasProject()
+                    || hasProjectApplication() || hasForumThread() || hasReviewSession();
         }
 
         boolean hasOpenedSource() {
@@ -389,4 +557,6 @@ public class UseCaseProgressService {
             return exportEvents > 0;
         }
     }
+
+    private record StepRule(boolean available, boolean prerequisiteMet, String message) {}
 }

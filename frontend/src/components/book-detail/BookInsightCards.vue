@@ -220,7 +220,7 @@ const prompt = computed<BookDesignPromptPreview | null>(() => {
 
 const graphDescription = computed(() => {
   const names = visibleConcepts.value.map((concept) => concept.name).join(', ')
-  return `Mini knowledge graph preview connecting ${props.book.title} to ${names}.`
+  return `Mini Knowledge Graph preview connecting ${props.book.title} to ${names}.`
 })
 
 watch(promptOpen, async (open) => {

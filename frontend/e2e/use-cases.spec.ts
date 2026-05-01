@@ -44,19 +44,29 @@ test('use-case library routes open and link to real workflows', async ({ page, r
   await expect(page.getByText('0/4')).toBeVisible()
   await page.getByRole('button', { name: 'Start checklist' }).click()
   await expect(page.getByText('In progress')).toBeVisible()
-  await page.getByRole('button', { name: 'Mark manually complete' }).click()
-  await expect(page.getByText('1/4')).toBeVisible()
+  await expect(page.getByText('Blocked').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Verify again' }).first()).toBeVisible()
+
+  await page.goto('/use-cases/capture-idea-while-reading')
+  await expect(page.getByRole('heading', { name: 'Capture an idea while reading' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start checklist' }).click()
+  await page.getByRole('button', { name: 'Mark manually complete' }).first().click()
+  await expect(page.getByText('1/3')).toBeVisible()
+  await expect(page.getByText('Manually marked')).toBeVisible()
   await page.reload()
-  await expect(page.getByText('1/4')).toBeVisible()
+  await expect(page.getByText('1/3')).toBeVisible()
   await page.getByRole('button', { name: 'Reset progress' }).click()
   await expect(page.getByText('Not started')).toBeVisible()
+
   await apiPost(request, '/use-cases/progress/events', auth.token, {
     eventType: 'SOURCE_OPENED',
     contextType: 'QUOTE',
     contextId: 'e2e-source-open',
   })
+  await page.goto('/use-cases/first-15-minutes')
   await page.reload()
   await expect(page.getByText('1/4')).toBeVisible()
+  await expect(page.getByText('Auto verified')).toBeVisible()
 
   for (const useCase of useCases) {
     await page.goto(`/use-cases/${useCase.slug}`)

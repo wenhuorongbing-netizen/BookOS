@@ -22,6 +22,10 @@
             <AppButton variant="secondary" @click="navigate">Discuss</AppButton>
           </RouterLink>
           <AppButton variant="accent" @click="applyProjectOpen = true">Apply to Project</AppButton>
+          <RouterLink v-if="guidedProjectLink" :to="guidedProjectLink" custom v-slot="{ navigate }">
+            <AppButton variant="primary" @click="navigate">Apply with Guided Flow</AppButton>
+          </RouterLink>
+          <AppButton v-else variant="primary" disabled>Apply with Guided Flow</AppButton>
         </template>
       </AppSectionHeader>
 
@@ -82,6 +86,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { getKnowledgeObject } from '../api/knowledge'
+import { getProjects } from '../api/projects'
 import ApplyToProjectDialog from '../components/project/ApplyToProjectDialog.vue'
 import BacklinksSection from '../components/source/BacklinksSection.vue'
 import AppBadge from '../components/ui/AppBadge.vue'
@@ -91,11 +96,12 @@ import AppErrorState from '../components/ui/AppErrorState.vue'
 import AppLoadingState from '../components/ui/AppLoadingState.vue'
 import AppSectionHeader from '../components/ui/AppSectionHeader.vue'
 import { useOpenSource } from '../composables/useOpenSource'
-import type { KnowledgeObjectRecord, KnowledgeObjectType } from '../types'
+import type { GameProjectRecord, KnowledgeObjectRecord, KnowledgeObjectType } from '../types'
 
 const route = useRoute()
 const { openSource } = useOpenSource()
 const object = ref<KnowledgeObjectRecord | null>(null)
+const projects = ref<GameProjectRecord[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 const applyProjectOpen = ref(false)
@@ -119,6 +125,19 @@ const forumThreadLink = computed(() => {
     },
   }
 })
+const guidedProjectLink = computed(() => {
+  if (!object.value || !projects.value.length) return null
+  const project = projects.value[0]
+  return {
+    name: 'project-apply-knowledge-wizard',
+    params: { id: project.id },
+    query: {
+      sourceType: 'KNOWLEDGE_OBJECT',
+      sourceId: String(object.value.id),
+      sourceReferenceId: object.value.sourceReference ? String(object.value.sourceReference.id) : undefined,
+    },
+  }
+})
 
 onMounted(loadObject)
 
@@ -127,6 +146,11 @@ async function loadObject() {
   errorMessage.value = ''
   try {
     object.value = await getKnowledgeObject(String(route.params.id))
+    try {
+      projects.value = await getProjects()
+    } catch {
+      projects.value = []
+    }
   } catch {
     errorMessage.value = 'Check backend availability and permissions, then try opening this design knowledge record again.'
   } finally {

@@ -16,9 +16,6 @@
           <p>{{ modeGuide.description }}</p>
         </div>
         <div class="dashboard-hero__actions">
-          <RouterLink :to="nextActionPlan.primaryTo" custom v-slot="{ navigate }">
-            <AppButton variant="primary" @click="navigate">{{ nextActionPlan.primaryLabel }}</AppButton>
-          </RouterLink>
           <div class="dashboard-hero__support" aria-label="Secondary dashboard help">
             <button type="button" @click="focusModeSwitcher">Switch mode</button>
             <RouterLink to="/guided/first-loop">First loop</RouterLink>
@@ -28,21 +25,27 @@
         </div>
       </section>
 
-      <AppCard class="next-step-card" as="section" aria-live="polite">
-        <div class="next-step-card__copy">
-          <p class="eyebrow">Simplest next step</p>
-          <h2>{{ nextActionPlan.title }}</h2>
-          <p>{{ nextActionPlan.description }}</p>
+      <section class="primary-actions-section" aria-label="Primary dashboard actions" aria-live="polite">
+        <AppSectionHeader
+          eyebrow="Primary actions"
+          title="Choose one of these three actions"
+          :description="primaryActionsDescription"
+          compact
+        />
+        <div class="primary-action-grid">
+          <AppCard v-for="action in primaryActions" :key="action.title" class="primary-action-card" variant="muted" as="article">
+            <div>
+              <p class="eyebrow">{{ action.eyebrow }}</p>
+              <h2>{{ action.title }}</h2>
+              <p>{{ action.description }}</p>
+              <p class="task-card__meta">{{ action.meta }}</p>
+            </div>
+            <RouterLink :to="action.to" custom v-slot="{ navigate }">
+              <AppButton variant="primary" @click="navigate">{{ action.cta }}</AppButton>
+            </RouterLink>
+          </AppCard>
         </div>
-        <div class="next-step-card__actions">
-          <RouterLink :to="nextActionPlan.primaryTo" custom v-slot="{ navigate }">
-            <AppButton variant="primary" @click="navigate">{{ nextActionPlan.primaryLabel }}</AppButton>
-          </RouterLink>
-          <RouterLink v-if="nextActionPlan.secondaryTo" :to="nextActionPlan.secondaryTo" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">{{ nextActionPlan.secondaryLabel }}</AppButton>
-          </RouterLink>
-        </div>
-      </AppCard>
+      </section>
 
       <AppCard id="dashboard-mode-switcher" class="mode-landing-card" as="section" aria-labelledby="mode-landing-title">
         <AppSectionHeader
@@ -55,19 +58,6 @@
           <strong>Why am I seeing this?</strong>
           <span>{{ modeLanding.why }}</span>
         </div>
-        <div class="mode-landing-grid">
-          <AppCard v-for="item in modeLanding.items" :key="item.title" class="mode-task-card" variant="muted" as="article">
-            <div>
-              <p class="eyebrow">{{ item.eyebrow }}</p>
-              <h3>{{ item.title }}</h3>
-              <p>{{ item.description }}</p>
-              <p class="task-card__meta">{{ item.meta }}</p>
-            </div>
-            <RouterLink :to="item.to" custom v-slot="{ navigate }">
-              <AppButton variant="secondary" @click="navigate">{{ item.cta }}</AppButton>
-            </RouterLink>
-          </AppCard>
-        </div>
         <div class="mode-switcher" role="group" aria-label="Switch dashboard mode">
           <button
             v-for="mode in navigationModes"
@@ -79,28 +69,6 @@
           >
             {{ mode.label }}
           </button>
-        </div>
-      </AppCard>
-
-      <AppCard v-if="isEmptyUser" class="readiness-card" as="section" aria-labelledby="readiness-title">
-        <div>
-          <p class="eyebrow">First-day flow</p>
-          <h2 id="readiness-title">Start with one book, one capture, and one source check.</h2>
-          <p>
-            BookOS will keep advanced tools out of the way until you have real reading material. You can still open them
-            from More or Advanced Mode when you need them.
-          </p>
-        </div>
-        <div class="readiness-card__actions">
-          <RouterLink to="/books/new" custom v-slot="{ navigate }">
-            <AppButton variant="primary" @click="navigate">Add Book</AppButton>
-          </RouterLink>
-          <RouterLink to="/guided/first-loop" custom v-slot="{ navigate }">
-            <AppButton variant="secondary" @click="navigate">First Valuable Loop</AppButton>
-          </RouterLink>
-          <RouterLink to="/demo" custom v-slot="{ navigate }">
-            <AppButton variant="ghost" @click="navigate">Practice in Demo</AppButton>
-          </RouterLink>
         </div>
       </AppCard>
 
@@ -458,7 +426,7 @@
               custom
               v-slot="{ navigate }"
             >
-              <AppButton variant="ghost" @click="navigate">Open Project Graph</AppButton>
+              <AppButton variant="ghost" @click="navigate">Open Project Knowledge Graph</AppButton>
             </RouterLink>
           </div>
         </AppCard>
@@ -519,7 +487,7 @@
         <AppSectionHeader
           eyebrow="Advanced Mode"
           title="Advanced tools"
-          description="Graph, import/export, and AI are available, but they stay secondary unless you chose Advanced Mode."
+          description="Knowledge Graph, import/export, and Draft Assistant are available, but they stay secondary unless you chose Advanced Mode."
           compact
         />
         <div class="advanced-grid">
@@ -577,15 +545,6 @@ import { useAuthStore } from '../stores/auth'
 import { navigationModeLabel, navigationModes, normalizeNavigationMode, type NavigationMode } from '../utils/navigationMode'
 
 type DashboardRouteTarget = string | { name: string; params?: Record<string, number | string>; query?: Record<string, number | string> }
-
-interface NextActionPlan {
-  title: string
-  description: string
-  primaryLabel: string
-  primaryTo: DashboardRouteTarget
-  secondaryLabel?: string
-  secondaryTo?: DashboardRouteTarget
-}
 
 interface ModeGuide {
   eyebrow: string
@@ -659,13 +618,13 @@ const dashboardUseCaseSlugs = computed(() => {
     return ['apply-quote-to-game-project', 'run-design-lens-review', 'create-playtest-finding']
   }
   if (currentDashboardMode.value === 'RESEARCHER') {
-    return ['review-concept-marker', 'search-rediscover-knowledge', 'inspect-knowledge-graph']
+    return ['researcher-review-concept', 'review-concept-marker', 'inspect-knowledge-graph']
   }
   if (currentDashboardMode.value === 'ADVANCED') {
     return ['inspect-knowledge-graph', 'export-reading-knowledge', 'mock-ai-draft-helper']
   }
   if (currentDashboardMode.value === 'COMMUNITY') {
-    return ['start-source-linked-discussion', 'open-source-from-quote-or-action', 'capture-idea-while-reading']
+    return ['community-source-discussion', 'source-linked-forum-discussion', 'open-source-from-quote-or-action']
   }
   if (currentDashboardMode.value === 'NOTE_TAKER') {
     return ['note-taker-capture-convert', 'capture-to-action-item', 'open-source-from-quote-or-action']
@@ -701,7 +660,7 @@ const modeGuide = computed<ModeGuide>(() => {
     },
     ADVANCED: {
       eyebrow: 'Advanced Mode',
-      description: 'Today still starts with a task, with graph, import/export, and AI kept available but secondary.',
+      description: 'Today still starts with a task, with Knowledge Graph, import/export, and Draft Assistant kept available but secondary.',
     },
   }
   return guides[currentDashboardMode.value] ?? guides.READER
@@ -766,6 +725,83 @@ const showSourceBackedTools = computed(() => hasSourceBackedRecords.value)
 const showUseCasePanel = computed(() => true)
 const showAdvancedModules = computed(() => dashboardMode.value === 'advanced')
 
+const primaryActionsDescription = computed(() => {
+  if (isEmptyUser.value) {
+    return 'Start with exactly three choices: create a book, follow the guided loop, or practice safely in Demo Workspace.'
+  }
+  if (currentDashboardMode.value === 'ADVANCED' && !hasSourceBackedRecords.value) {
+    return 'Advanced tools need source-backed data first. Start the first loop before Knowledge Graph, Draft Assistant, or import/export work dominates.'
+  }
+  return `${currentModeLabel.value} keeps the top of the Dashboard to three practical actions. Everything else stays below.`
+})
+
+const primaryActions = computed<ModeLandingItem[]>(() => {
+  if (isEmptyUser.value) {
+    return [
+      {
+        eyebrow: 'Start here',
+        title: 'Add Book',
+        description: 'Create the real book context that notes, captures, quotes, and source links depend on.',
+        meta: 'No books yet',
+        cta: 'Add Book',
+        to: '/books/new',
+      },
+      {
+        eyebrow: 'Guided loop',
+        title: 'First Valuable Loop',
+        description: 'Walk through Add Book, Capture, Process, Open Source, and the next path without advanced distractions.',
+        meta: 'No fake data or invented pages',
+        cta: 'Start first loop',
+        to: '/guided/first-loop',
+      },
+      {
+        eyebrow: 'Practice safely',
+        title: 'Demo Workspace',
+        description: 'Try original labeled demo records without polluting your real reading knowledge base.',
+        meta: 'Demo data stays labeled',
+        cta: 'Practice in Demo',
+        to: '/demo',
+      },
+    ]
+  }
+
+  let actions = basePrimaryActions(currentDashboardMode.value)
+
+  if (currentDashboardMode.value === 'ADVANCED' && !hasSourceBackedRecords.value) {
+    actions = [
+      {
+        eyebrow: 'Source data needed',
+        title: 'Advanced tools need source-backed data',
+        description: 'Create one source-backed record before Knowledge Graph, Draft Assistant, and advanced workflows become useful.',
+        meta: `${sourceBackedRecordCount.value} source-backed records`,
+        cta: 'Start First Valuable Loop',
+        to: '/guided/first-loop',
+      },
+      importExportAction(),
+      draftAssistantAction(),
+    ]
+  }
+
+  if (currentDashboardMode.value === 'GAME_DESIGNER' && !projects.value.length) {
+    actions = ensurePrimaryAction(actions, createProjectAction(), 0, ['Project Focus', 'Create Project'])
+  }
+
+  if (hasLibraryBooks.value && !hasCaptures.value) {
+    actions = ensurePrimaryAction(
+      actions,
+      currentDashboardMode.value === 'COMMUNITY' ? captureSourceAction() : quickCaptureAction(),
+      1,
+      ['Quick Capture', 'Capture Source'],
+    )
+  }
+
+  if (inboxCaptures.value.length) {
+    actions = ensurePrimaryAction(actions, processCapturesAction(), 2, ['Process Captures'])
+  }
+
+  return actions.slice(0, 3)
+})
+
 const modeLanding = computed<ModeLanding>(() => {
   const firstBookRoute = selectedBookRoute()
   const activeProjectRoute = selectedProject.value ? { name: 'project-detail', params: { id: selectedProject.value.id } } : '/projects/new'
@@ -774,7 +810,7 @@ const modeLanding = computed<ModeLanding>(() => {
   const landings: Record<NavigationMode, ModeLanding> = {
     READER: {
       description: 'A quiet reader-first path: resume a book, capture one thought, then review what matters.',
-      why: 'You chose Reader Mode or have not selected another mode. BookOS keeps projects, graph, import, and assistant tools secondary until you ask for them.',
+      why: 'You chose Reader Mode or have not selected another mode. BookOS keeps projects, Knowledge Graph, import, and Draft Assistant tools secondary until you ask for them.',
       items: [
         {
           eyebrow: 'Continue Reading',
@@ -883,12 +919,12 @@ const modeLanding = computed<ModeLanding>(() => {
           to: '/review',
         },
         {
-          eyebrow: 'Graph From Context',
-          title: 'Graph From Context',
-          description: 'Open the graph only when it can show real books, concepts, sources, or project links.',
-          meta: sourceBackedRecordCount.value ? 'Real source context available' : 'No graph links yet',
-          cta: 'Open Knowledge Graph',
-          to: concepts.value[0] ? { name: 'graph-concept', params: { conceptId: concepts.value[0].id } } : '/graph',
+          eyebrow: 'Knowledge Graph From Context',
+          title: 'Scoped Knowledge Graph',
+          description: 'Open the Knowledge Graph from one reviewed concept when it can show real books, sources, or related links.',
+          meta: sourceBackedRecordCount.value ? 'Real source context available' : 'No Knowledge Graph links yet',
+          cta: concepts.value[0] ? 'Open scoped graph' : 'Create concept first',
+          to: concepts.value[0] ? { name: 'graph-concept', params: { conceptId: concepts.value[0].id } } : '/use-cases/researcher-review-concept',
         },
       ],
     },
@@ -901,8 +937,8 @@ const modeLanding = computed<ModeLanding>(() => {
           title: 'Source-Linked Threads',
           description: 'Start from a quote, concept, book, or source link before opening a thread.',
           meta: sourceLinksMeta,
-          cta: sourceBackedRecordCount.value ? 'Open Forum' : 'Create source first',
-          to: sourceBackedRecordCount.value ? '/forum' : '/guided/first-loop',
+          cta: sourceBackedRecordCount.value ? 'Open Forum' : 'Create quote or concept',
+          to: sourceBackedRecordCount.value ? '/forum' : '/use-cases/community-source-discussion',
         },
         {
           eyebrow: 'Forum Templates',
@@ -918,20 +954,20 @@ const modeLanding = computed<ModeLanding>(() => {
           description: 'Attach a book, quote, concept, project, or source link when possible.',
           meta: recentKnowledgeTarget.value?.sourceLabel ?? 'No recent source-backed context',
           cta: recentKnowledgeTarget.value ? 'Open source item' : 'Open Use Cases',
-          to: recentKnowledgeTarget.value?.route ?? '/use-cases/start-source-linked-discussion',
+          to: recentKnowledgeTarget.value?.route ?? '/use-cases/community-source-discussion',
         },
       ],
     },
     ADVANCED: {
-      description: 'An advanced path: graph, import/export, Draft Assistant, and analytics are visible while still using real data only.',
+      description: 'An advanced path: Knowledge Graph, import/export, Draft Assistant, and analytics are visible while still using real data only.',
       why: 'Advanced Mode expands advanced navigation and surfaces technical workflows without making them look complete when there is no data.',
       items: [
         {
           eyebrow: 'Knowledge Graph',
           title: 'Knowledge Graph',
-          description: 'Inspect graph nodes and relationships generated from source references and manual links.',
+          description: 'Inspect Knowledge Graph nodes and relationships generated from source links and manual relationships.',
           meta: sourceBackedRecordCount.value ? `${sourceBackedRecordCount.value} source-backed inputs` : 'Honest empty state if no links exist',
-          cta: 'Open Graph',
+          cta: 'Open Knowledge Graph',
           to: '/graph',
         },
         {
@@ -1021,71 +1057,215 @@ const learningLoopDescription = computed(() => {
   return 'Once you have notes, quotes, concepts, or projects, start a review session to turn reading into retained knowledge.'
 })
 
-const nextActionPlan = computed<NextActionPlan>(() => {
-  if (!library.value.length) {
-    return {
-      title: 'Complete the first valuable loop',
-      description: 'Start with one real book, one capture, one processed record, and one source check before exploring modules.',
-      primaryLabel: 'Start first loop',
-      primaryTo: '/guided/first-loop',
-      secondaryLabel: 'Add a book directly',
-      secondaryTo: '/books/new',
-    }
+function basePrimaryActions(mode: NavigationMode): ModeLandingItem[] {
+  const actions: Record<NavigationMode, ModeLandingItem[]> = {
+    READER: [continueReadingAction(), quickCaptureAction(), processCapturesAction()],
+    NOTE_TAKER: [quickCaptureAction(), notesAction(), processCapturesAction()],
+    GAME_DESIGNER: [projectFocusAction(), applyKnowledgeAction(), processCapturesAction()],
+    RESEARCHER: [reviewConceptsAction(), startReviewAction(), scopedKnowledgeGraphAction()],
+    COMMUNITY: [sourceLinkedDiscussionAction(), forumAction(), captureSourceAction()],
+    ADVANCED: [knowledgeGraphAction(), importExportAction(), draftAssistantAction()],
   }
+  return actions[mode] ?? actions.READER
+}
 
-  if (inboxCaptures.value.length) {
-    return {
-      title: `Process ${inboxCaptures.value.length} capture${inboxCaptures.value.length === 1 ? '' : 's'}`,
-      description: 'Convert raw captures into notes, quotes, actions, or reviewed concepts before adding more knowledge.',
-      primaryLabel: 'Process Captures',
-      primaryTo: '/captures/inbox',
-      secondaryLabel: 'Capture another thought',
-      secondaryTo: selectedBookRoute(),
-    }
+function ensurePrimaryAction(actions: ModeLandingItem[], action: ModeLandingItem, index: number, aliases = [action.title]) {
+  const existingIndex = actions.findIndex((item) => aliases.includes(item.title))
+  const next = [...actions]
+  if (existingIndex >= 0) {
+    next[existingIndex] = action
+    return next
   }
+  next[Math.min(index, next.length - 1)] = action
+  return next
+}
 
-  if (!quotes.value.length && !concepts.value.length && !actionItems.value.length) {
-    return {
-      title: 'Capture one source-backed thought',
-      description: 'You have reading context, but no extracted knowledge yet. Open a book or use Quick Capture below.',
-      primaryLabel: 'Open current book',
-      primaryTo: selectedBookRoute(),
-      secondaryLabel: 'Open library',
-      secondaryTo: '/my-library',
-    }
-  }
-
-  if (projects.value.length && !projectApplications.value.length && recentKnowledgeTarget.value) {
-    return {
-      title: 'Apply one reading insight to a project',
-      description: 'You have source-backed knowledge and a project, but no project applications yet.',
-      primaryLabel: 'Apply to Project',
-      primaryTo: recentKnowledgeTarget.value.route,
-      secondaryLabel: 'Open project',
-      secondaryTo: selectedProject.value ? { name: 'project-detail', params: { id: selectedProject.value.id } } : '/projects',
-    }
-  }
-
-  if (!projects.value.length && (quotes.value.length || concepts.value.length || knowledgeObjects.value.length)) {
-    return {
-      title: 'Create a project for your reading knowledge',
-      description: 'You have ideas to apply. Create a project so BookOS can turn reading into design action.',
-      primaryLabel: 'Create project',
-      primaryTo: '/projects/new',
-      secondaryLabel: 'Open quotes',
-      secondaryTo: '/quotes',
-    }
-  }
-
+function continueReadingAction(): ModeLandingItem {
   return {
-    title: 'Start a source-backed review',
-    description: 'You have enough real material. Review or apply it before opening advanced modules.',
-    primaryLabel: 'Start Review',
-    primaryTo: '/review',
-    secondaryLabel: selectedProject.value ? 'Open Project Cockpit' : 'Open concepts',
-    secondaryTo: selectedProject.value ? { name: 'project-detail', params: { id: selectedProject.value.id } } : '/concepts',
+    eyebrow: 'Reader Mode',
+    title: 'Continue Reading',
+    description: continueBooks.value.length ? `Open ${continueBooks.value[0].title} and keep the reading context active.` : 'Resume a book before adding more notes.',
+    meta: `${continueBooks.value.length} reading candidate${continueBooks.value.length === 1 ? '' : 's'}`,
+    cta: continueBooks.value.length ? 'Open book' : 'Open Library',
+    to: continueBooks.value.length ? selectedBookRoute() : '/my-library',
   }
-})
+}
+
+function quickCaptureAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Capture',
+    title: 'Quick Capture',
+    description: 'Save one reading thought with book context, parser metadata, tags, and concept markers.',
+    meta: hasCaptures.value ? `${inboxCaptures.value.length} capture${inboxCaptures.value.length === 1 ? '' : 's'} waiting` : 'Ready for one thought',
+    cta: hasLibraryBooks.value ? 'Capture now' : 'Start first loop',
+    to: hasLibraryBooks.value ? selectedBookRoute() : '/guided/first-loop',
+  }
+}
+
+function processCapturesAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Workbench',
+    title: 'Process Captures',
+    description: inboxCaptures.value.length ? 'Convert waiting captures into notes, quotes, actions, or reviewed concepts.' : 'Open the processing queue when you have raw captures.',
+    meta: `${inboxCaptures.value.length} unprocessed capture${inboxCaptures.value.length === 1 ? '' : 's'}`,
+    cta: 'Process Captures',
+    to: '/captures/inbox',
+  }
+}
+
+function notesAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Notes',
+    title: 'Notes',
+    description: 'Write and review source-backed notes without leaving the reading workflow.',
+    meta: 'Markdown notes and note blocks',
+    cta: 'Open Notes',
+    to: '/notes',
+  }
+}
+
+function projectFocusAction(): ModeLandingItem {
+  return selectedProject.value
+    ? {
+        eyebrow: 'Project',
+        title: 'Project Focus',
+        description: `Keep ${selectedProject.value.title} visible while applying reading knowledge to design work.`,
+        meta: `${selectedProject.value.progressPercent}% project progress`,
+        cta: 'Open Project Cockpit',
+        to: { name: 'project-detail', params: { id: selectedProject.value.id } },
+      }
+    : createProjectAction()
+}
+
+function createProjectAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Project',
+    title: 'Create Project',
+    description: 'Create the game project that will receive quotes, concepts, design decisions, and playtest work.',
+    meta: 'No active project yet',
+    cta: 'Create Project',
+    to: '/projects/new',
+  }
+}
+
+function applyKnowledgeAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Application',
+    title: 'Apply Knowledge',
+    description: recentKnowledgeTarget.value ? `Apply ${recentKnowledgeTarget.value.title} to a project.` : 'Create or open a source-backed quote, concept, or design knowledge record before applying it.',
+    meta: `${projectApplications.value.length} project application${projectApplications.value.length === 1 ? '' : 's'}`,
+    cta: recentKnowledgeTarget.value ? 'Open source item' : 'Find source',
+    to: recentKnowledgeTarget.value?.route ?? '/quotes',
+  }
+}
+
+function reviewConceptsAction(): ModeLandingItem {
+  const hasConcepts = concepts.value.length > 0
+  return {
+    eyebrow: 'Concepts',
+    title: 'Review Concepts',
+    description: hasConcepts
+      ? 'Open reviewed concepts and inspect their source links before using the Knowledge Graph.'
+      : 'Capture a reading thought with [[Concept Name]], then review it before it becomes durable knowledge.',
+    meta: `${sourceBackedConcepts.value.length} source-backed concept${sourceBackedConcepts.value.length === 1 ? '' : 's'}`,
+    cta: hasConcepts ? 'Open Concepts' : 'Capture [[Concept]]',
+    to: hasConcepts ? '/concepts' : hasLibraryBooks.value ? selectedBookRoute() : '/guided/first-loop',
+  }
+}
+
+function startReviewAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Review',
+    title: 'Start Review',
+    description: 'Review real source-backed notes, quotes, concepts, and project knowledge.',
+    meta: `${reviewSessions.value.length} review session${reviewSessions.value.length === 1 ? '' : 's'}`,
+    cta: 'Start Review',
+    to: '/review',
+  }
+}
+
+function scopedKnowledgeGraphAction(): ModeLandingItem {
+  const concept = concepts.value[0]
+  return {
+    eyebrow: 'Research',
+    title: 'Scoped Knowledge Graph',
+    description: concept
+      ? `Inspect real related links around [[${concept.name}]] instead of opening a global empty graph.`
+      : 'The Knowledge Graph becomes useful after at least one reviewed concept or source-backed record exists.',
+    meta: concept ? 'Concept context ready' : 'Needs a reviewed concept first',
+    cta: concept ? 'Open scoped graph' : 'Create concept first',
+    to: concept ? { name: 'graph-concept', params: { conceptId: concept.id } } : '/use-cases/researcher-review-concept',
+  }
+}
+
+function sourceLinkedDiscussionAction(): ModeLandingItem {
+  const hasSourceContext = sourceBackedRecordCount.value > 0
+  return {
+    eyebrow: 'Discussion',
+    title: 'Source-Linked Discussion',
+    description: hasSourceContext
+      ? 'Start discussion from a book, quote, concept, project, or source link instead of a generic thread.'
+      : 'Create a quote or reviewed concept first so the discussion has a source to point back to.',
+    meta: `${sourceBackedRecordCount.value} source-backed record${sourceBackedRecordCount.value === 1 ? '' : 's'}`,
+    cta: hasSourceContext ? 'Start discussion' : 'Create quote or concept',
+    to: hasSourceContext ? '/forum/new' : hasLibraryBooks.value ? '/use-cases/capture-to-quote' : '/guided/first-loop',
+  }
+}
+
+function forumAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Community',
+    title: 'Forum',
+    description: 'Open structured discussions, templates, comments, reports, and source context.',
+    meta: 'Structured templates available',
+    cta: 'Open Forum',
+    to: '/forum',
+  }
+}
+
+function captureSourceAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Capture',
+    title: 'Capture Source',
+    description: 'Capture one book-backed idea, quote, or [[Concept]] marker before starting a source-linked thread.',
+    meta: hasLibraryBooks.value ? 'Book context available' : 'Needs a book first',
+    cta: hasLibraryBooks.value ? 'Capture source' : 'Start first loop',
+    to: hasLibraryBooks.value ? selectedBookRoute() : '/guided/first-loop',
+  }
+}
+
+function knowledgeGraphAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Advanced',
+    title: 'Knowledge Graph',
+    description: 'Inspect real source references, relationships, concepts, and project links.',
+    meta: sourceBackedRecordCount.value ? `${sourceBackedRecordCount.value} source-backed inputs` : 'Honest empty state if no links exist',
+    cta: 'Open Knowledge Graph',
+    to: '/graph',
+  }
+}
+
+function importExportAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Portability',
+    title: 'Import/Export',
+    description: 'Export user-owned data or preview imports before committing records.',
+    meta: 'Preview before write',
+    cta: 'Open Import/Export',
+    to: '/import-export',
+  }
+}
+
+function draftAssistantAction(): ModeLandingItem {
+  return {
+    eyebrow: 'Draft-only',
+    title: 'Draft Assistant',
+    description: 'Use MockAIProvider suggestions as drafts only; no user content is overwritten automatically.',
+    meta: 'Mock provider, draft-only',
+    cta: 'Open assistant workflow',
+    to: '/use-cases/mock-ai-draft-helper',
+  }
+}
 
 onMounted(loadDashboard)
 
@@ -1311,8 +1491,8 @@ function initials(title: string) {
 
 .dashboard-hero h1,
 .dashboard-hero p,
-.next-step-card h2,
-.next-step-card p,
+.primary-action-card h2,
+.primary-action-card p,
 .task-card h3,
 .task-card p,
 .reading-card h3,
@@ -1341,7 +1521,6 @@ function initials(title: string) {
 }
 
 .dashboard-hero__actions,
-.next-step-card__actions,
 .task-card__actions,
 .reading-card__actions,
 .capture-form__actions,
@@ -1390,24 +1569,37 @@ function initials(title: string) {
   cursor: pointer;
 }
 
-.next-step-card {
+.primary-actions-section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.primary-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.primary-action-card {
+  min-height: 18rem;
   padding: var(--space-5);
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  align-content: space-between;
   gap: var(--space-4);
-  align-items: center;
-  border-color: color-mix(in srgb, var(--bookos-primary) 22%, var(--bookos-border));
+  border-color: color-mix(in srgb, var(--bookos-primary) 20%, var(--bookos-border));
 }
 
-.next-step-card h2 {
+.primary-action-card h2 {
+  margin-top: var(--space-1);
   font-family: var(--font-book-title);
-  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: -0.03em;
 }
 
-.next-step-card p {
+.primary-action-card p:not(.eyebrow) {
   margin-top: var(--space-2);
   color: var(--bookos-text-secondary);
-  max-width: 58rem;
+  line-height: var(--type-body-line);
 }
 
 .mode-landing-card {
@@ -1801,6 +1993,7 @@ function initials(title: string) {
 @media (max-width: 980px) {
   .today-grid,
   .quick-capture-card,
+  .primary-action-grid,
   .mode-landing-grid,
   .advanced-grid {
     grid-template-columns: 1fr;
@@ -1817,7 +2010,6 @@ function initials(title: string) {
 
 @media (max-width: 720px) {
   .dashboard-hero,
-  .next-step-card,
   .readiness-card,
   .inbox-card {
     flex-direction: column;

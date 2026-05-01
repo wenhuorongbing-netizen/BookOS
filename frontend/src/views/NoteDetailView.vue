@@ -43,6 +43,31 @@
         :loop="['Book source', 'Markdown note', 'Parsed block', 'Concept review']"
       />
 
+      <AppCard class="note-source-summary" as="section">
+        <div>
+          <div class="eyebrow">Source Link</div>
+          <h2>{{ noteSourceReferences.length ? 'This note has source-linked blocks' : 'Add a Source Link when this note cites the book' }}</h2>
+          <p>
+            {{ noteSourceReferences.length
+              ? 'Open the source before reusing this note so the book, page if known, and original block stay visible.'
+              : 'Create a parsed block when part of the note comes from a specific page or capture. Unknown pages remain unknown.' }}
+          </p>
+        </div>
+        <div class="note-source-summary__actions">
+          <AppBadge variant="primary">{{ noteSourceReferences.length }} source links</AppBadge>
+          <AppButton
+            v-if="firstSourceBlock"
+            variant="secondary"
+            @click="openFirstSource"
+          >
+            Open first source
+          </AppButton>
+          <RouterLink v-else :to="{ name: 'note-detail', params: { id: note.id }, hash: '#note-block-composer' }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Add source-linked block</AppButton>
+          </RouterLink>
+        </div>
+      </AppCard>
+
       <section class="note-detail-grid" aria-label="Note editor and parsed blocks">
         <AppCard class="note-editor" as="section">
           <AppSectionHeader
@@ -260,6 +285,7 @@ const sortedBlocks = computed(() => {
   return [...(note.value?.blocks ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
 })
 const noteSourceReferences = computed(() => note.value?.blocks.flatMap((block) => block.sourceReferences) ?? [])
+const firstSourceBlock = computed(() => sortedBlocks.value.find((block) => block.sourceReferences.length > 0) ?? null)
 const canSaveNote = computed(() => Boolean(editForm.title.trim() && editForm.markdown.trim()))
 const renderedMarkdown = computed(() => renderSafeMarkdown(editForm.markdown))
 const forumThreadLink = computed(() => {
@@ -420,6 +446,11 @@ function openBlockSource(block: NoteBlockRecord) {
   })
 }
 
+function openFirstSource() {
+  if (!firstSourceBlock.value) return
+  openBlockSource(firstSourceBlock.value)
+}
+
 function openConceptReview(block: NoteBlockRecord) {
   selectedConceptBlock.value = block
   conceptDialogOpen.value = true
@@ -499,7 +530,7 @@ function formatType(type: NoteBlockType) {
 function pageLabel(pageStart: number | null, pageEnd: number | null) {
   if (pageStart && pageEnd) return `p.${pageStart}-${pageEnd}`
   if (pageStart) return `p.${pageStart}`
-  return 'No page'
+  return 'Page unknown'
 }
 </script>
 
@@ -522,6 +553,36 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
   padding: var(--space-5);
   display: grid;
   gap: var(--space-4);
+}
+
+.note-source-summary {
+  padding: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-color: color-mix(in srgb, var(--bookos-primary) 22%, var(--bookos-border));
+  background: color-mix(in srgb, var(--bookos-primary-soft) 42%, var(--bookos-surface));
+}
+
+.note-source-summary h2 {
+  margin: var(--space-1) 0 0;
+  color: var(--bookos-text-primary);
+  font-size: var(--type-section-title);
+}
+
+.note-source-summary p {
+  margin: var(--space-2) 0 0;
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.note-source-summary__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .note-editor__form,
@@ -673,6 +734,15 @@ function pageLabel(pageStart: number | null, pageEnd: number | null) {
 }
 
 @media (max-width: 640px) {
+  .note-source-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .note-source-summary__actions {
+    justify-content: stretch;
+  }
+
   .note-editor,
   .block-composer,
   .blocks-panel {

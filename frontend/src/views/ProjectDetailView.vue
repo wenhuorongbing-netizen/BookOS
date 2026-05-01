@@ -19,7 +19,7 @@
         <template #actions>
           <HelpTooltip topic="project-application" placement="left" />
           <RouterLink :to="{ name: 'project-apply-knowledge-wizard', params: { id: project.id } }" custom v-slot="{ navigate }">
-            <AppButton variant="primary" @click="navigate">Apply Knowledge Guided Flow</AppButton>
+            <AppButton variant="primary" @click="navigate">Apply Reading Knowledge</AppButton>
           </RouterLink>
           <details class="header-more-actions">
             <summary>More</summary>
@@ -52,6 +52,25 @@
         :secondary-to="projectNextStep.secondaryTo"
         :loop="projectWorkflowLoop"
       />
+
+      <AppCard class="project-reading-loop" variant="highlight" as="section">
+        <div>
+          <p class="eyebrow">Game Designer loop</p>
+          <h2>Reading source -> project application -> design decision -> playtest</h2>
+          <p>
+            Start with one source-backed quote, concept, or design knowledge record. The guided flow shows what will be
+            created before confirmation and preserves the source link on each created project record.
+          </p>
+        </div>
+        <div class="project-reading-loop__actions">
+          <RouterLink :to="{ name: 'project-apply-knowledge-wizard', params: { id: project.id } }" custom v-slot="{ navigate }">
+            <AppButton variant="primary" @click="navigate">Apply Reading Knowledge</AppButton>
+          </RouterLink>
+          <RouterLink :to="{ name: 'quotes' }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Find a Quote</AppButton>
+          </RouterLink>
+        </div>
+      </AppCard>
 
       <details class="progressive-section">
         <summary>
@@ -89,6 +108,10 @@
                 <dd>{{ decisions.length }}</dd>
               </div>
               <div>
+                <dt>Playtests</dt>
+                <dd>{{ plans.length }}</dd>
+              </div>
+              <div>
                 <dt>Findings</dt>
                 <dd>{{ findings.length }}</dd>
               </div>
@@ -96,6 +119,20 @@
           </AppCard>
 
           <section class="project-card-grid" aria-label="Project cockpit sections">
+            <AppCard class="project-section-card">
+              <AppSectionHeader title="Source-backed Applications" eyebrow="Applications" :level="2" compact>
+                <template #actions>
+                  <RouterLink :to="{ name: 'project-apply-knowledge-wizard', params: { id: project.id } }" custom v-slot="{ navigate }">
+                    <AppButton variant="text" @click="navigate">Guided Flow</AppButton>
+                  </RouterLink>
+                  <RouterLink :to="{ name: 'project-applications', params: { id: project.id } }" custom v-slot="{ navigate }">
+                    <AppButton variant="text" @click="navigate">Manage</AppButton>
+                  </RouterLink>
+                </template>
+              </AppSectionHeader>
+              <ProjectMiniList :items="activeApplications" empty-title="No applications yet" />
+            </AppCard>
+
             <AppCard class="project-section-card">
               <AppSectionHeader title="Current Design Problems" eyebrow="Problems" :level="2" compact>
                 <template #actions>
@@ -105,17 +142,6 @@
                 </template>
               </AppSectionHeader>
               <ProjectMiniList :items="openProblems" empty-title="No open problems" />
-            </AppCard>
-
-            <AppCard v-if="showApplicationsCard" class="project-section-card">
-              <AppSectionHeader title="Source-backed Applications" eyebrow="Applications" :level="2" compact>
-                <template #actions>
-                  <RouterLink :to="{ name: 'project-applications', params: { id: project.id } }" custom v-slot="{ navigate }">
-                    <AppButton variant="text" @click="navigate">Manage</AppButton>
-                  </RouterLink>
-                </template>
-              </AppSectionHeader>
-              <ProjectMiniList :items="activeApplications" empty-title="No applications yet" />
             </AppCard>
 
             <AppCard v-if="showDecisionsCard" class="project-section-card">
@@ -130,14 +156,14 @@
             </AppCard>
 
             <AppCard v-if="showFindingsCard" class="project-section-card">
-              <AppSectionHeader title="Playtest Findings" eyebrow="Playtests" :level="2" compact>
+              <AppSectionHeader title="Playtest Plans & Findings" eyebrow="Playtests" :level="2" compact>
                 <template #actions>
                   <RouterLink :to="{ name: 'project-playtests', params: { id: project.id } }" custom v-slot="{ navigate }">
                     <AppButton variant="text" @click="navigate">Manage</AppButton>
                   </RouterLink>
                 </template>
               </AppSectionHeader>
-              <ProjectMiniList :items="findings" empty-title="No playtest findings yet" />
+              <ProjectMiniList :items="playtestItems" empty-title="No playtest plan yet" />
             </AppCard>
           </section>
 
@@ -190,7 +216,7 @@
           </AppCard>
 
           <details class="rail-disclosure" :open="projectGraph.nodes.length > 0">
-            <summary>Graph context</summary>
+            <summary>Knowledge Graph context</summary>
             <AppCard class="rail-card">
               <AppSectionHeader title="Knowledge Graph" eyebrow="Real project links" :level="2" compact />
               <p v-if="projectGraph.nodes.length">
@@ -198,12 +224,12 @@
               </p>
               <AppEmptyState
                 v-else
-                title="No project graph links yet"
-                description="Create applications, decisions, findings, or lens reviews to grow the project graph."
+                title="No project Knowledge Graph links yet"
+                description="Create applications, decisions, findings, or lens reviews to grow the project Knowledge Graph."
                 compact
               />
               <RouterLink :to="{ name: 'graph-project', params: { projectId: project.id } }" custom v-slot="{ navigate }">
-                <AppButton variant="secondary" @click="navigate">Open Project Graph</AppButton>
+                <AppButton variant="secondary" @click="navigate">Open Project Knowledge Graph</AppButton>
               </RouterLink>
             </AppCard>
           </details>
@@ -244,6 +270,7 @@ import { getProjectGraph } from '../api/graph'
 import {
   archiveProject,
   getPlaytestFindings,
+  getPlaytestPlans,
   getProject,
   getProjectApplications,
   getProjectDecisions,
@@ -273,6 +300,7 @@ import type {
   GameProjectRecord,
   GraphRecord,
   PlaytestFindingRecord,
+  PlaytestPlanRecord,
   ProjectApplicationRecord,
   ProjectKnowledgeLinkRecord,
   ProjectLensReviewRecord,
@@ -309,6 +337,7 @@ const project = ref<GameProjectRecord | null>(null)
 const problems = ref<ProjectProblemRecord[]>([])
 const applications = ref<ProjectApplicationRecord[]>([])
 const decisions = ref<DesignDecisionRecord[]>([])
+const plans = ref<PlaytestPlanRecord[]>([])
 const findings = ref<PlaytestFindingRecord[]>([])
 const lensReviews = ref<ProjectLensReviewRecord[]>([])
 const knowledgeLinks = ref<ProjectKnowledgeLinkRecord[]>([])
@@ -318,17 +347,18 @@ const savingProject = ref(false)
 const errorMessage = ref('')
 const editOpen = ref(false)
 const projectUseCaseSlugs = [
+  'game-designer-apply-knowledge',
   'apply-quote-to-game-project',
   'run-design-lens-review',
   'create-playtest-finding',
 ]
-const projectWorkflowLoop = ['Project problem', 'Source-backed application', 'Design decision', 'Playtest finding']
+const projectWorkflowLoop = ['Reading source', 'Project application', 'Design decision', 'Playtest plan']
 
 const openProblems = computed(() => problems.value.filter((problem) => problem.status !== 'RESOLVED' && problem.status !== 'CLOSED'))
 const activeApplications = computed(() => applications.value.filter((application) => application.status !== 'DONE' && application.status !== 'ARCHIVED'))
-const showApplicationsCard = computed(() => Boolean(openProblems.value.length || activeApplications.value.length))
 const showDecisionsCard = computed(() => Boolean(activeApplications.value.length || decisions.value.length))
-const showFindingsCard = computed(() => Boolean(decisions.value.length || findings.value.length))
+const showFindingsCard = computed(() => Boolean(decisions.value.length || plans.value.length || findings.value.length))
+const playtestItems = computed(() => [...plans.value, ...findings.value])
 const latestSource = computed<SourceReferenceRecord | null>(() => {
   return (
     applications.value.find((application) => application.sourceReference)?.sourceReference ??
@@ -344,7 +374,8 @@ const nextTasks = computed(() => {
   if (!openProblems.value.length) tasks.push('Add the main design problem blocking this prototype.')
   if (!activeApplications.value.length) tasks.push('Apply one quote, concept, or design lens to this project.')
   if (!decisions.value.length) tasks.push('Record the first design decision and rationale.')
-  if (!findings.value.length) tasks.push('Create a playtest finding after the next prototype run.')
+  if (!plans.value.length) tasks.push('Plan the next playtest for the current design decision.')
+  if (plans.value.length && !findings.value.length) tasks.push('Record a playtest finding after the next prototype run.')
   return tasks.length ? tasks : ['Review open problems and close one source-backed application.']
 })
 const projectNextStep = computed(() => {
@@ -366,8 +397,8 @@ const projectNextStep = computed(() => {
       description: 'A project becomes actionable when the next design problem is explicit and can be linked back to source-backed evidence.',
       primaryLabel: 'Add Problem',
       primaryTo: { name: 'project-problems', params: { id: currentProject.id } },
-      secondaryLabel: 'Apply Knowledge',
-      secondaryTo: { name: 'project-applications', params: { id: currentProject.id } },
+      secondaryLabel: 'Apply Reading Knowledge',
+      secondaryTo: { name: 'project-apply-knowledge-wizard', params: { id: currentProject.id } },
     }
   }
 
@@ -375,10 +406,10 @@ const projectNextStep = computed(() => {
     return {
       title: 'Apply one piece of reading knowledge',
       description: 'Turn a quote, concept, or knowledge object into a project application so the project is connected to the reading system.',
-      primaryLabel: 'Add Application',
-      primaryTo: { name: 'project-applications', params: { id: currentProject.id } },
-      secondaryLabel: 'Open Knowledge Graph',
-      secondaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
+      primaryLabel: 'Apply Reading Knowledge',
+      primaryTo: { name: 'project-apply-knowledge-wizard', params: { id: currentProject.id } },
+      secondaryLabel: 'Manage Applications',
+      secondaryTo: { name: 'project-applications', params: { id: currentProject.id } },
     }
   }
 
@@ -393,11 +424,22 @@ const projectNextStep = computed(() => {
     }
   }
 
+  if (!plans.value.length) {
+    return {
+      title: 'Plan a playtest for the decision',
+      description: 'Define the hypothesis, player task, and success criteria before recording evidence.',
+      primaryLabel: 'Create Playtest',
+      primaryTo: { name: 'project-playtests', params: { id: currentProject.id } },
+      secondaryLabel: 'Open Knowledge Graph',
+      secondaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
+    }
+  }
+
   if (!findings.value.length) {
     return {
-      title: 'Test the decision with a playtest finding',
+      title: 'Record evidence from the playtest',
       description: 'Create a finding that turns the current decision into observable evidence for the next iteration.',
-      primaryLabel: 'Add Finding',
+      primaryLabel: 'Record Finding',
       primaryTo: { name: 'project-playtests', params: { id: currentProject.id } },
       secondaryLabel: 'Open Knowledge Graph',
       secondaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
@@ -405,9 +447,9 @@ const projectNextStep = computed(() => {
   }
 
   return {
-    title: 'Inspect the project knowledge graph',
+    title: 'Inspect the project Knowledge Graph',
     description: 'This project now has enough records to review how problems, applications, decisions, and findings connect.',
-    primaryLabel: 'Open Project Graph',
+    primaryLabel: 'Open Project Knowledge Graph',
     primaryTo: { name: 'graph-project', params: { projectId: currentProject.id } },
     secondaryLabel: 'Start Forum Critique',
     secondaryTo: {
@@ -443,11 +485,12 @@ async function loadProject() {
   errorMessage.value = ''
   const projectId = String(route.params.id)
   try {
-    const [projectResult, problemResult, applicationResult, decisionResult, findingResult, lensResult, linkResult, graphResult] = await Promise.all([
+    const [projectResult, problemResult, applicationResult, decisionResult, planResult, findingResult, lensResult, linkResult, graphResult] = await Promise.all([
       getProject(projectId),
       getProjectProblems(projectId),
       getProjectApplications(projectId),
       getProjectDecisions(projectId),
+      getPlaytestPlans(projectId),
       getPlaytestFindings(projectId),
       getProjectLensReviews(projectId),
       getProjectKnowledgeLinks(projectId),
@@ -457,6 +500,7 @@ async function loadProject() {
     problems.value = problemResult
     applications.value = applicationResult
     decisions.value = decisionResult
+    plans.value = planResult
     findings.value = findingResult
     lensReviews.value = lensResult
     knowledgeLinks.value = linkResult
@@ -604,6 +648,7 @@ function openSource(source: SourceReferenceRecord) {
 }
 
 .project-detail-page,
+.project-reading-loop,
 .project-cockpit__main,
 .project-section-card,
 .rail-card {
@@ -626,9 +671,33 @@ function openSource(source: SourceReferenceRecord) {
 }
 
 .project-hero,
+.project-reading-loop,
 .project-section-card,
 .rail-card {
   padding: var(--space-5);
+}
+
+.project-reading-loop {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.project-reading-loop h2,
+.project-reading-loop p {
+  margin: 0;
+}
+
+.project-reading-loop p:not(.eyebrow) {
+  margin-top: var(--space-2);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.project-reading-loop__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .project-hero__badges {
@@ -640,7 +709,7 @@ function openSource(source: SourceReferenceRecord) {
 .project-stats {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: var(--space-3);
 }
 
@@ -696,8 +765,13 @@ function openSource(source: SourceReferenceRecord) {
 
 @media (max-width: 1100px) {
   .project-cockpit,
+  .project-reading-loop,
   .project-card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-reading-loop__actions {
+    justify-content: flex-start;
   }
 
   .project-cockpit__rail {

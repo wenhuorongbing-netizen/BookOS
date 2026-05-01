@@ -20,6 +20,7 @@
           <AppBadge variant="primary">{{ sessions.length }} sessions</AppBadge>
           <AppBadge variant="accent">{{ openSessionCount }} open</AppBadge>
           <AppBadge variant="neutral">{{ totalReviewItems }} review items</AppBadge>
+          <AppBadge v-if="sourceBackedRecordCount" variant="success">{{ sourceBackedRecordCount }} source-backed records</AppBadge>
         </div>
       </div>
       <div class="task-first-panel__actions">
@@ -39,6 +40,26 @@
       title="Review only real source-backed material"
       description="Create sessions from books, concepts, or projects when there are records worth revisiting."
     />
+
+    <AppCard v-if="!sessions.length && sourceBackedRecordCount" class="first-review-prompt" as="section">
+      <div>
+        <div class="eyebrow">First review is ready</div>
+        <h2>Review one real source-backed object</h2>
+        <p>
+          You already have quotes, actions, or concepts. Start with a small review instead of opening advanced analytics.
+          Use a book or concept ID from the source record; no fake prompts are generated.
+        </p>
+      </div>
+      <div class="first-review-prompt__actions">
+        <AppButton variant="primary" @click="scrollToReviewForm">Create First Review</AppButton>
+        <RouterLink to="/my-library" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">Choose Source Book</AppButton>
+        </RouterLink>
+        <RouterLink to="/concepts" custom v-slot="{ navigate }">
+          <AppButton variant="ghost" @click="navigate">Open Concepts</AppButton>
+        </RouterLink>
+      </div>
+    </AppCard>
 
     <section class="review-grid">
       <AppCard class="review-form" as="section">
@@ -116,7 +137,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RouterLink, useRouter } from 'vue-router'
+import { getActionItems } from '../api/actionItems'
+import { getConcepts } from '../api/knowledge'
 import { createReviewSession, generateReviewFromBook, generateReviewFromConcept, generateReviewFromProject, getReviewSessions } from '../api/learning'
+import { getQuotes } from '../api/quotes'
 import AppBadge from '../components/ui/AppBadge.vue'
 import AppButton from '../components/ui/AppButton.vue'
 import AppCard from '../components/ui/AppCard.vue'
@@ -136,9 +160,11 @@ const saving = ref(false)
 const errorMessage = ref('')
 const form = reactive({ title: '', scopeType: 'GENERAL', scopeId: null as number | null })
 const generateForm = reactive({ scopeType: 'BOOK', id: null as number | null, title: '' })
+const sourceSignals = reactive({ quotes: 0, actions: 0, concepts: 0 })
 const openSessionCount = computed(() => sessions.value.filter((session) => !session.completedAt).length)
 const totalReviewItems = computed(() => sessions.value.reduce((total, session) => total + session.itemCount, 0))
 const openSession = computed(() => sessions.value.find((session) => !session.completedAt) ?? null)
+const sourceBackedRecordCount = computed(() => sourceSignals.quotes + sourceSignals.actions + sourceSignals.concepts)
 const reviewTask = computed(() => {
   if (openSession.value) {
     return {
@@ -160,6 +186,16 @@ const reviewTask = computed(() => {
     }
   }
 
+  if (sourceBackedRecordCount.value > 0) {
+    return {
+      title: 'Start your first source-backed review',
+      description: 'You have real source-backed records. Create a small review from a book or concept before adding more captures.',
+      primaryLabel: 'Create First Review',
+      routeName: '',
+      routeParams: {},
+    }
+  }
+
   return {
     title: 'Start with one small review session',
     description: 'Create an empty session or generate one from a real book, concept, or project ID. No fake prompts are generated.',
@@ -169,7 +205,10 @@ const reviewTask = computed(() => {
   }
 })
 
-onMounted(loadSessions)
+onMounted(() => {
+  void loadSessions()
+  void loadSourceSignals()
+})
 
 async function loadSessions() {
   loading.value = true
@@ -181,6 +220,13 @@ async function loadSessions() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadSourceSignals() {
+  const [quotesResult, actionsResult, conceptsResult] = await Promise.allSettled([getQuotes(), getActionItems(), getConcepts()])
+  sourceSignals.quotes = quotesResult.status === 'fulfilled' ? quotesResult.value.length : 0
+  sourceSignals.actions = actionsResult.status === 'fulfilled' ? actionsResult.value.length : 0
+  sourceSignals.concepts = conceptsResult.status === 'fulfilled' ? conceptsResult.value.length : 0
 }
 
 async function createManualSession() {
@@ -240,6 +286,35 @@ function scrollToReviewForm() {
   gap: var(--space-5);
 }
 
+.first-review-prompt {
+  padding: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  border-color: color-mix(in srgb, var(--bookos-primary) 24%, var(--bookos-border));
+  background: color-mix(in srgb, var(--bookos-primary-soft) 44%, var(--bookos-surface));
+}
+
+.first-review-prompt h2 {
+  margin: var(--space-1) 0 0;
+  color: var(--bookos-text-primary);
+  font-size: var(--type-section-title);
+}
+
+.first-review-prompt p {
+  margin: var(--space-2) 0 0;
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.first-review-prompt__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .review-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.42fr) minmax(0, 1fr);
@@ -280,6 +355,15 @@ function scrollToReviewForm() {
 }
 
 @media (max-width: 960px) {
+  .first-review-prompt {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .first-review-prompt__actions {
+    justify-content: stretch;
+  }
+
   .review-grid,
   .form-grid {
     grid-template-columns: 1fr;

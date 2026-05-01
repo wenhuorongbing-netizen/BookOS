@@ -1,10 +1,10 @@
 # BookOS Product Slimming Baseline
 
-Last reviewed: 2026-04-30.
+Last reviewed: 2026-05-01.
 
 Reviewed branch: `main`.
 
-Reviewed SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+Reviewed SHA: `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
 
 ## Purpose
 
@@ -21,6 +21,7 @@ The following routes are implemented in `frontend/src/router/index.ts` and resol
 | First-run onboarding | `/onboarding` | `OnboardingView.vue` | Verified |
 | Use case library | `/use-cases` | `UseCasesView.vue` | Verified |
 | Use case detail | `/use-cases/:slug` | `UseCaseDetailView.vue` | Verified |
+| First Valuable Loop | `/guided/first-loop` | `GuidedFirstLoopView.vue` | Verified |
 | Help home | `/help` | `HelpView.vue` | Verified |
 | Help topic | `/help/:topic` | `HelpView.vue` | Verified |
 | Demo Workspace | `/demo` | `DemoWorkspaceView.vue` | Verified |
@@ -189,6 +190,12 @@ The Product Slimming sprint should implement only these categories first:
 5. Keep advanced routes reachable through More and Cmd/Ctrl+K.
 
 Do not remove routes, remove data, or claim external validation without actual user sessions.
+
+## Current Implementation Status
+
+This baseline now agrees with `docs/current-state.md`: current `main` is verified through Product Slimming Sprint 5 at `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
+
+`/guided/first-loop` is a real route and view. Dashboard, Library, Demo Workspace, Help, and Use Cases link to it. The view uses real book, library, capture, parser, conversion, source-opening, and use-case progress APIs rather than fake training data.
 
 ## Sprint 5 Implementation Notes
 

@@ -1,8 +1,8 @@
 # BookOS Manual Release QA
 
-Last updated: 2026-04-30.
+Last updated: 2026-05-01.
 
-Use this template before tagging BookOS Public Beta 0.1.
+Use this template before tagging or broadening the BookOS beta. This is a QA checklist, not evidence of human research unless completed with real participants.
 
 ## Run Metadata
 
@@ -19,155 +19,190 @@ Use this template before tagging BookOS Public Beta 0.1.
 
 Record `PASS`, `FAIL`, or `NOT RUN`.
 
-- Backend tests: PASS on 2026-04-30, `.\mvnw.cmd test`, 62 tests.
-- Frontend typecheck: PASS on 2026-04-30, `npm run typecheck`.
-- Frontend production build: PASS on 2026-04-30, `npm run build`.
-- Docker Compose config: PASS on 2026-04-30 for local MySQL and full stack.
-- Docker backend image build: PASS on 2026-04-29 via `docker compose -f docker-compose.full.yml build`.
-- Docker frontend image build: PASS on 2026-04-29 via `docker compose -f docker-compose.full.yml build`.
-- Full-stack Docker health smoke: PASS on 2026-04-29 with isolated Compose project `bookos_beta_check`.
-- Playwright E2E smoke: PASS on 2026-04-30, `npm run e2e -- --workers=1`, 19 tests.
-- Secret/artifact scan: PASS on 2026-04-30 for common token patterns and committed artifact paths.
+- Backend tests: `cd backend && .\mvnw.cmd test`.
+- Frontend install: `cd frontend && npm ci`.
+- Frontend typecheck: `npm run typecheck`.
+- Frontend production build: `npm run build`.
+- Full E2E smoke: `npm run e2e`.
+- Product Slimming usability gate: `npm run e2e:usability`.
+- Docker local MySQL config: `docker compose config`.
+- Docker full-stack config: `docker compose -f docker-compose.full.yml config`.
+- Secret/artifact scan:
 
-Note: full manual browser QA and responsive checks still need human sign-off before tagging.
+Latest internal gate on SHA `c62e9eaa163e9ae7192046dceda09a6bf2470091`:
+
+- Backend tests: PASS, 71 tests.
+- Frontend typecheck: PASS.
+- Frontend build: PASS.
+- Full E2E smoke: PASS, 31 tests.
+- Usability E2E: PASS, 8 tests.
 
 ## Browser Smoke Checklist
 
 - Register a fresh user.
 - Log in.
-- Confirm dashboard loads.
+- Confirm Dashboard loads.
 - Log out and log in again.
 - Create a book.
 - Add the book to personal library.
-- Update reading status to `READING`.
+- Update reading status to Reading.
 - Update current page and rating.
-- Open book detail.
+- Open Book Detail.
 - Create a note.
-- Create a quick capture with emoji, page marker, tag, and `[[Concept]]`.
+- Create a quick capture with marker, page, tag, and `[[Concept Name]]`.
 - Verify parser metadata appears.
 - Convert one capture to note.
 - Convert one capture to quote.
-- Convert one capture to action item.
+- Convert one capture to action.
 - Confirm converted captures are no longer incorrectly actionable.
-- Visit Quotes page and open created quote.
+- Visit Quotes and open created quote.
 - Open source from quote.
-- Visit Action Items page.
-- Complete and reopen action item.
+- Visit Actions.
+- Complete and reopen action.
 - Review parsed concept and create or accept concept.
-- Open concept detail.
-- Open related source references.
-- Load Daily page/cards.
-- Regenerate daily item if supported.
-- Save daily reflection if supported.
-- Open Forum page.
+- Open Concept Detail.
+- Open related source links.
+- Load Daily page or cards.
+- Open Forum.
 - Create source-linked thread.
 - Add comment.
-- Report thread.
 - Open Cmd/Ctrl+K global search.
-- Search books, notes, quotes, action items, concepts, forum, and projects where data exists.
+- Search books, notes, quotes, actions, concepts, forum, and projects where data exists.
 - Open result.
-- Open Graph page.
+- Open Knowledge Graph.
 - Confirm graph uses real links or honest empty state.
-- Generate MockAIProvider note summary suggestion.
-- Edit, accept, and reject AI suggestions.
-- Confirm accepted suggestion does not overwrite original note or source content.
+- Generate MockAIProvider draft.
+- Edit, accept, and reject drafts.
+- Confirm accepted draft does not overwrite source content.
 - Create a game project.
-- Apply a quote/concept/source reference to project.
-- Create project problem, design decision, playtest finding, and lens review.
+- Apply quote, concept, or source to project.
+- Create project problem, design decision, playtest finding, and lens review where supported.
 - Export user data.
-- Preview import.
+- Preview import if testing import.
 - Confirm import preview does not write records.
-- Open admin ontology page as admin.
-- Load default ontology JSON.
-- Dry-run import.
+- Open Ontology Import as admin.
 - Confirm non-admin cannot access admin import.
 
-## Hands-On Use Case QA
+## Hands-On Product Slimming Scenarios
 
-Use `docs/first-15-minutes.md`, `docs/use-case-playbook.md`, and `docs/hands-on-beta-ux-report.md` for scenario instructions and scoring.
+Use `docs/first-15-minutes.md`, `docs/use-case-playbook.md`, `docs/hands-on-beta-ux-report.md`, and `docs/usability-scorecard.md`.
 
-Record `PASS`, `PARTIAL`, `FAIL`, or `NOT VERIFIED`.
+Score each scenario:
 
-### Scenario 1: First-Time Reader
+- Discoverability: 0-5.
+- Clarity: 0-5.
+- Completion: 0-5.
+- Cognitive load: 0-5 where higher means lower overload.
+- Source visibility: 0-5.
+- Confidence: 0-5.
 
-- Register a fresh user.
-- Choose Reader Mode.
-- Add a book.
-- Add it to the personal library.
-- Set reading status to Reading.
-- Open Book Detail.
-- Save one source-backed Quick Capture.
-- Convert the capture to Quote.
-- Open the Quote.
-- Open Source from the Quote.
+Mark result as `PASS`, `PARTIAL`, `FAIL`, or `NOT VERIFIED`.
+
+### Scenario 1: First Valuable Loop
+
+- Register fresh user.
+- Complete onboarding.
+- Add book.
+- Capture original thought.
+- Process capture.
+- Open source.
+- Complete or inspect use-case checklist.
 - Result:
+- Scores:
 - Notes:
 
-### Scenario 2: Note-Taker
+### Scenario 2: Reader Mode
+
+- Choose Reader Mode.
+- Confirm Dashboard shows three primary actions.
+- Add book.
+- Set reading state.
+- Capture thought.
+- Convert capture to quote.
+- Open source.
+- Result:
+- Scores:
+- Notes:
+
+### Scenario 3: Note-Taker Mode
 
 - Choose Note-Taker Mode.
-- Create a note for a book.
-- Open the Quick Capture guide.
-- Insert an example and confirm it does not save fake data automatically.
-- Save one real action capture.
-- Open Capture Inbox.
-- Convert the capture to Action Item.
+- Create book.
+- Create note.
+- Use capture guide.
+- Convert capture to action.
+- Process capture checklist.
 - Result:
+- Scores:
 - Notes:
 
-### Scenario 3: Game Designer
+### Scenario 4: Game Designer Mode
 
 - Choose Game Designer Mode.
-- Add a game design book.
-- Create a project.
-- Create or open a quote/concept.
-- Apply the quote/concept to the project.
-- Create a design decision.
-- Open Project Cockpit.
-- Verify source reference visibility.
+- Create book.
+- Create project.
+- Apply source-backed quote or concept to project.
+- Create design decision.
+- Open project cockpit.
+- Verify source visibility.
 - Result:
+- Scores:
 - Notes:
 
-### Scenario 4: Researcher
+### Scenario 5: Researcher Mode
 
-- Create a note or capture with `[[Concept Name]]`.
-- Open Concept Review.
-- Create or accept the concept.
+- Choose Researcher Mode.
+- Capture with `[[Concept Name]]`.
+- Review concept.
 - Open Concept Detail.
-- Verify source references and backlinks.
-- Open scoped Graph.
-- Start a review session where available.
+- Open scoped graph or honest empty state.
+- Start review session.
 - Result:
+- Scores:
 - Notes:
 
-### Scenario 5: Community User
+### Scenario 6: Community Mode
 
-- Open Forum.
-- Create a source-linked thread from a book, quote, concept, project, or source reference where available.
-- Add a comment.
-- Open the attached source context.
-- Confirm private source context is not leaked to unauthorized users.
+- Choose Community Mode.
+- Create or choose source-backed book, quote, or concept.
+- Create source-linked forum thread.
+- Add comment.
+- Open source context.
+- Search forum or source discussion if data exists.
 - Result:
+- Scores:
 - Notes:
 
-### Scenario 6: Advanced User
+### Scenario 7: Demo Workspace
 
+- Start Demo Workspace.
+- Confirm demo safety copy is visible.
+- Open demo record.
+- Reset demo.
+- Delete demo.
+- Confirm demo data does not appear as real personal data.
+- Result:
+- Scores:
+- Notes:
+
+### Scenario 8: Advanced Mode
+
+- Choose Advanced Mode.
 - Open Knowledge Graph.
-- Confirm graph uses real data or an honest empty state.
-- Open Import/Export.
-- Export user data.
-- Generate a MockAIProvider draft.
-- Edit, accept, and reject drafts.
-- Confirm source content is not overwritten.
+- Confirm real data or honest empty state.
+- Export data.
+- Generate MockAIProvider draft.
+- Accept or reject draft safely.
 - Result:
+- Scores:
 - Notes:
 
 ## Responsive Smoke
 
-- Desktop width: three-zone cockpit does not overlap.
+- Desktop width: cockpit layout does not overlap.
 - Tablet width: right rail collapses or stacks safely.
 - Mobile width: no horizontal overflow.
-- Quick capture remains usable.
+- Quick Capture remains usable.
 - Tables/lists remain readable or scroll safely.
 
 ## Accessibility Smoke
@@ -179,16 +214,15 @@ Record `PASS`, `PARTIAL`, `FAIL`, or `NOT VERIFIED`.
 - Forms have labels and validation messages.
 - Progress bars expose values.
 - Status is not communicated by color alone.
-- Reduced motion baseline is respected.
 
 ## Security Smoke
 
-- Private source references are not visible to another user.
+- Private source links are not visible to another user.
 - Search does not return another user's private data.
 - Graph does not include another user's private nodes.
 - Forum private context is hidden or unavailable when unauthorized.
 - AI suggestion list is user-scoped.
-- Admin ontology import is admin-only.
+- Ontology Import is admin-only.
 - Markdown content does not execute scripts.
 
 ## Performance Baseline
@@ -209,5 +243,7 @@ Record observed local values:
 - P0 blockers:
 - P1 blockers:
 - P2 issues accepted:
+- Product Slimming score:
+- First 15 Minutes readiness score:
 - Release recommendation:
 - Approver:

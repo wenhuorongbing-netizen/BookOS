@@ -6,7 +6,7 @@
         <h1>Use BookOS by workflow, not by module</h1>
         <p>
           These templates show practical paths from reading to notes, source-backed knowledge, project action,
-          discussion, search, graph exploration, export, and safe draft assistance.
+          discussion, search, Knowledge Graph exploration, export, and safe draft assistance.
         </p>
       </div>
       <div class="use-cases-hero__note">
@@ -51,7 +51,7 @@
     <AppEmptyState
       v-if="!groupedUseCases.length"
       title="No use cases match that search"
-      description="Try a broader term such as capture, project, source, graph, export, or AI."
+      description="Try a broader term such as capture, project, source, Knowledge Graph, export, or Draft Assistant."
     />
   </div>
 </template>

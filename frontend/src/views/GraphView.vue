@@ -49,7 +49,7 @@
             controls-position="right"
             placeholder="Any book"
             :disabled="isBookRoute || isConceptRoute || isProjectRoute"
-            aria-label="Filter graph by book id"
+            aria-label="Filter Knowledge Graph by book id"
           />
         </label>
         <label class="graph-field">
@@ -60,7 +60,7 @@
             controls-position="right"
             placeholder="Any concept"
             :disabled="isBookRoute || isConceptRoute || isProjectRoute"
-            aria-label="Filter graph by concept id"
+            aria-label="Filter Knowledge Graph by concept id"
           />
         </label>
         <label class="graph-field">
@@ -71,24 +71,24 @@
             controls-position="right"
             placeholder="Any project"
             :disabled="isBookRoute || isConceptRoute || isProjectRoute"
-            aria-label="Filter graph by project id"
+            aria-label="Filter Knowledge Graph by project id"
           />
         </label>
         <label class="graph-field">
           <span>Entity type</span>
-          <el-select v-model="entityTypeFilter" clearable placeholder="All entities" aria-label="Filter graph by entity type">
+          <el-select v-model="entityTypeFilter" clearable placeholder="All entities" aria-label="Filter Knowledge Graph by entity type">
             <el-option v-for="option in entityTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
           </el-select>
         </label>
         <label class="graph-field">
           <span>Relationship</span>
-          <el-select v-model="relationshipTypeFilter" clearable filterable placeholder="All relationships" aria-label="Filter graph by relationship type">
+          <el-select v-model="relationshipTypeFilter" clearable filterable placeholder="All relationships" aria-label="Filter Knowledge Graph by relationship type">
             <el-option v-for="option in relationshipTypeOptions" :key="option" :label="typeLabel(option)" :value="option" />
           </el-select>
         </label>
         <label class="graph-field">
           <span>Confidence</span>
-          <el-select v-model="sourceConfidenceFilter" clearable placeholder="Any confidence" aria-label="Filter graph by source confidence">
+          <el-select v-model="sourceConfidenceFilter" clearable placeholder="Any confidence" aria-label="Filter Knowledge Graph by source confidence">
             <el-option v-for="option in sourceConfidenceOptions" :key="option" :label="option" :value="option" />
           </el-select>
         </label>
@@ -100,16 +100,16 @@
             start-placeholder="From"
             end-placeholder="To"
             value-format="YYYY-MM-DDTHH:mm:ss.SSS[Z]"
-            aria-label="Filter graph by created date range"
+            aria-label="Filter Knowledge Graph by created date range"
           />
         </label>
         <label class="graph-field">
           <span>Depth</span>
-          <el-input-number v-model="depthFilter" :min="1" :max="8" controls-position="right" aria-label="Graph traversal depth" />
+          <el-input-number v-model="depthFilter" :min="1" :max="8" controls-position="right" aria-label="Knowledge Graph traversal depth" />
         </label>
         <label class="graph-field">
           <span>Limit</span>
-          <el-input-number v-model="limitFilter" :min="10" :max="300" controls-position="right" aria-label="Maximum graph nodes" />
+          <el-input-number v-model="limitFilter" :min="10" :max="300" controls-position="right" aria-label="Maximum Knowledge Graph nodes" />
         </label>
         <div class="graph-filter-actions">
           <AppButton variant="secondary" @click="resetFilters">Reset Filters</AppButton>
@@ -138,7 +138,7 @@
       <AppEmptyState
         v-if="!graph.nodes.length"
         title="No Knowledge Graph links match these filters"
-        description="Create relationships through captures, concepts, source links, project applications, or manual relationships to grow this Knowledge Graph. BookOS will not invent graph nodes."
+        description="Create relationships through captures, concepts, source links, project applications, or manual relationships to grow this Knowledge Graph. BookOS will not invent Knowledge Graph nodes."
         compact
       >
         <template #actions>
@@ -202,7 +202,7 @@
           </svg>
         </section>
 
-        <section class="graph-side-panels" aria-label="Graph list fallback">
+        <section class="graph-side-panels" aria-label="Knowledge Graph list fallback">
           <div class="graph-panel">
             <div class="graph-panel-heading">
               <h3>Nodes</h3>
@@ -329,7 +329,7 @@
         <h2>{{ selectedNode.label }}</h2>
         <dl>
           <div><dt>Entity ID</dt><dd>{{ selectedNode.entityId }}</dd></div>
-          <div><dt>Graph ID</dt><dd>{{ selectedNode.id }}</dd></div>
+          <div><dt>Knowledge Graph ID</dt><dd>{{ selectedNode.id }}</dd></div>
           <div v-if="selectedNode.sourceConfidence"><dt>Source confidence</dt><dd>{{ selectedNode.sourceConfidence }}</dd></div>
           <div v-if="selectedNode.sourceReferenceId"><dt>Source link</dt><dd>#{{ selectedNode.sourceReferenceId }}</dd></div>
           <div v-if="selectedNode.createdAt"><dt>Created</dt><dd>{{ formatDate(selectedNode.createdAt) }}</dd></div>
@@ -503,7 +503,7 @@ const graphTitle = computed(() => {
 
 const graphTextSummary = computed(() => {
   const nodeTypes = [...new Set(graph.value.nodes.map((node) => typeLabel(node.type)))].join(', ') || 'none'
-  return `Knowledge graph with ${graph.value.nodes.length} nodes, ${graph.value.edges.length} relationships, node types: ${nodeTypes}.`
+  return `Knowledge Graph with ${graph.value.nodes.length} nodes, ${graph.value.edges.length} relationships, node types: ${nodeTypes}.`
 })
 
 const filtersActive = computed(() =>
@@ -608,7 +608,7 @@ async function loadGraph() {
     recordGraphOpened()
   } catch {
     graph.value = { nodes: [], edges: [] }
-    errorMessage.value = 'Check backend availability, graph filters, and permissions, then retry.'
+    errorMessage.value = 'Check backend availability, Knowledge Graph filters, and permissions, then retry.'
   } finally {
     loading.value = false
   }
@@ -719,7 +719,7 @@ function openSelectedEdgeSource() {
 function openEdgeNode(nodeId: string) {
   const node = graph.value.nodes.find((item) => item.id === nodeId)
   if (!node) {
-    ElMessage.warning('This graph node is not available in the current filtered result.')
+    ElMessage.warning('This Knowledge Graph node is not available in the current filtered result.')
     return
   }
   void openGraphNode(node)
@@ -742,7 +742,7 @@ async function openGraphNode(node: GraphNodeRecord) {
     return
   }
 
-  ElMessage.info('No detail route exists for this graph node yet.')
+  ElMessage.info('No detail route exists for this Knowledge Graph node yet.')
 }
 
 async function openNodeSource(node: GraphNodeRecord) {
@@ -830,7 +830,7 @@ function editSelectedEdge() {
   const source = parseGraphNodeId(selectedEdge.value.source)
   const target = parseGraphNodeId(selectedEdge.value.target)
   if (!source || !target) {
-    ElMessage.warning('This relationship cannot be edited because its graph IDs are invalid.')
+    ElMessage.warning('This relationship cannot be edited because its Knowledge Graph IDs are invalid.')
     return
   }
 

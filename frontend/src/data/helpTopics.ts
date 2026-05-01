@@ -19,7 +19,7 @@ export const helpTopics = [
     firstAction: 'Use Open Source on a quote, action, capture, project application, or Knowledge Graph node.',
     route: '/captures/inbox',
     useCaseSlug: 'open-source-from-quote-or-action',
-    example: 'Quote -> book + page range + source text excerpt.',
+    example: 'UI label: Source Link. Technical docs may still call this a SourceReference.',
     relatedSlugs: ['backlink', 'graph', 'quote', 'action-item'],
   },
   {
@@ -70,7 +70,7 @@ export const helpTopics = [
     slug: 'concept',
     term: 'Concept',
     shortDefinition: 'A reviewed idea such as Core Loop, Game Feel, or Player Motivation.',
-    whyItMatters: 'Concepts connect notes, quotes, projects, graph links, and review sessions.',
+    whyItMatters: 'Concepts connect notes, quotes, projects, Knowledge Graph links, and review sessions.',
     firstAction: 'Review a [[Concept]] marker from Process Captures before saving it as knowledge.',
     route: '/concepts',
     useCaseSlug: 'review-concept-marker',
@@ -85,7 +85,7 @@ export const helpTopics = [
     firstAction: 'Open Design Knowledge after you have concepts or seeded knowledge-map records to inspect.',
     route: '/knowledge',
     useCaseSlug: 'search-rediscover-knowledge',
-    example: 'Design Lens, Diagnostic Question, Exercise, Prototype Task.',
+    example: 'UI label: Design Knowledge. Technical docs may still call this a KnowledgeObject.',
     relatedSlugs: ['concept', 'design-lens', 'project-application'],
   },
   {
@@ -158,11 +158,11 @@ export const helpTopics = [
     slug: 'graph',
     term: 'Knowledge Graph',
     shortDefinition: 'A real-data map of relationships between books, notes, quotes, concepts, projects, and sources.',
-    whyItMatters: 'The graph is useful only when it shows persisted links, not decorative fake nodes.',
-    firstAction: 'Filter the graph by book, concept, or project after creating source-backed records.',
+    whyItMatters: 'The Knowledge Graph is useful only when it shows persisted links, not decorative fake nodes.',
+    firstAction: 'Filter the Knowledge Graph by book, concept, or project after creating source-backed records.',
     route: '/graph',
     useCaseSlug: 'inspect-knowledge-graph',
-    example: 'Book -> quote -> concept -> project application.',
+    example: 'UI label: Knowledge Graph. Technical routes and APIs may still use graph.',
     relatedSlugs: ['backlink', 'source-reference', 'concept'],
   },
   {
@@ -173,7 +173,7 @@ export const helpTopics = [
     firstAction: 'Open a detail page and check its sources and related links section.',
     route: '/graph',
     useCaseSlug: 'inspect-knowledge-graph',
-    example: 'A concept can show quotes, notes, and project applications that reference it.',
+    example: 'UI label: Related Link. Technical docs may still call this a backlink.',
     relatedSlugs: ['graph', 'source-reference', 'concept'],
   },
   {
@@ -195,7 +195,7 @@ export const helpTopics = [
     firstAction: 'Answer review items or save source-backed reflections to create progress records.',
     route: '/mastery',
     useCaseSlug: 'search-rediscover-knowledge',
-    example: 'Familiarity 3/5, usefulness 5/5, last reviewed date.',
+    example: 'UI label: Learning Progress. Technical docs may still call this mastery.',
     relatedSlugs: ['review-session', 'daily-prompt', 'concept'],
   },
   {
@@ -206,7 +206,7 @@ export const helpTopics = [
     firstAction: 'Generate a MockAIProvider draft from the Right Rail, then accept, edit, or reject it.',
     route: '/dashboard?focus=ai',
     useCaseSlug: 'mock-ai-draft-helper',
-    example: 'Draft status changes; the original note or quote remains unchanged.',
+    example: 'UI label: Draft Assistant. Technical docs may still call this AISuggestion or AI suggestion.',
     relatedSlugs: ['source-reference', 'quick-capture', 'import-preview'],
   },
   {

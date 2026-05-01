@@ -61,7 +61,7 @@
         </AppCard>
 
         <AppCard class="analytics-card" as="section">
-          <AppSectionHeader title="Most Linked Concepts" eyebrow="Knowledge graph input" compact />
+          <AppSectionHeader title="Most Linked Concepts" eyebrow="Knowledge Graph input" compact />
           <AppEmptyState v-if="!knowledge.mostLinkedConcepts.length" title="No concept activity yet" description="Review parsed concepts from captures to grow this list." compact />
           <ol v-else class="rank-list">
             <li v-for="item in knowledge.mostLinkedConcepts" :key="item.label">

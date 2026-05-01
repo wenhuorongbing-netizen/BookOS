@@ -262,7 +262,7 @@ test.describe('first 15 minutes usability paths by mode', () => {
     await expect(page.getByRole('heading', { name: conceptName })).toBeVisible()
     await page.goto(`/graph/concept/${conceptId}`)
     await expect(page.getByRole('heading', { name: 'Knowledge Graph', exact: true })).toBeVisible()
-    await expect(page.getByText(/Real data only|No graph links yet|No Knowledge Graph links/).first()).toBeVisible()
+    await expect(page.getByText(/Real data only|No Knowledge Graph links/).first()).toBeVisible()
 
     await page.goto('/review')
     await page.getByLabel('Title').first().fill(reviewTitle)
@@ -307,7 +307,7 @@ test.describe('first 15 minutes usability paths by mode', () => {
 
   test('Advanced Mode: open graph, export data, and use MockAIProvider draft safely', async ({ page, request }) => {
     const startedAt = Date.now()
-    const session = await registerAndChooseMode(page, request, 'Advanced Mode', /advanced graph\/AI\/import/i)
+    const session = await registerAndChooseMode(page, request, 'Advanced Mode', /Knowledge Graph, Draft Assistant, and import/i)
     const book = await createBookThroughApi(request, session.token, session.runId, 'Advanced First 15 Book')
     await apiPost(request, `/books/${book.id}/notes`, session.token, {
       title: `Advanced draft source note ${session.runId}`,
@@ -318,7 +318,7 @@ test.describe('first 15 minutes usability paths by mode', () => {
 
     await page.goto('/graph')
     await expect(page.getByRole('heading', { name: 'Knowledge Graph', exact: true })).toBeVisible()
-    await expect(page.getByText(/Real data only|No graph links yet|No Knowledge Graph links/).first()).toBeVisible()
+    await expect(page.getByText(/Real data only|No Knowledge Graph links/).first()).toBeVisible()
 
     await page.goto('/import-export')
     await expect(page.getByRole('heading', { name: 'Data Portability' })).toBeVisible()

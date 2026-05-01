@@ -211,7 +211,7 @@ const useCaseOptions: UseCaseOption[] = [
   },
   {
     value: 'ADVANCED_TOOLS',
-    label: 'I want to explore advanced graph/AI/import features.',
+    label: 'I want to explore Knowledge Graph, Draft Assistant, and import features.',
     description: 'Start from the full dashboard with advanced tools visible.',
   },
 ]
@@ -278,7 +278,7 @@ const modePlans: Record<StartingMode, ModePlan> = {
     routeLabel: 'Dashboard',
     nextActions: ['Open the dashboard.', 'Use Cmd/Ctrl+K search.', 'Explore Knowledge Graph, import/export, or assistant drafts.'],
     emptyTitle: 'Advanced tools need real source data',
-    emptyDescription: 'Graph, search, import/export, and mock AI panels are honest when no records exist.',
+    emptyDescription: 'Knowledge Graph, search, import/export, and Draft Assistant panels are honest when no records exist.',
   },
 }
 

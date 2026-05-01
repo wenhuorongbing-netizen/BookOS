@@ -137,11 +137,17 @@
 
         <div class="capture-card__meta">
           <AppBadge v-if="block.page" variant="accent" size="sm">p.{{ block.page }}</AppBadge>
+          <AppBadge v-else variant="neutral" size="sm">page unknown</AppBadge>
           <span>{{ formatDate(block.createdAt) }}</span>
         </div>
         <div v-if="displayTags(block).length || block.concepts.length" class="capture-card__taxonomy" aria-label="Tags and concepts">
           <AppBadge v-for="tag in displayTags(block)" :key="`tag-${tag}`" variant="neutral" size="sm">#{{ tag }}</AppBadge>
           <AppBadge v-for="concept in block.concepts" :key="`concept-${concept}`" variant="info" size="sm">[[{{ concept }}]]</AppBadge>
+        </div>
+        <div class="capture-card__recommendation">
+          <strong>Recommended next conversion</strong>
+          <span>{{ primaryConversionLabel(block) }}</span>
+          <p>{{ conversionReason(block) }}</p>
         </div>
         <div class="capture-card__source">
           <strong>Source link</strong>
@@ -484,6 +490,21 @@ function primaryConversionLabel(block: RecentNoteBlock) {
   return 'Convert to Note'
 }
 
+function conversionReason(block: RecentNoteBlock) {
+  if (block.concepts.length) {
+    return 'This capture contains concept markers. Review them so concepts stay intentional and source-linked.'
+  }
+
+  const kind = defaultConversionKind(block)
+  if (kind === 'QUOTE') {
+    return 'Quotes preserve a source-backed passage or quote-like excerpt for search, review, and later source checks.'
+  }
+  if (kind === 'ACTION_ITEM') {
+    return 'Actions turn a reading thought into a task you can complete, reopen, and trace back to the source.'
+  }
+  return 'Notes keep commentary readable while preserving the source book, known page, tags, and parsed concepts.'
+}
+
 function isConversionKind(value: unknown): value is ConversionKind {
   return value === 'NOTE' || value === 'QUOTE' || value === 'ACTION_ITEM'
 }
@@ -695,8 +716,30 @@ function conversionErrorMessage(error: unknown, kind: ConversionKind) {
   font-size: var(--type-metadata);
 }
 
+.capture-card__recommendation {
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--bookos-accent) 26%, var(--bookos-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bookos-accent-soft) 58%, var(--bookos-surface));
+  color: var(--bookos-text-secondary);
+  font-size: var(--type-metadata);
+}
+
+.capture-card__recommendation strong,
 .capture-card__source strong {
   color: var(--bookos-text-primary);
+}
+
+.capture-card__recommendation span {
+  color: var(--bookos-primary);
+  font-weight: 900;
+}
+
+.capture-card__recommendation p {
+  margin: 0;
+  line-height: var(--type-body-line);
 }
 
 .capture-card__warnings {

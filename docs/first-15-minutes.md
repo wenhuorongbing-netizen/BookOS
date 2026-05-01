@@ -1,78 +1,83 @@
 # BookOS First 15 Minutes Guide
 
-Last reviewed: 2026-04-30.
+Last reviewed: 2026-05-01.
 
-Reviewed SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+Reviewed SHA: `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
 
-## Goal
+## Purpose
 
-In the first 15 minutes, a new user should complete one valuable loop:
+This guide describes the intended first-session path for a new BookOS user. It is based on product design and automated QA, not external user research.
 
-Add book -> capture reading thought -> convert it -> open source.
+## First 15 Minutes Goal
 
-Game designers should then extend the loop:
+Complete one valuable source-backed loop:
+
+Add book -> capture reading thought -> process capture -> open source.
+
+Game designers can then extend it:
 
 Apply source-backed idea -> create project decision.
 
 ## Minute 0-2: Register and Choose Mode
 
-1. Register.
+1. Register a new account.
 2. Read the onboarding sentence: "BookOS helps you turn reading into source-backed notes, knowledge, projects, and discussions."
-3. Choose a mode:
-   - Reader Mode if you want reading progress and capture.
-   - Note-Taker Mode if you want notes and capture processing.
-   - Game Designer Mode if you want project application.
-   - Researcher Mode if concepts/review matter most.
-   - Advanced Mode only if you already know you need graph, import/export, or AI drafts.
+3. Choose the closest mode:
+   - Reader Mode: reading progress and capture.
+   - Note-Taker Mode: notes, captures, quotes, and actions.
+   - Game Designer Mode: project application.
+   - Researcher Mode: concepts, review, and scoped graph.
+   - Community Mode: source-linked discussion.
+   - Advanced Mode: graph, import/export, and Draft Assistant.
 
-Expected result: Dashboard opens with a practical next step.
+Expected result: the app opens a guided or mode-focused path rather than a wall of modules.
 
 ## Minute 2-5: Add First Book
 
-1. Click Add Book.
+1. Choose Add Book.
 2. Enter title and author.
-3. Add it to your library.
+3. Add the book to your library.
 4. Set status to Reading.
 5. Open Book Detail.
 
-Expected result: the book title, progress area, and Quick Capture are visible.
+Expected result: the user sees the current book context and Quick Capture.
 
-## Minute 5-8: Capture One Thought
+## Minute 5-8: Capture One Original Thought
 
-Use original text, not copied copyrighted passages.
+Use original notes, not copied copyrighted passages.
 
-Examples:
+Example capture patterns:
 
 ```text
-💡 p.12 This might improve my onboarding loop #idea [[Onboarding]]
-✅ page 20 Test a clearer feedback cue #todo [[Feedback Loop]]
-❓ 第42页 Why does this rule create tension? #question [[Meaningful Choice]]
+idea p.12 This might improve my onboarding loop #idea [[Onboarding]]
+todo page 20 Test a clearer feedback cue #todo [[Feedback Loop]]
+question chapter 2 Why does this rule create tension? #question [[Meaningful Choice]]
 ```
 
-If you do not know the page, omit it. BookOS should keep page unknown instead of guessing.
+Emoji markers can also be used if the UI supports them. If the page is unknown, omit it. BookOS must keep unknown page numbers as null instead of guessing.
 
 Expected result: parser preview shows type, page if known, tags, concepts, and source context.
 
 ## Minute 8-11: Process the Capture
 
-1. Open Capture Inbox or use the post-save next-step buttons.
+1. Open Process Captures or use the post-save next-step buttons.
 2. Convert the capture:
-   - Quote if it should be resurfaced later.
+   - Quote if it should be resurfaced or cited.
    - Action if it should become a task.
    - Note if it should become a longer thought.
-   - Concept Review if it includes `[[Concept]]`.
+   - Concept Review if it includes `[[Concept Name]]`.
 3. Open the created object.
 
-Expected result: the capture becomes a source-backed record and no longer stays incorrectly actionable.
+Expected result: the capture becomes a source-backed record and is no longer incorrectly actionable.
 
 ## Minute 11-13: Open Source
 
-1. Click Open Source from the quote/action/note/concept.
+1. Click Open Source from the quote, action, note, or concept.
 2. Confirm the source book is shown.
 3. Confirm page is shown only if supplied.
 4. Confirm unknown page remains unknown.
 
-Expected result: the user trusts where the idea came from.
+Expected result: the user can trust where the idea came from.
 
 ## Minute 13-15: Choose Next Path
 
@@ -80,47 +85,73 @@ Reader:
 
 - Continue reading.
 - Capture another thought.
-- Start Review when you have a few source-backed items.
+- Start Review after a few source-backed items exist.
 
-Note-taker:
+Note-Taker:
 
 - Create a Markdown note.
 - Process remaining captures.
-- Review concepts.
+- Convert captures into quote, action, note, or concept review.
 
-Game designer:
+Game Designer:
 
 - Create a project.
-- Apply the quote/concept to the project.
+- Apply a quote or concept to the project.
 - Create a design decision or playtest plan.
 
 Researcher:
 
+- Capture with `[[Concept Name]]`.
+- Review the concept.
 - Open Concept Detail.
-- Inspect backlinks.
-- Open scoped graph.
+- Open scoped Knowledge Graph.
 - Start a review session.
 
-Community user:
+Community:
 
-- Start a source-linked forum discussion from a quote, concept, or book.
+- Start a source-linked forum discussion from a book, quote, concept, project, or source.
+- Add a comment.
+- Reopen the attached source context.
 
-Advanced user:
+Advanced:
 
-- Open Graph from a scoped entity.
+- Open scoped graph after source-backed records exist.
 - Export data.
-- Generate a MockAIProvider draft and confirm it does not overwrite source content.
+- Generate a MockAIProvider Draft Assistant suggestion and confirm it does not overwrite source content.
 
 ## What to Avoid in the First 15 Minutes
 
-- Do not start with global Graph unless you already have data.
-- Do not start with Import/Export unless data portability is your first concern.
-- Do not start with AI drafts until you understand source references.
-- Do not create Knowledge Objects manually before trying capture and concept review.
+- Do not start with global Knowledge Graph unless data exists.
+- Do not start with Import/Export unless backup is the goal.
+- Do not start with Draft Assistant until source links are understood.
+- Do not create Design Knowledge manually before trying capture and concept review.
+- Do not create fake user data unless Demo Workspace is explicitly started.
+
+## Automated Coverage
+
+The current Product Slimming gate is:
+
+```bash
+cd frontend
+npm run e2e:usability
+```
+
+It covers:
+
+- Reader Mode.
+- Note-Taker Mode.
+- Game Designer Mode.
+- Researcher Mode.
+- Community Mode.
+- Advanced Mode.
+- Demo Workspace.
+- Use-case checklist routing.
+
+Latest status: PASS, 8 tests, on SHA `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
 
 ## Success Criteria
 
-The first 15 minutes are successful if the user can answer:
+The first session succeeds when the user can answer:
 
 - Which book am I working on?
 - What did I capture?
@@ -128,3 +159,9 @@ The first 15 minutes are successful if the user can answer:
 - What did I convert it into?
 - Where did the idea come from?
 - What should I do next?
+
+## Current Readiness
+
+First 15 Minutes readiness: 84/100 by internal heuristic QA.
+
+This is not human research. Run the usability study package before making external validation claims.

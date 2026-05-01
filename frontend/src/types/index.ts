@@ -15,9 +15,21 @@ export interface UserUseCaseProgressRecord {
   completedStepKeys: string[]
   automaticCompletedStepKeys: string[]
   effectiveCompletedStepKeys: string[]
+  stepVerification?: Record<string, UseCaseStepVerificationRecord>
   startedAt: string | null
   completedAt: string | null
   updatedAt: string | null
+}
+
+export type UseCaseStepVerificationState = 'complete' | 'auto' | 'manual' | 'unavailable' | 'blocked' | 'missingPrerequisite'
+
+export interface UseCaseStepVerificationRecord {
+  stepKey: string
+  state: UseCaseStepVerificationState
+  complete: boolean
+  automatic: boolean
+  manual: boolean
+  message: string
 }
 
 export interface UseCaseEventPayload {

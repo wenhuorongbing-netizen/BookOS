@@ -4,198 +4,153 @@ Last reviewed: 2026-05-01.
 
 Reviewed branch: `main`.
 
-Reviewed SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+Reviewed SHA: `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
 
 ## Roadmap Status
 
-This is a planning document for the next milestone. It does not claim that external usability research has been performed.
+This is the next-milestone plan after the Product Slimming E2E and heuristic scoring gate. It does not claim external usability research.
 
-## Recommended Milestone
+## Recommendation
 
-Product Slimming 0.2.
+Continue controlled beta with caveats, pause broad feature expansion, and start Workflow Hardening 0.3.
 
-Pause broad feature expansion until the first-day user journey is simpler and the strongest workflows are easier to discover.
+Product Slimming 0.2 has made BookOS usable enough for guided beta walkthroughs, but the product should not broaden release messaging until human usability sessions validate first-day comprehension.
 
 ## Product Goal
 
-Make BookOS feel like a hands-on reading-to-knowledge tool instead of a collection of modules.
+Make BookOS feel like a hands-on reading-to-knowledge workflow:
 
-The default experience should teach:
-
-Add book -> capture -> process capture -> open source -> review or apply to project.
+Add book -> capture -> process -> open source -> review or apply to project.
 
 ## Guiding Rules
 
-- Do not remove the advanced system.
-- Do not show every capability as equally important.
-- Prefer task labels over implementation labels.
+- Do not remove advanced capabilities.
+- Do not present every capability as equally important.
+- Prefer task language over implementation language.
 - Show advanced modules only when users have data or explicitly choose Advanced Mode.
 - Keep source traceability visible in every core workflow.
-- Keep AI draft-only and optional.
-- Do not invent page numbers or demo content.
+- Keep Draft Assistant optional and draft-only.
+- Do not invent page numbers.
+- Do not claim human research until real sessions happen.
 
-## Workstream 1: Navigation and Mode Defaults
+## Workstream 1: Advanced Mode Containment
 
-Goal: reduce visible choices without breaking deep links.
+Goal: make Advanced Mode feel intentional instead of overwhelming.
 
-Changes:
+Planned work:
 
-- Keep Dashboard, Library, Capture, Notes, Projects, and Review as the primary navigation set.
-- Keep Quotes, Actions, Concepts, Knowledge, Daily, and Forum secondary.
-- Keep Knowledge Graph, Analytics, Import/Export, AI, and Ontology Import in More or Advanced.
-- Make mode switching easier to find and explain why the Dashboard changes by mode.
-- Keep Admin Ontology visible only for admins.
-
-Success criteria:
-
-- New users can identify the primary action in under 10 seconds.
-- Advanced users can still access every route.
-- Normal users do not see admin-only controls.
-
-## Workstream 2: First Valuable Loop
-
-Goal: make the first 15 minutes repeatable and measurable.
-
-Changes:
-
-- Make Guided First Loop the main empty-state CTA.
-- Promote Add Book, Capture, Process Captures, and Open Source.
-- Add per-step recovery when users exit the flow.
-- Keep conversion suggestions simple: Quote, Action, Note, Concept Review.
+- Keep Knowledge Graph, Import/Export, Draft Assistant, Analytics, and Ontology Import in Advanced or More by default.
+- Show Advanced tools on Dashboard only when Advanced Mode is selected or source-backed data exists.
+- Add copy explaining why advanced tools may be empty.
+- Keep global graph secondary to scoped graph entry points from book, concept, project, and source.
 
 Success criteria:
 
-- At least 80% of test participants complete Add Book -> Capture -> Convert -> Open Source.
-- Median time to source open is under 15 minutes.
+- Non-advanced users are not distracted by global graph/import/AI cards.
+- Advanced users can still find every route through More and search.
 
-## Workstream 3: Quick Capture and Process Captures
+## Workstream 2: Researcher Path Hardening
 
-Goal: make the parser feel learnable.
+Goal: move Researcher Mode from PARTIAL to PASS.
 
-Changes:
+Planned work:
 
-- Continue moving "Capture Inbox" copy to "Process Captures."
-- Keep one-click examples, live parser preview, and beginner structured capture.
-- Show malformed page warnings.
-- Keep examples as input-only; never save fake captures automatically.
-
-Success criteria:
-
-- Users understand emoji, page, tag, and concept markers without external explanation.
-- Unknown page remains visibly unknown.
-
-## Workstream 4: Project Mode as a Guided Workflow
-
-Goal: make Game Designer Mode demonstrate BookOS value.
-
-Changes:
-
-- Lead with Apply Knowledge to Project.
-- Keep project problem, application, decision, playtest, and iteration as a guided sequence.
-- Keep the transactional wizard final review.
-- Improve success/failure copy so users know exactly what was created.
+- Add more examples for `[[Concept Name]]` on Researcher Dashboard and concept empty states.
+- Make concept review success summarize what was created and where the source link is.
+- Start review sessions from selected concept/book context without requiring technical IDs.
+- Keep graph scoped to the concept or book until relationships exist.
 
 Success criteria:
 
-- Game designers can explain how reading knowledge became a design action.
-- Wizard failures create no partial records.
+- Users understand how capture creates concept candidates.
+- Users can review a concept and start review without external explanation.
 
-## Workstream 5: Researcher and Community Context
+## Workstream 3: Community Path Hardening
 
-Goal: keep less common workflows useful without overwhelming first-day users.
+Goal: make source-linked discussion feel natural.
 
-Changes:
+Planned work:
 
-- Launch Researcher workflows from Concept Review, Review, and scoped Knowledge Graph.
-- Launch Community workflows from source-backed records rather than empty forum pages.
-- Provide stronger forum templates for Quote Discussion, Concept Discussion, and Project Critique.
-
-Success criteria:
-
-- Researcher and Community paths improve from PARTIAL to PASS in usability scoring.
-
-## Workstream 6: Advanced Surfaces
-
-Goal: hide complexity until useful.
-
-Changes:
-
-- Collapse Graph, Analytics, Import/Export, AI Settings, and Ontology Import by default.
-- Show graph entry points from book, concept, project, and source contexts.
-- Show analytics only when real data exists.
-- Show Draft Assistant only with source context or explicit Advanced Mode.
+- Add source-context badges on forum thread cards.
+- Promote forum creation from book, quote, concept, project, and source pages.
+- Keep global forum empty states educational, not blank.
+- Make generic thread creation available but not the default first action.
 
 Success criteria:
 
-- Advanced features do not distract from first loop completion.
-- Empty states explain how to create useful data.
+- Community users can start from a source-backed object and return to that source.
+- Empty forum does not look like failed social proof.
 
-## Workstream 7: Terminology Cleanup
+## Workstream 4: Review and Learning Progress Unification
 
-Goal: replace implementation terms with task language.
+Goal: reduce confusion between Review, Review Session, and Learning Progress.
 
-Priority renames:
+Planned work:
 
-1. Capture Inbox -> Process Captures.
-2. Action Items -> Actions.
-3. Knowledge Objects -> Design Knowledge.
-4. Source Reference -> Source Link.
-5. Entity Links -> Relationships.
-6. Backlinks -> Related Links.
-7. Mastery -> Learning Progress.
-8. AI Suggestions -> Draft Assistant.
-9. Admin Ontology -> Ontology Import.
-10. Graph -> Knowledge Graph.
+- Explain Learning Progress as a result of review activity.
+- Keep Review as the primary navigation label.
+- Show Learning Progress after review data exists.
+- Add source-backed review entry points from book, concept, quote, and project context.
 
 Success criteria:
 
-- Help text and page headers use user-facing labels.
-- Technical docs continue to map user labels to backend entity names.
+- Users know what to review next and why.
+- Learning Progress does not compete with first-day capture.
 
-## Workstream 8: Measurement and Human Study
+## Workstream 5: Project Mode Compression
 
-Goal: validate with real users instead of internal assumptions.
+Goal: keep Game Designer Mode strong while reducing submodule density.
 
-Changes:
+Planned work:
 
-- Run the usability study described in `docs/usability-study-plan.md`.
+- Keep Apply Reading Knowledge as the dominant project CTA.
+- Present problem, application, decision, and playtest as one guided sequence.
+- Keep lower-level CRUD pages available but secondary.
+- Improve created-record summary after wizard completion.
+
+Success criteria:
+
+- Game designers can explain how a reading source became a design decision.
+- Project subpages do not overwhelm first project creation.
+
+## Workstream 6: Measurement and Human Study
+
+Goal: replace internal assumptions with observed user evidence.
+
+Planned work:
+
+- Run the study in `docs/usability-study-plan.md`.
 - Use `docs/usability-test-script.md`.
-- Capture observations in `docs/usability-observation-form.md`.
-- Convert findings into P0, P1, and P2 product changes.
+- Capture notes in `docs/usability-observation-form.md`.
+- Track time to first book, capture, conversion, and source open.
+- Convert findings into P0/P1/P2 work.
 
 Success criteria:
 
-- Real moderated sessions are completed.
-- Findings are not presented as research until sessions occur.
-- PO decision is based on observed task completion and friction metrics.
+- No external validation claims are made before sessions happen.
+- PO decisions use observed task completion, wrong turns, and confidence ratings.
 
-## Top 10 Next UX Changes
+## Next 10 Development Priorities
 
-1. Make Guided First Loop the dominant empty Dashboard action.
-2. Rename remaining "Capture Inbox" surfaces to "Process Captures."
-3. Fold Learning Progress into the Review journey for normal users.
-4. Keep Knowledge Graph scoped to current book, concept, or project unless Advanced Mode is selected.
-5. Add a clearer "Why am I seeing this?" explanation on mode-specific Dashboards.
-6. Make Demo Workspace tutorials point to executable checklists.
-7. Improve Project Wizard final review, retry, and created-record summary copy.
-8. Turn Forum start points into source-context actions.
-9. Keep Import/Export in More and explain it as backup/portability.
-10. Add telemetry-free timing checkpoints for usability tests where safe.
+1. Polish Advanced Mode and keep it optional by default.
+2. Add source-context badges to forum thread cards.
+3. Improve concept review completion copy and next actions.
+4. Let users start review from selected book/concept context.
+5. Keep scoped graph entry points stronger than global graph.
+6. Merge Review and Learning Progress language for normal users.
+7. Reduce Project Mode submodule density.
+8. Add better explanations for hidden advanced sections.
+9. Run moderated usability sessions.
+10. Slice the dirty worktree into reviewable commits before release tagging.
 
-## Top 10 Bugs or Friction Points to Watch
+## Milestone Exit Criteria
 
-1. Users may still confuse raw capture, note, quote, and action.
-2. Project Mode can feel like too many sub-workflows at once.
-3. Researcher Mode lacks a single obvious first action.
-4. Forum is weak when started without source context.
-5. Graph can feel empty or abstract before relationships exist.
-6. Import/Export is powerful but not first-day relevant.
-7. Draft Assistant may still sound more authoritative than intended.
-8. Review and Learning Progress can feel like separate systems.
-9. Admin Ontology must stay hidden from non-admin users.
-10. Dirty worktree size remains a release-management risk until sliced.
+- Product Slimming score reaches at least 88/100.
+- First 15 Minutes readiness reaches at least 90/100.
+- Reader, Note-Taker, and Game Designer pass automated and human-observed flows.
+- Researcher and Community improve from PARTIAL to PASS or are explicitly positioned as secondary beta workflows.
+- No P0 usability blockers remain.
 
 ## Release Recommendation
 
-Controlled beta can continue with caveats. Broad public-beta expansion should wait for Product Slimming 0.2 and at least one real usability-study round.
-
+Continue controlled beta. Do not broaden public beta release messaging until Workflow Hardening 0.3 and at least one real usability-study round are complete.

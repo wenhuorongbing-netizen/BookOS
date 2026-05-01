@@ -68,12 +68,14 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -153,6 +155,16 @@ public class DemoWorkspaceService {
         return demoRecordRepository.findByUserIdAndEntityTypeIn(userId, entityTypes).stream()
                 .map(DemoRecord::getEntityId)
                 .collect(Collectors.toSet());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isDemoRecord(Long userId, String entityType, Long entityId) {
+        if (userId == null || !StringUtils.hasText(entityType) || entityId == null) {
+            return false;
+        }
+        return demoRecordRepository
+                .findByUserIdAndEntityTypeAndEntityId(userId, entityType.trim().toUpperCase(Locale.ROOT), entityId)
+                .isPresent();
     }
 
     private DemoWorkspaceStatusResponse status(User user) {

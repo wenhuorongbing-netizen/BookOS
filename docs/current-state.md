@@ -1,15 +1,15 @@
 # BookOS Current State
 
-Last reviewed: 2026-04-30.
+Last reviewed: 2026-05-01.
 
 This document records the implementation state of the current `main` branch. Older planning and UI audit documents in `docs/` are historical unless explicitly marked as current.
 
 ## Repository State
 
 - Current verified branch: `main`.
-- Current verified SHA: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
-- Current `origin/main` SHA at review time: `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
-- Working tree status at Product Slimming baseline start: clean before documentation updates.
+- Current verified SHA: `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
+- Current `origin/main` SHA at review time: `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
+- Working tree status at Product Slimming route/source-of-truth repair start: clean before documentation and guided-loop shortcut updates.
 - MVP release-candidate infrastructure, Dockerfiles, CI, endpoint inventory, data model overview, graph workspace, admin ontology import, and release docs are committed on `main`.
 
 ## Implemented Backend Modules
@@ -46,12 +46,13 @@ This document records the implementation state of the current `main` branch. Old
 
 ## Product Slimming Baseline
 
-The Product Slimming sprint starts from the verified `main` branch at `5ef591275c83b3f22ca7d83cd88d2ca7fdb6c578`.
+The Product Slimming source-of-truth now reflects the verified `main` branch at `c62e9eaa163e9ae7192046dceda09a6bf2470091`.
 
 Route verification at this SHA confirms that the following usability features are implemented as real routes and views:
 
 - First-run onboarding: `/onboarding` using `OnboardingView.vue`.
 - Hands-on use cases: `/use-cases` and `/use-cases/:slug` using `UseCasesView.vue` and `UseCaseDetailView.vue`.
+- First Valuable Loop: `/guided/first-loop` using `GuidedFirstLoopView.vue`.
 - In-app help: `/help` and `/help/:topic` using `HelpView.vue`.
 - Demo Workspace: `/demo` using `DemoWorkspaceView.vue`.
 - Project apply-knowledge wizard: `/projects/:id/wizard/apply-knowledge` using `ProjectApplyKnowledgeWizardView.vue`.
@@ -95,6 +96,24 @@ Current Product Slimming Sprint 3 implementation:
 - The `first-15-minutes` checklist now auto-detects the Open Source step from real `SOURCE_OPENED` events.
 - The `advanced-mode-search-graph-export-ai` checklist now auto-detects search, graph, and export steps from real route events.
 - Events do not create books, notes, captures, quotes, projects, source references, demo data, fake page numbers, or fake completion records.
+
+Current Product Slimming Sprint 4 implementation:
+
+- Dashboard and major entry surfaces use data-dependent progressive disclosure from real user state.
+- Empty users are guided toward Add Book, First Valuable Loop, and Demo Workspace instead of graph, analytics, AI, import/export, or admin tooling.
+- Users with books but no captures are pushed toward Quick Capture and parser examples.
+- Users with captures but no conversions are pushed toward Process Captures.
+- Users with source-backed records see Open Source, Review, Search, Daily, and Apply-to-Project actions when relevant.
+- Project Focus appears when project records exist; project graph/context actions remain contextual.
+- Advanced routes stay reachable through More, command palette, direct links, and deep links.
+
+Current Product Slimming Sprint 5 implementation:
+
+- Core workspaces now start with one task-first next-step card before dense filters or grids.
+- Quotes, Concepts, Design Knowledge, and Forum lead with the most useful first action for the current data state.
+- Daily promotes one primary path first, then keeps regenerate, skip, prototype task, project problem, and lens review under secondary actions.
+- Canonical technical routes and API names remain unchanged while visible copy uses user-facing labels.
+- `/guided/first-loop` is registered and Dashboard/Library/Demo/Help/Use Cases link to it; the guided view uses real APIs, preserves source references, and keeps unknown page numbers unknown.
 
 No external usability sessions have been conducted from this repository state. Existing usability conclusions are internal product/QA assessments only.
 

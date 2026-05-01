@@ -26,6 +26,25 @@
         :loop="forumWorkflowLoop"
       />
 
+      <AppCard v-if="!activeSlug && !threads.length && !loading" class="source-start-card" as="section" variant="highlight">
+        <div>
+          <p class="eyebrow">Community starts from source</p>
+          <h2>Use one book, quote, concept, or source link as the discussion anchor.</h2>
+          <p>
+            Empty forum states should not feel like an empty social feed. Start from a source-backed object first, then
+            attach that context to a structured thread.
+          </p>
+        </div>
+        <div class="source-start-card__actions">
+          <RouterLink to="/use-cases/community-source-discussion" custom v-slot="{ navigate }">
+            <AppButton variant="primary" @click="navigate">Start from a Source</AppButton>
+          </RouterLink>
+          <RouterLink :to="{ name: 'forum-new', query: newThreadQuery }" custom v-slot="{ navigate }">
+            <AppButton variant="secondary" @click="navigate">Open Thread Form</AppButton>
+          </RouterLink>
+        </div>
+      </AppCard>
+
       <section v-if="!activeSlug" class="forum-overview" aria-label="Forum overview">
         <AppCard class="overview-card" as="section">
           <AppSectionHeader title="Latest Threads" eyebrow="Recent activity" :level="2" compact />
@@ -126,9 +145,18 @@
             <AppEmptyState
               v-else-if="!threads.length"
               title="No threads yet"
-              description="Start a structured discussion from a book, quote, concept, source link, or this forum page."
+              description="Start from a source-backed book, quote, concept, or source link before making a generic thread."
               compact
-            />
+            >
+              <template #actions>
+                <RouterLink to="/use-cases/community-source-discussion" custom v-slot="{ navigate }">
+                  <AppButton variant="primary" @click="navigate">Start from a Source</AppButton>
+                </RouterLink>
+                <RouterLink :to="{ name: 'forum-new', query: newThreadQuery }" custom v-slot="{ navigate }">
+                  <AppButton variant="secondary" @click="navigate">New Thread</AppButton>
+                </RouterLink>
+              </template>
+            </AppEmptyState>
             <div v-else class="thread-list">
               <RouterLink
                 v-for="thread in threads"
@@ -218,12 +246,12 @@ const forumNextStep = computed(() => {
   }
 
   return {
-    title: 'Start one structured discussion',
-    description: 'Create a thread with a clear template and attach source context when you have it.',
-    primaryLabel: 'Start Thread',
-    primaryTo: { name: 'forum-new', query: newThreadQuery.value },
-    secondaryLabel: 'Browse Use Cases',
-      secondaryTo: '/use-cases/source-linked-forum-discussion',
+    title: 'Start from one source-backed discussion',
+    description: 'Create or choose a quote, concept, book, or source link first, then attach that context to a structured thread.',
+    primaryLabel: 'Start from Source',
+    primaryTo: '/use-cases/community-source-discussion',
+    secondaryLabel: 'Open Thread Form',
+    secondaryTo: { name: 'forum-new', query: newThreadQuery.value },
   }
 })
 
@@ -296,6 +324,32 @@ function statusVariant(status: ForumThreadRecord['status']) {
 .thread-list {
   display: grid;
   gap: var(--space-5);
+}
+
+.source-start-card {
+  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.source-start-card h2,
+.source-start-card p {
+  margin: 0;
+}
+
+.source-start-card p:not(.eyebrow) {
+  margin-top: var(--space-2);
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
+.source-start-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .forum-overview {
@@ -441,10 +495,19 @@ function statusVariant(status: ForumThreadRecord['status']) {
 }
 
 @media (max-width: 980px) {
+  .source-start-card,
   .forum-overview,
   .forum-grid,
   .forum-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .source-start-card {
+    grid-template-columns: 1fr;
+  }
+
+  .source-start-card__actions {
+    justify-content: flex-start;
   }
 
   .forum-sidebar {
@@ -453,6 +516,7 @@ function statusVariant(status: ForumThreadRecord['status']) {
 }
 
 @media (max-width: 680px) {
+  .source-start-card,
   .forum-overview,
   .forum-grid,
   .forum-toolbar {

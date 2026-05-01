@@ -41,9 +41,19 @@
     <AppEmptyState
       v-else-if="!filteredConcepts.length"
       title="No concepts found"
-      description="Review parsed [[Concept]] items from captures or note blocks to create source-backed concepts."
+      description="Concepts start as reviewed markers, not as guessed ontology. Capture a line like: idea p.12 prototype pacing [[Core Loop]] #systems, then review it in Process Captures."
       eyebrow="Concepts"
-    />
+    >
+      <p class="concept-syntax">Syntax to try: <code>💡 p.12 Your original thought [[Concept Name]] #tag</code></p>
+      <template #actions>
+        <RouterLink to="/captures/inbox" custom v-slot="{ navigate }">
+          <AppButton variant="primary" @click="navigate">Process Captures</AppButton>
+        </RouterLink>
+        <RouterLink to="/use-cases/researcher-review-concept" custom v-slot="{ navigate }">
+          <AppButton variant="secondary" @click="navigate">Learn Researcher Flow</AppButton>
+        </RouterLink>
+      </template>
+    </AppEmptyState>
 
     <section v-else class="concept-grid" aria-label="Concept results">
       <AppCard v-for="concept in filteredConcepts" :key="concept.id" class="concept-card" as="article">
@@ -243,6 +253,16 @@ function confidenceVariant(confidence: SourceConfidence) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.32fr) minmax(220px, 0.32fr);
   gap: var(--space-3);
+}
+
+.concept-syntax {
+  margin: 0;
+  color: var(--bookos-text-secondary);
+}
+
+.concept-syntax code {
+  color: var(--bookos-primary);
+  font-weight: 900;
 }
 
 .field {

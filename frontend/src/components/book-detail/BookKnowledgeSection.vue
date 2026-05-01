@@ -3,7 +3,7 @@
     <div class="knowledge-section__heading">
       <div>
         <div class="eyebrow">Middle Knowledge Layer</div>
-        <h2 id="knowledge-section-title">Graph, concepts, and active lenses</h2>
+        <h2 id="knowledge-section-title">Knowledge Graph, concepts, and active lenses</h2>
       </div>
       <AppBadge v-if="!directConcepts.length && !directLenses.length" variant="warning" size="sm">No extracted data yet</AppBadge>
     </div>
@@ -35,7 +35,7 @@
             class="graph-node graph-node--concept"
             :class="[`graph-node--${index + 1}`, `graph-node--${node.edgeStrength ?? 'weak'}`]"
             type="button"
-            :aria-label="`${node.type ?? 'Graph'} node ${node.name}, ${node.edgeStrength ?? 'weak'} relationship`"
+            :aria-label="`${node.type ?? 'Knowledge Graph'} node ${node.name}, ${node.edgeStrength ?? 'weak'} relationship`"
             @click="openGraphNode(node)"
           >
             {{ node.name }}
@@ -51,18 +51,18 @@
 
         <AppEmptyState
           v-else
-          title="No graph nodes yet"
+          title="No Knowledge Graph nodes yet"
           description="Add source-backed notes, concepts, quotes, or actions to build a Knowledge Graph preview."
           compact
         />
 
-        <div class="graph-legend" aria-label="Graph edge strength legend">
+        <div class="graph-legend" aria-label="Knowledge Graph relationship strength legend">
           <span><i class="graph-legend__line graph-legend__line--strong" />Strong</span>
           <span><i class="graph-legend__line graph-legend__line--medium" />Medium</span>
           <span><i class="graph-legend__line graph-legend__line--weak" />Weak</span>
         </div>
 
-        <AppButton variant="secondary" @click="$emit('open-graph')">View graph</AppButton>
+        <AppButton variant="secondary" @click="$emit('open-graph')">View Knowledge Graph</AppButton>
       </AppCard>
 
       <AppCard as="article" class="concept-card" variant="default">
@@ -198,7 +198,7 @@ const activeLenses = computed(() => {
 
 const graphSummary = computed(() => {
   const nodes = graphNodesAround.value.map((node) => `${node.name} (${node.type ?? 'node'}, ${node.edgeStrength ?? 'weak'})`).join(', ')
-  return `${props.book.title} is shown as the central node connected to ${nodes}. Edge strengths are derived from real graph relationships.`
+  return `${props.book.title} is shown as the central node connected to ${nodes}. Edge strengths are derived from real Knowledge Graph relationships.`
 })
 
 function openGraphNode(node: BookConceptPreview) {

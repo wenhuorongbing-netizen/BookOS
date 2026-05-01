@@ -63,6 +63,23 @@
       @primary="handleBookNextStep"
       @secondary="createBookReview"
     />
+
+    <div id="book-quick-capture">
+      <BookCaptureSection :book="book" />
+    </div>
+
+    <AppCard class="source-explainer" as="section">
+      <div>
+        <div class="eyebrow">Source links</div>
+        <h2>Every useful note should reopen its source</h2>
+        <p>
+          Captures, notes, quotes, and actions created from this book keep the book context and known page.
+          If the page is not supplied, BookOS stores it as unknown instead of guessing.
+        </p>
+      </div>
+      <AppButton variant="secondary" @click="handleOpenSource()">Open latest source</AppButton>
+    </AppCard>
+
     <details class="progressive-section">
       <summary>
         <span>Workflow guides</span>
@@ -131,15 +148,19 @@
       @create-prototype-task="handleCreatePrototypeTask"
       @apply-prompt-to-project="applyDailyPromptOpen = true"
     />
-    <BookKnowledgeSection
-      :book="book"
-      @open-graph="handleOpenGraph"
-      @open-concept="handleOpenConcept"
-      @open-lens="handleOpenLens"
-    />
-    <div id="book-quick-capture">
-      <BookCaptureSection :book="book" />
-    </div>
+
+    <details class="progressive-section" :open="hasAdvancedKnowledgeData">
+      <summary>
+        <span>Advanced knowledge panels</span>
+        <small>{{ hasAdvancedKnowledgeData ? 'Concepts and Knowledge Graph are ready' : 'Hidden until source-backed data exists' }}</small>
+      </summary>
+      <BookKnowledgeSection
+        :book="book"
+        @open-graph="handleOpenGraph"
+        @open-concept="handleOpenConcept"
+        @open-lens="handleOpenLens"
+      />
+    </details>
 
     <details class="progressive-section" :open="!book.inLibrary">
       <summary>
@@ -310,7 +331,7 @@ const bookUseCaseSlugs = [
   'capture-to-action-item',
   'review-concept-marker',
 ]
-const bookWorkflowLoop = ['Book source', 'Quick capture', 'Parsed knowledge', 'Project action']
+const bookWorkflowLoop = ['Add book', 'Quick capture', 'Process capture', 'Open source', 'Continue reading']
 const book = ref<BookRecord | null>(null)
 const status = ref<ReadingStatus>('BACKLOG')
 const progress = ref(0)
@@ -335,6 +356,16 @@ const readingEndPage = ref<number | null>(null)
 const readingMinutes = ref<number | null>(null)
 const readingReflection = ref('')
 const readingBusy = ref(false)
+const hasAdvancedKnowledgeData = computed(() => {
+  const currentBook = book.value
+  if (!currentBook) return false
+  return Boolean(
+    (currentBook.conceptsCount ?? 0) > 0 ||
+      (currentBook.ontologyConceptCount ?? 0) > 0 ||
+      (currentBook.knowledgeGraph?.nodes?.length ?? 0) > 0 ||
+      (currentBook.knowledgeGraph?.edges?.length ?? 0) > 0,
+  )
+})
 const bookNextStep = computed(() => {
   const currentBook = book.value
   if (!currentBook) {
@@ -387,7 +418,7 @@ const bookNextStep = computed(() => {
 
   return {
     title: 'Review this book before adding more modules',
-    description: 'Create a source-backed review session from the existing notes, quotes, and captures before moving into advanced graph work.',
+    description: 'Create a source-backed review session from the existing notes, quotes, and captures before moving into advanced Knowledge Graph work.',
     primaryLabel: 'Create Review',
     primaryTo: null,
     primaryLoading: readingBusy.value,
@@ -993,6 +1024,29 @@ function formatDate(value: string) {
   color: var(--bookos-text-secondary);
 }
 
+.source-explainer {
+  padding: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-color: color-mix(in srgb, var(--bookos-primary) 20%, var(--bookos-border));
+  background: linear-gradient(135deg, var(--bookos-surface), color-mix(in srgb, var(--bookos-primary-soft) 52%, var(--bookos-surface)));
+}
+
+.source-explainer h2 {
+  margin: var(--space-1) 0 0;
+  color: var(--bookos-text-primary);
+  font-size: var(--type-section-title);
+}
+
+.source-explainer p {
+  max-width: 72ch;
+  margin: var(--space-2) 0 0;
+  color: var(--bookos-text-secondary);
+  line-height: var(--type-body-line);
+}
+
 .detail-panel,
 .detail-library,
 .reading-session-panel {
@@ -1107,6 +1161,11 @@ function formatDate(value: string) {
 }
 
 @media (max-width: 640px) {
+  .source-explainer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .header-more-actions,
   .header-more-actions__menu {
     position: static;

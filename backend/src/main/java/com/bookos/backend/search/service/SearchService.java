@@ -11,6 +11,7 @@ import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.common.enums.CaptureStatus;
 import com.bookos.backend.common.enums.ForumThreadStatus;
 import com.bookos.backend.common.enums.Visibility;
+import com.bookos.backend.demo.service.DemoWorkspaceService;
 import com.bookos.backend.forum.entity.ForumThread;
 import com.bookos.backend.forum.repository.ForumThreadRepository;
 import com.bookos.backend.knowledge.entity.Concept;
@@ -72,6 +73,7 @@ public class SearchService {
     private final DesignDecisionRepository designDecisionRepository;
     private final PlaytestFindingRepository playtestFindingRepository;
     private final ProjectLensReviewRepository projectLensReviewRepository;
+    private final DemoWorkspaceService demoWorkspaceService;
 
     @Transactional(readOnly = true)
     public List<SearchResultResponse> search(String email, String query, String type, Long bookId) {
@@ -329,9 +331,18 @@ public class SearchService {
         }
 
         return results.stream()
+                .filter(result -> !isDemoSearchResult(user.getId(), result))
                 .sorted(Comparator.comparing(SearchResultResponse::updatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(MAX_RESULTS)
                 .toList();
+    }
+
+    private boolean isDemoSearchResult(Long userId, SearchResultResponse result) {
+        if (result == null || result.id() == null) {
+            return false;
+        }
+        String entityType = normalizeType(result.type());
+        return entityType != null && demoWorkspaceService.isDemoRecord(userId, entityType, result.id());
     }
 
     private boolean canSeeThread(User user, ForumThread thread) {

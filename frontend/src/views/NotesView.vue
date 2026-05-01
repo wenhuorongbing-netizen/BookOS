@@ -3,7 +3,7 @@
     <AppSectionHeader
       title="Book Notes"
       eyebrow="Notes"
-      :description="book ? `Write and review source-backed notes for ${book.title}.` : 'Choose a book first so every note can preserve its source.'"
+      :description="book ? `Write one readable note for ${book.title}; parsed blocks can come later.` : 'Choose a book first so every note can preserve its source.'"
       :level="1"
     >
       <template #actions>
@@ -74,7 +74,7 @@
         <AppSectionHeader
           title="Write a source-backed note"
           eyebrow="Markdown note"
-          description="Emoji markers, page references, tags, and [[Concept]] links are parsed without AI."
+          description="Save a normal Markdown note first. Parser preview is optional and never invents page numbers."
           :level="2"
           compact
         />
@@ -169,7 +169,7 @@
           <AppEmptyState
             v-if="!notes.length"
             title="No notes yet"
-            description="Create your first markdown note to generate parsed note blocks and source links."
+            :description="emptyNotesDescription"
             compact
           />
           <template v-else>
@@ -251,6 +251,11 @@ const canCreateNote = computed(() => Boolean(noteForm.title.trim() && noteForm.m
 const renderedDraft = computed(() => renderSafeMarkdown(noteForm.markdown))
 const parsedBlockCount = computed(() => notes.value.reduce((total, note) => total + note.blocks.length, 0))
 const latestNote = computed(() => notes.value[0] ?? null)
+const emptyNotesDescription = computed(() =>
+  book.value
+    ? `Start with one plain note for ${book.value.title}. You can add parsed blocks, source links, and concepts after the note exists.`
+    : 'Choose a book first so notes stay attached to their source.',
+)
 const noteTask = computed(() => {
   if (!book.value) {
     return {
@@ -372,7 +377,7 @@ function formatType(type: NoteBlockType) {
 function pageLabel(pageStart: number | null, pageEnd: number | null) {
   if (pageStart && pageEnd) return `p.${pageStart}-${pageEnd}`
   if (pageStart) return `p.${pageStart}`
-  return 'No page'
+  return 'Page unknown'
 }
 </script>
 

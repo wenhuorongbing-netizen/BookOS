@@ -194,7 +194,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
 
     await page.goto(`/concepts/${conceptId}`)
     await expect(page.getByRole('heading', { name: conceptName })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Apply or review this concept' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Review or inspect this concept' })).toBeVisible()
   })
 
   await test.step('create a project in the browser', async () => {
@@ -269,7 +269,7 @@ test('MVP reading loop works through browser routes and real APIs', async ({ pag
 
     await page.goto(`/graph/book/${bookId}`)
     await expect(page.getByRole('heading', { name: 'Knowledge Graph', exact: true })).toBeVisible()
-    await expect(page.getByText(/Real data only|No graph links yet/)).toBeVisible()
+    await expect(page.getByText(/Real data only|No Knowledge Graph links yet/)).toBeVisible()
 
     await page.goto(`/graph/project/${projectId}`)
     await expect(page.getByRole('heading', { name: 'Knowledge Graph', exact: true })).toBeVisible()

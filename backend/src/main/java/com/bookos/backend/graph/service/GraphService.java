@@ -13,6 +13,7 @@ import com.bookos.backend.capture.entity.RawCapture;
 import com.bookos.backend.capture.repository.RawCaptureRepository;
 import com.bookos.backend.daily.entity.DailyDesignPrompt;
 import com.bookos.backend.daily.repository.DailyDesignPromptRepository;
+import com.bookos.backend.demo.service.DemoWorkspaceService;
 import com.bookos.backend.forum.entity.ForumThread;
 import com.bookos.backend.forum.repository.ForumThreadRepository;
 import com.bookos.backend.graph.dto.GraphEdgeResponse;
@@ -89,6 +90,7 @@ public class GraphService {
     private final PlaytestFindingRepository playtestFindingRepository;
     private final ProjectLensReviewRepository projectLensReviewRepository;
     private final ProjectKnowledgeLinkRepository projectKnowledgeLinkRepository;
+    private final DemoWorkspaceService demoWorkspaceService;
 
     @Transactional(readOnly = true)
     public GraphResponse getWorkspaceGraph(
@@ -113,7 +115,7 @@ public class GraphService {
                     .orElseThrow(() -> new java.util.NoSuchElementException("Project not found."));
             addProjectGraph(builder, user.getId(), project);
             roots.add(nodeId("PROJECT", project.getId()));
-            return builder.toResponse(filter, roots);
+            return withDemoLabels(user.getId(), builder.toResponse(filter, roots));
         }
 
         if (conceptId != null) {
@@ -148,7 +150,7 @@ public class GraphService {
 
         entityLinkRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).forEach(link -> addEntityLink(builder, link));
 
-        return builder.toResponse(filter, roots);
+        return withDemoLabels(user.getId(), builder.toResponse(filter, roots));
     }
 
     @Transactional(readOnly = true)
@@ -184,7 +186,7 @@ public class GraphService {
                 .filter(link -> touchesGraph(link, builder.nodes))
                 .forEach(link -> addEntityLink(builder, link));
 
-        return builder.toResponse(filter, Set.of(nodeId("BOOK", bookId)));
+        return withDemoLabels(user.getId(), builder.toResponse(filter, Set.of(nodeId("BOOK", bookId))));
     }
 
     @Transactional(readOnly = true)
@@ -214,7 +216,7 @@ public class GraphService {
                 .filter(link -> touchesGraph(link, builder.nodes))
                 .forEach(link -> addEntityLink(builder, link));
 
-        return builder.toResponse(filter, Set.of(nodeId("PROJECT", projectId)));
+        return withDemoLabels(user.getId(), builder.toResponse(filter, Set.of(nodeId("PROJECT", projectId))));
     }
 
     @Transactional(readOnly = true)
@@ -254,7 +256,7 @@ public class GraphService {
         entityLinkRepository.findByUserIdAndTargetTypeAndTargetIdOrderByCreatedAtDesc(user.getId(), "CONCEPT", conceptId)
                 .forEach(link -> addEntityLink(builder, link));
 
-        return builder.toResponse(filter, Set.of(nodeId("CONCEPT", conceptId)));
+        return withDemoLabels(user.getId(), builder.toResponse(filter, Set.of(nodeId("CONCEPT", conceptId))));
     }
 
     private void addSourceReferences(GraphBuilder builder, Long userId, Long bookId) {
@@ -646,6 +648,55 @@ public class GraphService {
                 || book.getVisibility() == Visibility.SHARED
                 || book.getOwner() != null && Objects.equals(book.getOwner().getId(), user.getId())
                 || userBookRepository.findByUserIdAndBookId(user.getId(), book.getId()).isPresent();
+    }
+
+    private GraphResponse withDemoLabels(Long userId, GraphResponse response) {
+        Set<String> demoNodeIds = demoNodeIds(userId);
+        if (demoNodeIds.isEmpty()) {
+            return response;
+        }
+        List<GraphNodeResponse> nodes = response.nodes().stream()
+                .map(node -> demoNodeIds.contains(node.id()) ? withDemoLabel(node) : node)
+                .toList();
+        return new GraphResponse(nodes, response.edges());
+    }
+
+    private GraphNodeResponse withDemoLabel(GraphNodeResponse node) {
+        String label = StringUtils.hasText(node.label()) && !node.label().startsWith("[Demo]")
+                ? "[Demo] " + node.label()
+                : node.label();
+        return new GraphNodeResponse(
+                node.id(),
+                node.type(),
+                label,
+                node.entityId(),
+                node.sourceReferenceId(),
+                node.sourceConfidence(),
+                node.createdAt());
+    }
+
+    private Set<String> demoNodeIds(Long userId) {
+        Set<String> ids = new LinkedHashSet<>();
+        addDemoNodeIds(ids, userId, "BOOK", "BOOK");
+        addDemoNodeIds(ids, userId, "RAW_CAPTURE", "RAW_CAPTURE");
+        addDemoNodeIds(ids, userId, "SOURCE_REFERENCE", "SOURCE_REFERENCE");
+        addDemoNodeIds(ids, userId, "QUOTE", "QUOTE");
+        addDemoNodeIds(ids, userId, "ACTION_ITEM", "ACTION_ITEM");
+        addDemoNodeIds(ids, userId, "CONCEPT", "CONCEPT");
+        addDemoNodeIds(ids, userId, "KNOWLEDGE_OBJECT", "KNOWLEDGE_OBJECT");
+        addDemoNodeIds(ids, userId, "GAME_PROJECT", "PROJECT");
+        addDemoNodeIds(ids, userId, "PROJECT_PROBLEM", "PROJECT_PROBLEM");
+        addDemoNodeIds(ids, userId, "PROJECT_APPLICATION", "PROJECT_APPLICATION");
+        addDemoNodeIds(ids, userId, "DESIGN_DECISION", "DESIGN_DECISION");
+        addDemoNodeIds(ids, userId, "PLAYTEST_FINDING", "PLAYTEST_FINDING");
+        addDemoNodeIds(ids, userId, "PROJECT_LENS_REVIEW", "PROJECT_LENS_REVIEW");
+        addDemoNodeIds(ids, userId, "FORUM_THREAD", "FORUM_THREAD");
+        return ids;
+    }
+
+    private void addDemoNodeIds(Set<String> ids, Long userId, String demoEntityType, String graphType) {
+        demoWorkspaceService.demoIds(userId, demoEntityType)
+                .forEach(id -> ids.add(nodeId(graphType, id)));
     }
 
     private boolean sourceBelongsToBook(SourceReference sourceReference, Long bookId) {

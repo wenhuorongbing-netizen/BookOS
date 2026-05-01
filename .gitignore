@@ -1,17 +1,45 @@
+# Build outputs and dependency folders
 /backend/target/
 /frontend/node_modules/
 /frontend/dist/
 /frontend/test-results/
 /frontend/playwright-report/
 /frontend/blob-report/
+
+# Local runtimes and archives
 /tools/*.zip
 /tools/*.7z
 /tools/jdk*/
-/.env
-*.local
 /backend.zip
 *.7z
 *.zip
+
+# Local environment and secrets
+/.env
+/.env.*
+/backend/.env
+/backend/.env.*
+/frontend/.env
+/frontend/.env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
+id_rsa
+id_ecdsa
+id_ed25519
+.codex/
+/.codex/
+
+# Logs and OS/editor noise
 *.log
 *.out
 *.err
+.DS_Store
+Thumbs.db
+desktop.ini

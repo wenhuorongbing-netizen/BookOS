@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "e2e": "playwright test",
-    "e2e:usability": "playwright test e2e/usability-first-15-minutes.spec.ts",
+    "e2e:usability": "playwright test e2e/usability-first-15-minutes.spec.ts e2e/demo-workspace.spec.ts e2e/use-cases.spec.ts",
     "e2e:headed": "playwright test --headed",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"

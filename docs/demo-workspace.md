@@ -24,6 +24,8 @@ The workspace gives a new user safe, original sample records for the core BookOS
 - Source confidence for demo source references is `LOW`.
 - Demo records are excluded from normal analytics by default.
 - Analytics can include demo data only when the caller opts in with `includeDemo=true`.
+- Normal global search excludes demo records so practice data does not look like real user knowledge.
+- Knowledge Graph views label demo nodes with a `[Demo]` prefix when demo records are intentionally opened.
 
 ## Demo Data
 
@@ -108,8 +110,19 @@ The same endpoints include demo records only when explicitly requested:
 
 Reset and delete remove only records listed in `demo_records` for the current user. They do not delete normal user records. Book author and tag join rows for demo books are cleaned before deleting the demo book to avoid foreign key failures.
 
+## Search and Graph Behavior
+
+BookOS uses an explicit product decision for demo discoverability:
+
+- Normal global search excludes records listed in the current user's `demo_records` table.
+- Demo records remain directly openable from `/demo` through book, quote, action, concept, project, forum, and graph routes.
+- Graph endpoints may include demo records when the user opens a demo graph context, but demo nodes are labeled with `[Demo]`.
+- Demo graph edges are generated only from real demo source references and entity links. No fake graph nodes or relationships are invented.
+
+This keeps everyday search clean while still letting the Demo Workspace function as a hands-on training ground.
+
 ## Limitations
 
 - Demo scoping is currently implemented through the `demo_records` table, not per-entity `isDemo` columns.
 - Demo records may still appear in normal list pages, but they are clearly titled/tagged as demo records.
-- Demo records are excluded from analytics by default, but other feature-specific dashboards may still need explicit demo filters in later iterations.
+- Demo records are excluded from analytics and global search by default, but other feature-specific dashboards may still need explicit demo filters in later iterations.
